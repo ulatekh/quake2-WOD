@@ -87,7 +87,10 @@ qboolean SV_RunThink (edict_t *ent)
 	ent->nextthink = 0;
 	if (!ent->think)
 	{
-		if (ent->classname)
+		if (ent->classname && ent->model)
+			gi.error ("NULL ent->think (classname %s, model %s)", ent->classname,
+				ent->model);
+		else if (ent->classname)
 			gi.error ("NULL ent->think (classname %s)", ent->classname);
 		else
 			gi.error ("NULL ent->think");

@@ -9,8 +9,8 @@ void weapon_lasertrip_die (edict_t *self, edict_t *inflictor,
 	gi.sound (self, CHAN_WEAPON,
 		gi.soundindex ("flyer/flydeth1.wav"), 1, ATTN_NORM, 0);
 
-	// Set off the grenade
-	self->think = Grenade_Explode_dM;
+	// Blow up the grenade
+	self->think = BecomeExplosion1;
 	self->nextthink = level.time + FRAMETIME;
 
 	// Shut off the laser
@@ -146,6 +146,10 @@ PlaceLaserTripwire (edict_t *ent)
 	|| ((int)weaponban->value & WB_GRENADE))
 		return;
 
+	// Or if it's been too soon since the last tripwire this player placed.
+	if (level.time < ent->client->tripwire_debounce_time)
+		return;
+
 	// cells for laser ?
 	if (ent->client->pers.inventory[ITEM_INDEX(&gI_ammo_cells)] < 5)
 	{
@@ -208,8 +212,10 @@ PlaceLaserTripwire (edict_t *ent)
 	grenade->clipmask = MASK_SHOT;
 	grenade->solid = SOLID_NOT;
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade2/tris.md2");
-	grenade->classname = "grenade";
+	grenade->classname = "lasertrip_grenade";
 	grenade->owner = ent;
+	grenade->think = NULL;
+	grenade->nextthink = 0;
 
 	// Make the grenade react to radius damage, i.e. people can try to blow
 	// them up.
@@ -218,8 +224,8 @@ PlaceLaserTripwire (edict_t *ent)
 	VectorSet (grenade->maxs, 8, 8, 8);
 	grenade->takedamage = DAMAGE_YES;
 	grenade->clipmask = MASK_SOLID;
-	grenade->health = 100;
-	grenade->max_health = 100;
+	grenade->health = 20;
+	grenade->max_health = 20;
 	grenade->die = weapon_lasertrip_die;
 
 	// Set up some stuff, depending on the grenade type.  (This was stolen from
@@ -262,6 +268,7 @@ PlaceLaserTripwire (edict_t *ent)
 
 	gi.linkentity (grenade);
 
+#ifdef EXT_DEVT
 	// MAJOR HACK TO USE THE LASERTRIP GRENADE FEATURE FOR POINT LOCATIONALS.
 	if (sv_cheats->value)
 	{
@@ -279,6 +286,7 @@ PlaceLaserTripwire (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "\n");
 		return;
 	}
+#endif EXT_DEVT
 	
 	// -----------
 	// Setup laser
@@ -290,7 +298,7 @@ PlaceLaserTripwire (edict_t *ent)
 	laser -> s.renderfx              = RF_BEAM|RF_TRANSLUCENT;
 	laser -> s.modelindex            = 1;                    // must be non-zero
 	laser -> s.sound                 = gi.soundindex ("world/laser.wav");
-	laser -> classname               = "weapon_triplaser";
+	laser -> classname               = "lasertrip_laser";
 	laser -> s.frame                 = 2;    // beam diameter
 	laser -> owner                   = grenade;
 	laser -> s.skinnum               = laser_colour[((int) (random() * 1000)) % 5];
@@ -338,4 +346,7 @@ PlaceLaserTripwire (edict_t *ent)
 	// Make the "laser tripwire set" sound.
 	gi.sound (ent, CHAN_WEAPON, gi.soundindex ("world/fusein.wav"), 1,
 		ATTN_NORM, 0);
+
+	// Keep them from setting another laser tripwire for a few seconds.
+	ent->client->tripwire_debounce_time = level.time + 1.5;
 }

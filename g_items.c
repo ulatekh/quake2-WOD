@@ -2141,7 +2141,7 @@ gitem_t gI_weapon_sniper =
 	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
 	NULL,
 	0,
-/* precache */ "weapons/rg_hum.wav"
+/* precache */ "weapons/rg_hum.wav models/monsters/parasite/tip/tris.md2"
 };
 
 /*QUAKED weapon_plasma (.3 .3 1) (-16 -16 -16) (16 16 16)

@@ -265,7 +265,7 @@ void fire_flamerocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int 
 	rocket->s.sound = gi.soundindex ("weapons/rockfly.wav");
 
 	if (self->client)
-		check_firedodge (self, rocket->s.origin, dir, speed);
+		check_dodge (self, rocket->s.origin, dir, speed);
 
 	gi.linkentity (rocket);
 }

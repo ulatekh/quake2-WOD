@@ -107,11 +107,13 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 
 	item = ent->item;
 
+#ifdef EXT_DEVT
 	// HACK to use when I'm editing maps for Extinction.
 	if (sv_cheats->value)
 		gi.cprintf (other, PRINT_HIGH, "weapon at [%i,%i,%i]\n",
 			(int)ent->s.origin[0], (int)ent->s.origin[1],
 			(int)ent->s.origin[2]);
+#endif EXT_DEVT
 
 	// Determine what weapon was picked up and what weapons will be added to the
 	// inventory, depending on weapon banning.
@@ -1109,10 +1111,20 @@ void weapon_bazooka_fire (edict_t *ent)
 	fire_grenade_dM (ent, start, forward, damage, 500, 2.5, radius,
 		ent->client->dM_grenade, /* held */ false, /* bazookad */ true);
 
-	gi.WriteByte (svc_muzzleflash);
-	gi.WriteShort (ent-g_edicts);
-	gi.WriteByte (MZ_ROCKET | is_silenced);
-	gi.multicast (ent->s.origin, MULTICAST_PVS);
+	if (!is_silenced)
+	{
+		gi.WriteByte (svc_muzzleflash);
+		gi.WriteShort (ent-g_edicts);
+		gi.WriteByte (MZ_ROCKET | is_silenced);
+		gi.multicast (ent->s.origin, MULTICAST_PVS);
+	}
+	else
+	{
+		gi.WriteByte (svc_muzzleflash2);
+		gi.WriteShort (ent - g_edicts);
+		gi.WriteByte (MZ2_CHICK_ROCKET_1);
+		gi.multicast (start, MULTICAST_PVS);
+	}
 
 	ent->client->ps.gunframe++;
 
@@ -1166,10 +1178,20 @@ void Weapon_RocketLauncher_Fire (edict_t *ent)
 	fire_flamerocket (ent, start, forward, damage, 650, damage_radius, radius_damage);
 
 	// send muzzle flash
-	gi.WriteByte (svc_muzzleflash);
-	gi.WriteShort (ent-g_edicts);
-	gi.WriteByte (MZ_ROCKET | is_silenced);
-	gi.multicast (ent->s.origin, MULTICAST_PVS);
+	if (is_silenced)
+	{
+		gi.WriteByte (svc_muzzleflash);
+		gi.WriteShort (ent-g_edicts);
+		gi.WriteByte (MZ_ROCKET | is_silenced);
+		gi.multicast (ent->s.origin, MULTICAST_PVS);
+	}
+	else
+	{
+		gi.WriteByte (svc_muzzleflash2);
+		gi.WriteShort (ent - g_edicts);
+		gi.WriteByte (MZ2_CHICK_ROCKET_1);
+		gi.multicast (start, MULTICAST_PVS);
+	}
 
 	ent->client->ps.gunframe++;
 
@@ -2552,7 +2574,7 @@ void Freezer_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 	ent->client->kick_angles[0] = -1;
 
 	// tell it to fire the freezer instead
-	fire_freezer (ent, start, forward, damage, 2000, effect);
+	fire_freezer (ent, start, forward, damage, 2500, effect);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);

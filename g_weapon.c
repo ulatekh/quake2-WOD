@@ -10,7 +10,7 @@ a non-instant attack weapon.  It checks to see if a
 monster's dodge function should be called.
 =================
 */
-static void check_dodge (edict_t *self, vec3_t start, vec3_t dir, int speed)
+void check_dodge (edict_t *self, vec3_t start, vec3_t dir, int speed)
 {
 	vec3_t	end;
 	vec3_t	v;
@@ -483,7 +483,7 @@ void fire_sniper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	bolt->s.effects |= 0;
 	VectorClear (bolt->mins);
 	VectorClear (bolt->maxs);
-	bolt->s.modelindex = gi.modelindex ("models/objects/debris2/tris.md2");
+	bolt->s.modelindex = gi.modelindex ("models/monsters/parasite/tip/tris.md2");
 	bolt->s.sound = gi.soundindex ("misc/lasfly.wav");
 	bolt->owner = self;
 	bolt->touch = sniper_touch;
@@ -981,7 +981,7 @@ void Grenade_Explode_dM (edict_t *ent)
 			mod |= MOD_NOFRAG;
 
 		ent->classname = "plasma explosion";
-		T_RadiusDamage(ent, ent->owner, 300, NULL, 300, mod);
+		T_RadiusDamage(ent, ent->owner, 150, NULL, 300, mod);
 
 		// Kludge to get louder sound, since vol can't exceed 1.0
 		gi.sound (ent, CHAN_WEAPON, gi.soundindex("weapons/bfg__x1b.wav"), 1, ATTN_NORM, 0);
@@ -2061,9 +2061,6 @@ homing_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 		if ((int)fragban->value & WB_HOMINGROCKETLAUNCHER)
 			mod |= MOD_NOFRAG;
 
-		// How much damage we've received affects how much we dish out.
-		ent->dmg = ent->health;
-
 		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
 			plane->normal, ent->dmg, 120, 0, mod);
 	}
@@ -2120,8 +2117,8 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 	VectorSet (rocket->mins, -8, -8, -8);
 	VectorSet (rocket->maxs, 8, 8, 8);
 	rocket->mass = 10;
-	rocket->health = damage;
-	rocket->max_health = damage;
+	rocket->health = 20;
+	rocket->max_health = 20;
 	rocket->die = homing_die;
 
 	rocket->dmg = damage;
@@ -2234,8 +2231,8 @@ void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 		gi.sound (self, CHAN_VOICE, gi.soundindex ("weapons/frozen.wav"), 1,
 			ATTN_NORM, 0);
 
-		// If we could hurt them, freeze them.
-		if (damage > 0)
+		// If we hurt them without killing them, freeze them.
+		if (!other->deadflag && damage > 0)
 		{
 			// Freeze them for this long.
 			if (other->frozen)

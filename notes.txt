@@ -1,0 +1,114 @@
+To do
+-----
+If a weapon gets crushed out of existence, because it got blown there by some
+	explosion, make sure it gets respawned.  (*_blocked() functions in g_func.c)
+BUG: large values of weaponban will overload the float->int conversion.  Just
+	atoi() on the string and keep the value around.
+BUG: player ID doesn't work.
+BUG: frozen players are partly transparent to being shot?  Origin/min/max prob?
+BUG: "NULL ent->think, classname func_door"?!?!  Happens on mintro...maybe
+	other maps too.
+BUG: if a player disconnects while grappled, grapple remains behind.
+BUG: set 2 laser tripwires at the same spot and the laser goes through walls?
+Have the sniper rifle damage depend on how long they've held down the trigger.
+	Then there'd be NO problem making it an instant-fire weapon like the shotgun!
+Allow players to vote for certain aspects of the game, like weaponban,
+	featureban, fragban, kick, kickban, and so on.  All the players' votes
+	are continually tallied, and whatever has a majority vote will be put
+	into effect.  Server admin can control what players are allowed to vote for.
+Spawnpoints still getting tossed in explosions???  (T_ShockItems)
+Client heads sometimes hang in mid-air?  (ThrowClientHead)
+Grapple shakes violently when shrunk all the way up??
+Totally verify all precaching info with what's actually being used.
+Let monsters use some of the Weapons of Destruction!!  That oughta even up the
+	odds.
+When someone disconnects, go through the entities, find all of the entities
+	owned by that person, and remove them.  Mostly an issue for lasersights and
+	laser tripwires.
+Maybe make bazooka-fired grenades vulnerable.
+Have wall-grenades explode harmlessly (mostly) when shot.
+Allow the scanner to be moved to various parts of the screen, not just center.
+If someone can gib a person who's still alive, make them have blood trails
+	and identifiable body parts.  Have them bounce and even ricochet.  Have
+	them blow apart in a direction that makes sense given the impact on the
+	body.  So rocket and grenade hits would cause blood and gibs to sort of
+	radiate backward from that point, super shotgun blasts would cut people in
+	half and send the remaining pieces tumbling, and so on.
+A "say_to" command that allows people to send private messages to each other.
+	Any way to make a messagemode for it?
+Laser tripwires where the lasers move around and scan the area.
+Fix grappling hook so it doesn't need aliases.
+Make the HUD look more like Lithium's.
+Make jetpack dropable.
+Drop jetpack when the player using it is fragged.  That would add lots more
+	jetpacks to the game, altering the dynamic.
+Rearrange the files in pak0.pak so they're in their "standard" location.  (The
+	main offender here is the fire model/skin.)  Then I will be able to precache
+	them, and make them available for download.
+maplist should control not just the map, but the # of players that need to be
+	present for the map to be run (so big maps can be run), and maybe even set
+	coop, ctf, and other flags.  Then a single server could alternate between
+	coop, deathmatch, and CTF!  Pretty wild.
+Allow the maplist file name to be set; at a minimum, this'll help with running
+	a DM and Extinction server from the same directory.
+blackbox.efs.org suggestions: flood protection, frag logging.
+JustShootMe suggestions: more types of grappling hooks, less-busy cataclysm
+	device explosion.
+Integrate in GibStats?  http://www.planetquake.com/gibstats/
+Integrate in Eraser bot.  http://impact.frag.com/
+The ChaseCam needs to be reconciled with VWep, and should allow a spectator
+	mode.
+"Com_sprintf: overflow of 67 in 64".  Eh?
+Push/pull needs to make the user more detectable and vulnerable.  A beam of
+	light connecting the players?  The quad sound when push/pull is used?  The
+	pushed/pulled person has their view turned to look at the attacker?
+Be able to push/pull dropped player items.  Now it's really a Jedi thing!  But
+	would this require an engine change?
+Scoreboard times should be in minutes and seconds.
+Allow railgun to shoot through walls?!  That'd be pretty wild.
+Give supershotgun inflictors credit for kills from enemies flying into walls.
+Can't his Escape to see menu when the scanner is up...must turn scanner off
+	first.
+Drop cells when you die holding the super blaster.
+Throw alternate weapons when you die.  Handle picking them up anyway.
+Make tripwires and bazookas fire the fire grenades.
+Fix fire dripping through floors.
+Keep laser tripwire explosions from setting each other off.
+Get rid of plasma rifle spindown time.
+Use the gladiator rail sound for the rail gun?
+
+To do for Extinction
+--------------------
+Fix the no-pitch spectator bug.
+Fix decoy targeting
+How to get back to menu? Or go to chasecam?
+Show spawnpoints in scanner!
+Show team colors in scanner!
+Sound for spawnpoint capture?
+Put all weapons into maps, now that I have weapon banning.
+More maps!!!
+Option to let people type "ready" at the console when they're ready to begin a
+	new match.  Let people take a friggin' break!
+
+To do, lower priority
+---------------------
+Better monster AI.  They need to understand the notion of cover, at a minimum.
+Have insane turn into an anti-monster "bot" once you touch them, or do something
+	else to "save" them.
+Reduce weapons strength for SP game.
+Scanner should detect monsters during single-player game.
+
+New weapon ideas
+----------------
+BFG suit!!!  You wear it and run around and you throw off BFG lasers!
+Pineapple grenade -- explodes like a multi-directional shotgun blast.
+Gas grenades!  How to draw gas?
+Freeze grenades!  Freeze people, freeze the ground so people slide too!
+Vacuum grenade?  Explodes into a black-hole sort of thing?
+Light saber as the new alternate blaster.  Even more Jedi stuff!
+Beef up machinegun by having bullets ricochet a few times?
+
+WoD flags
+---------
+Shootable homing-rockets vs. not-shootable
+Drop jetpack when killed vs. explode jetpack when killed

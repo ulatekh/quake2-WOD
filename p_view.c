@@ -869,11 +869,7 @@ void G_SetClientEffects (edict_t *ent)
 			ent->s.effects |= EF_QUAD;
 	}
 
-	if (ent->client->invincible_framenum > level.framenum
-//ZOID
-		&& (level.framenum & 8)
-//ZOID
-	)
+	if (ent->client->invincible_framenum > level.framenum)
 	{
 		remaining = ent->client->invincible_framenum - level.framenum;
 		if (remaining > 30 || (remaining & 4) )

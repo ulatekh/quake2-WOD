@@ -3,6 +3,7 @@
 
 
 cvar_t *maplist;
+cvar_t *maplistfile;
 
 
 // Returns true if it has stored the name of
@@ -16,9 +17,16 @@ qboolean MaplistNext (void)
 	char buffer[MAX_QPATH + 1];
 
 	// Make sure we can find the game directory.
-	if (!gamedir)
+	if (!gamedir || !gamedir->string[0])
 	{
 		gi.dprintf ("No maplist -- can't find gamedir\n");
+		return false;
+	}
+
+	// Make sure we can find the maplist file.
+	if (!maplistfile || !maplistfile->string[0])
+	{
+		gi.dprintf ("No maplist -- can't find maplistfile\n");
 		return false;
 	}
 
@@ -30,12 +38,12 @@ qboolean MaplistNext (void)
 
 	// Open the maplist file.
 openmaplist:
-	sprintf (buffer, "./%s/maplist.txt", gamedir->string);
+	sprintf (buffer, "./%s/%s", gamedir->string, maplistfile->string);
 	in = fopen (buffer, "r");
 	if (in == NULL)
 	{
-		gi.dprintf ("No maplist -- can't open ./%s/maplist.txt\n",
-			gamedir->string);
+		gi.dprintf ("No maplist -- can't open ./%s/%s\n",
+			gamedir->string, maplistfile->string);
 		return false;
 	}
 
@@ -56,14 +64,24 @@ openmaplist:
 			}
 
 			// Other errors are not.
-			gi.dprintf ("No maplist -- error reading ./%s/maplist.txt\n",
-				gamedir->string);
+			gi.dprintf ("No maplist -- error reading ./%s/%s\n",
+				gamedir->string, maplistfile->string);
 			return false;
 		}
 	}
 
-	// Chop the newline from the end of the string.
-	buffer[strlen (buffer) - 1] = '\0';
+	// Chop the newline(s) from the end of the string.
+	res_cp = buffer + strlen (buffer) - 1;
+	while (res_cp >= buffer && (*res_cp == 10 || *res_cp == 13))
+	{
+		*res_cp = 0;
+		res_cp--;
+	}
+
+	// If we didn't give them a map name, we failed.  (Leave the value of
+	// maplist unchanged, so they know where to look for the problem.)
+	if (!buffer[0])
+		return false;
 
 	// Retrieve the name of the next map to run.
 	strcpy (level.nextmap, buffer);

@@ -1539,11 +1539,13 @@ void TeamplaySpawnpointTouch (edict_t *self, edict_t *other,
 	// Display the changed spawnpoint.
 	gi.linkentity (self);
 
+#ifdef EXT_DEVT
 	// HACK to use when I'm editing maps for Extinction.
 	if (sv_cheats->value)
 		gi.cprintf (other, PRINT_HIGH, "dmspot at [%i,%i,%i]\n",
 			(int)self->s.origin[0], (int)self->s.origin[1],
 			(int)self->s.origin[2]);
+#endif EXT_DEVT
 }
 
 

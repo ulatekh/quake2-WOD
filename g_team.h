@@ -84,3 +84,6 @@ qboolean TeamplayCheckRound2 (void);
 void TeamplayStartRound2 (void);
 
 void TeamplayRebalanceTeams (void);
+
+/* Define this to get some development code for Extinction.
+#define EXT_DEVT */

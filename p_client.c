@@ -1489,7 +1489,7 @@ void PutClientInServer (edict_t *ent)
 
 // Store the message of the day in memory.
 char *gMOTD = ((char *)-1);
-cvar_t *gamedir;
+cvar_t *gamedir, *motdfile;
 
 /*=====================
 ClientBeginDeathmatch
@@ -1521,12 +1521,13 @@ void ClientBeginDeathmatch (edict_t *ent)
 		char *here;
 
 		// Generate the path to the MOTD file.
-		if (gamedir == NULL)
+		if (gamedir == NULL || motdfile == NULL
+		|| !gamedir->string[0] || !motdfile->string[0])
 		{
 			gMOTD = NULL;
 			goto noMOTD;
 		}
-		sprintf (motdPath, "./%s/motd.txt", gamedir->string);
+		sprintf (motdPath, "./%s/%s", gamedir->string, motdfile->string);
 
 		// Open the file.
 		in = fopen (motdPath, "rt");
@@ -1865,7 +1866,7 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	int		i, j;
 	pmove_t	pm;
 
-	// If I'm frozen and its time to thaw, do it. 
+	// If they're frozen and its time to thaw, do it. 
 	if (ent->frozen)
 	{
 		if (level.time >= ent->frozentime )
@@ -2006,6 +2007,24 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		VectorCopy (pm.viewangles, client->ps.viewangles);
 	}
 
+	// If they're frozen, alter some of the results.
+	if (ent->frozen)
+	{
+		// Restore their mins/maxs/viewheight, since PM_DEAD did something else
+		// to them.
+		if (client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			VectorSet (ent->mins, -16, -16, -24);
+			VectorSet (ent->maxs, 16, 16, 4);
+			ent->viewheight = -2;
+		}
+		else
+		{
+			VectorSet (ent->mins, -16, -16, -24);
+			VectorSet (ent->maxs, 16, 16, 32);
+			ent->viewheight = 22;
+		}
+	}
 
 	gi.linkentity (ent);
 

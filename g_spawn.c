@@ -1062,5 +1062,41 @@ void SP_worldspawn (edict_t *ent)
 	gi.imageindex (PIC_QUADDOT_TAG);
 	gi.imageindex (PIC_UP_TAG);
 	gi.imageindex (PIC_DOWN_TAG);
+
+#if 0
+	// Precache Foxman's song list.
+	{
+		FILE *in;
+		char buffer[MAX_QPATH + 1], *res;
+
+		// Open the songlist file.
+		gi.dprintf ("Preparing to read songlist...\n");
+		sprintf (buffer, "./%s/songlist.txt", gamedir->string);
+		in = fopen (buffer, "rt");
+		if (in == NULL)
+		{
+			gi.dprintf ("No songlist -- can't open ./%s/songlist.txt\n",
+				gamedir->string);
+		}
+		else
+		{
+			gi.dprintf ("Reading songlist...\n");
+
+			// Precache each song in the list.
+			while ((res = fgets (buffer, sizeof (buffer), in)) != NULL)
+			{
+				// Chop the newline(s) from the end of the string.
+				res = buffer + strlen (buffer) - 1;
+				while (res >= buffer && (*res == 10 || *res == 13))
+					{ *res = 0; res--; }
+
+				// Precache this sound.
+				gi.soundindex (res);
+			}
+
+			fclose (in);
+		}
+	}
+#endif
 }
 

@@ -626,6 +626,8 @@ extern	cvar_t	*flood_persecond;
 extern	cvar_t	*flood_waitdelay;
 
 extern	cvar_t	*gamedir;
+extern	cvar_t	*maplistfile;
+extern	cvar_t	*motdfile;
 
 extern	cvar_t	*teamplay;
 
@@ -1004,6 +1006,7 @@ void DropHook (edict_t *ent);
 //
 // g_weapon.c
 //
+void check_dodge (edict_t *self, vec3_t start, vec3_t dir, int speed);
 void PlayerNoise(edict_t *who, vec3_t where, int type);
 void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result);
 void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, int *pause_frames, int *fire_frames, void (*fire)(edict_t *ent));
@@ -1240,6 +1243,8 @@ struct gclient_s
 	edict_t		*chase_target;
 	qboolean	update_chase;
 //ZOID
+
+	float		tripwire_debounce_time;
 };
 
 
@@ -1398,9 +1403,9 @@ struct edict_s
 	// ************************
 
 	//ThirdPerson Perspective Stuff
-	int		thirdperson;		// To tell the server if that person is in 3rd person mode
-	edict_t		*clone;			// This is what the player sees
-	int		currentweapon;		// This is for the weapon model info when in 3rd person mode
+	int		thirdperson;	// To tell the server if that person is in 3rd person mode
+	edict_t	*clone;			// This is what the player sees
+	int		currentweapon;	// This is for the weapon model info when in 3rd person mode
 	float		thirdoffx;		// So the player can move the camera around
 	float		thirdoffz;
 
@@ -1412,9 +1417,10 @@ struct edict_s
 	int chasedist2;
 
 	edict_t		*hook_target;
-	float           burnout;
-	edict_t         *burner;
-	edict_t *lasersight;
+	float       burnout;
+	edict_t     *burner;
+
+	edict_t		*lasersight;
 };
 
 void LaserSightThink (edict_t *self);

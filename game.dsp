@@ -42,7 +42,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir "."
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /c
-# ADD CPP /nologo /G5 /MT /W3 /GX /Zd /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
+# ADD CPP /nologo /G5 /MT /W3 /GX /Zd /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /FR /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -106,6 +106,10 @@ SOURCE=.\g_ai.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\g_chase.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\g_cmds.c
 # End Source File
 # Begin Source File
@@ -154,6 +158,10 @@ SOURCE=.\g_target.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\g_team.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\g_trigger.c
 # End Source File
 # Begin Source File
@@ -182,11 +190,7 @@ SOURCE=.\kamikaze.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\kamikaze.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\laser.c
+SOURCE=.\lasertrip.c
 # End Source File
 # Begin Source File
 
@@ -306,6 +310,10 @@ SOURCE=.\p_hud.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\p_menu.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\p_trail.c
 # End Source File
 # Begin Source File
@@ -350,7 +358,15 @@ SOURCE=.\g_local.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\g_team.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\game.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\kamikaze.h
 # End Source File
 # Begin Source File
 
@@ -434,6 +450,10 @@ SOURCE=.\m_tank.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\p_menu.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\q_shared.h
 # End Source File
 # Begin Source File
@@ -449,5 +469,17 @@ SOURCE=.\x_fire.h
 
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;cnt;rtf;gif;jpg;jpeg;jpe"
 # End Group
+# Begin Source File
+
+SOURCE=.\notes.txt
+# End Source File
+# Begin Source File
+
+SOURCE=.\teamplay.txt
+# End Source File
+# Begin Source File
+
+SOURCE=.\zbotcheck.obj
+# End Source File
 # End Target
 # End Project

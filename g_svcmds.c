@@ -437,7 +437,7 @@ void SVCmd_PlaySound_f (void)
 	}
 
 	// Play the sound they want.
-	gi.sound (world, CHAN_ITEM+CHAN_RELIABLE+CHAN_NO_PHS_ADD,
+	gi.sound (world, CHAN_SONG+CHAN_RELIABLE+CHAN_NO_PHS_ADD,
 		gi.soundindex (gi.argv (2)), 1, ATTN_NONE, 0);
 }
 

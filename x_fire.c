@@ -41,37 +41,6 @@
 
 
 
-/*============================/  Fire Dodge  /============================*/
-
-/*-------------------------------------------------------- Mirror Code -----
-//  This is a copy of 'check_dodge' found in 'g_weapons.c'.
-//  Because that function is static, and I do not want to
-//  modify that file, a copy is placed here.
-//------------------------------------------------------------------------*/
-void check_firedodge (edict_t *self, vec3_t start, vec3_t dir, int speed)
-{
-	vec3_t	end;
-	vec3_t	v;
-	trace_t	tr;
-	float	eta;
-
-	/* easy mode only ducks one quarter the time */
-	if (skill->value == 0)
-	{
-		if (random() > 0.25)
-			return;
-	}
-	VectorMA (start, 8192, dir, end);
-	tr = gi.trace (start, NULL, NULL, end, self, MASK_SHOT);
-	if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self))
-	{
-		VectorSubtract (tr.endpos, start, v);
-		eta = (VectorLength(v) - tr.ent->maxs[0]) / speed;
-		tr.ent->monsterinfo.dodge (tr.ent, self, eta);
-	}
-}
-
-
 /*========================/  Custom Explosions  /========================*/
 
 /*-------------------------------------------------------- New Code --------
@@ -754,7 +723,7 @@ void PBM_FireFlamer
 	fireball->dmg          = blast_chance;
 
 	if (self->client)
-		check_firedodge (self, fireball->s.origin, dir, speed);
+		check_dodge (self, fireball->s.origin, dir, speed);
 
 	gi.linkentity (fireball);
 

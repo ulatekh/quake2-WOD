@@ -388,6 +388,10 @@ void G_InitEdict (edict_t *e)
 
 	// Clear what the free-edict list may have set.
 	e->chain = NULL;
+
+	// This is another headache.
+	e->think = NULL;
+	e->nextthink = 0;
 }
 
 // The free-edict list.  Meant to vastly speed up G_Spawn().

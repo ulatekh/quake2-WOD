@@ -35,9 +35,6 @@ void BecomeExplosion2 (edict_t *self);
 /*
 // x_fire.c
 */
-void check_firedodge
- (edict_t *self, vec3_t start, vec3_t dir, int speed);
-
 void     PBM_BecomeSmoke (edict_t *self);
 void     PBM_BecomeSteam (edict_t *self);
 void     PBM_SmallExplodeThink (edict_t *self);

@@ -142,7 +142,7 @@ void InitGame (void)
 	//FIXME: sv_ prefix is wrong for these
 	sv_rollspeed = gi.cvar ("sv_rollspeed", "200", 0);
 	sv_rollangle = gi.cvar ("sv_rollangle", "2", 0);
-	sv_maxvelocity = gi.cvar ("sv_maxvelocity", "2000", 0);
+	sv_maxvelocity = gi.cvar ("sv_maxvelocity", "2500", 0);
 	sv_gravity = gi.cvar ("sv_gravity", "800", 0);
 
 	// noset vars
@@ -161,6 +161,9 @@ void InitGame (void)
 	skill = gi.cvar ("skill", "1", CVAR_LATCH);
 	maxentities = gi.cvar ("maxentities", "1024", CVAR_LATCH);
 	maplist = gi.cvar ("maplist", "0", CVAR_SERVERINFO);
+
+	maplistfile = gi.cvar ("maplistfile", "maplist.txt", 0);
+	motdfile = gi.cvar ("motdfile", "motd.txt", 0);
 
 	// change anytime vars
 	dmflags = gi.cvar ("dmflags", "0", CVAR_SERVERINFO);
