@@ -688,7 +688,8 @@ void PBM_FireballTouch (edict_t *self, edict_t *other, cplane_t *plane,
 //  Create and launch a fireball.
 //------------------------------------------------------------------------*/
 void PBM_FireFlamer
-(edict_t *self, vec3_t start, vec3_t dir, int speed, float radius, vec3_t damage, vec3_t radius_damage, int rain_chance, int blast_chance)
+(edict_t *self, vec3_t start, vec3_t dir, int speed, float radius,
+ vec3_t damage, vec3_t radius_damage, int rain_chance, int blast_chance)
 {
 	edict_t  *fireball;
 	trace_t	tr;
@@ -721,6 +722,95 @@ void PBM_FireFlamer
 	fireball->dmg_radius   = radius;
 	fireball->count        = rain_chance;
 	fireball->dmg          = blast_chance;
+
+	if (self->client)
+		check_dodge (self, fireball->s.origin, dir, speed);
+
+	gi.linkentity (fireball);
+
+	if (PBM_InWater(fireball))
+	{	PBM_BecomeSteam(fireball);
+		return;
+	}
+
+	tr = gi.trace (self->s.origin, NULL, NULL, fireball->s.origin, fireball, MASK_SHOT);
+	if (tr.fraction < 1.0)
+	{	VectorMA (fireball->s.origin, -10, dir, fireball->s.origin);
+		fireball->touch (fireball, tr.ent, NULL, NULL);
+	}
+
+}
+
+// Toss a bouncing flaming ball.  For the new napalm.
+void
+PBM_NapalmTouch (edict_t *ent, edict_t *other, cplane_t *plane,
+					  csurface_t *surf)
+{
+	if (surf && (surf->flags & SURF_SKY))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+
+	// Bounce off non-floors all the time, and floors once.
+	if (plane)
+	{
+		if (plane->normal[2] > 0.7)
+			ent->touch = PBM_FireballTouch;
+		return;
+	}
+
+	PBM_FireballTouch (ent, other, plane, surf);
+}
+
+void
+PBM_NapalmThink (edict_t *self)
+{
+	vec3_t dir;
+
+	// Point in the direction we're gliding.
+	VectorNormalize2 (self->velocity, dir);
+	vectoangles (dir, self->s.angles);
+	self->s.angles[0] -= 90;
+
+	PBM_CheckFire (self);
+}
+
+void
+PBM_LobFlamer (edict_t *self, vec3_t start, vec3_t dir, int speed, float radius,
+					vec3_t damage, vec3_t radius_damage)
+{
+	edict_t  *fireball;
+	trace_t	tr;
+
+	fireball = G_Spawn();
+	fireball->s.modelindex = MD2_FIRE;
+	fireball->s.frame      = FRAME_FIRST_SMALLFIRE;
+	VectorClear (fireball->mins);
+	VectorClear (fireball->maxs);
+	VectorCopy (start, fireball->s.origin);
+	vectoangles (dir, fireball->s.angles);
+	VectorScale (dir, speed, fireball->velocity);
+	fireball->s.angles[0] -= 90;
+	fireball->movetype     = MOVETYPE_BOUNCE;
+	fireball->clipmask     = MASK_SHOT;
+	fireball->solid        = SOLID_BBOX;
+	fireball->takedamage   = DAMAGE_NO;
+	fireball->s.effects    = 0;
+	fireball->s.renderfx   = RF_FULLBRIGHT;
+	fireball->s.sound      = gi.soundindex ("player/fry.wav");
+	fireball->owner        = self;
+	fireball->classname    = "fire";
+	fireball->touch        = PBM_NapalmTouch;
+	fireball->burnout      = level.time + 6;
+	fireball->timestamp    = 0;
+	fireball->nextthink    = level.time + FRAMETIME;
+	fireball->think        = PBM_NapalmThink;
+	VectorCopy(damage, fireball->pos1);
+	VectorCopy(radius_damage, fireball->pos2);
+	fireball->dmg_radius   = radius;
+	fireball->count        = 100;
+	fireball->dmg          = 0;
 
 	if (self->client)
 		check_dodge (self, fireball->s.origin, dir, speed);

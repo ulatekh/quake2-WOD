@@ -1,9 +1,9 @@
 #include "g_local.h"
 #include "m_player.h"
+#include "zbotcheck.h"
 
 
 void ClientUserinfoChanged (edict_t *ent, char *userinfo);
-qboolean ZbotCheck(edict_t *ent, usercmd_t *ucmd);
 void SP_misc_teleporter_dest (edict_t *ent);
 
 //
@@ -837,7 +837,8 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.ipAddr = ipAddr;
 
 	// Give them the super blaster.
-	client->pers.inventory[ITEM_INDEX(&gI_weapon_superblaster)] = 1;
+	if (!((int)weaponban->value & WB_SUPERBLASTER))
+		client->pers.inventory[ITEM_INDEX(&gI_weapon_superblaster)] = 1;
 
 	// Give them the blaster.
 	item = &gI_weapon_blaster;
@@ -879,17 +880,15 @@ void InitClientPersistant (gclient_t *client)
 
 void InitClientResp (gclient_t *client)
 {
-//ZOID
 	int ctf_team = client->resp.ctf_team;
-//ZOID
 	float idleTime = client->resp.idleTime;
+	int kick_framenum = client->resp.kick_framenum;
 
 	memset (&client->resp, 0, sizeof(client->resp));
 	
-//ZOID
 	client->resp.ctf_team = ctf_team;
-//ZOID
 	client->resp.idleTime = idleTime;
+	client->resp.kick_framenum = kick_framenum;
 
 	client->resp.enterframe = level.framenum;
 	client->resp.coop_respawn = client->pers;
@@ -1758,9 +1757,6 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 	if (gotAddr)
 		ent->client->pers.ipAddr = ipAddr.compare;
 
-	// Reset their idle time
-	ent->client->resp.idleTime = level.time;
-
 	// if there is already a body waiting for us (a loadgame), just
 	// take it, otherwise spawn one from scratch
 	if (ent->inuse == false)
@@ -1772,11 +1768,15 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 
 		// clear the respawning variables
 		InitClientResp (ent->client);
+		ent->client->resp.kick_framenum = 0;
 		if (!game.autosaved || !ent->client->pers.weapon)
 			InitClientPersistant (ent->client);
 	}
 
 	ClientUserinfoChanged (ent, userinfo);
+
+	// Reset their idle time
+	ent->client->resp.idleTime = level.time;
 
 	if (game.maxclients > 1)
 		gi.dprintf ("%s connected\n", ent->client->pers.netname);
@@ -1856,21 +1856,6 @@ void PrintPmove (pmove_t *pm)
 }
 
 qboolean
-BigZbotCheck (edict_t *ent, usercmd_t *ucmd)
-{
-	// Look for zbot impulses.
-	if (ucmd->impulse >= 169 && ucmd->impulse <= 174)
-		return true;
-
-	// Use Lithium's Zbot checker.
-	if (ZbotCheck (ent, ucmd))
-		return true;
-
-	// No zbot detected.
-	return false;
-}
-
-qboolean
 IdleCheck (edict_t *ent, usercmd_t *ucmd)
 {
 	// No idle timeout if there isn't one.
@@ -1889,6 +1874,8 @@ IdleCheck (edict_t *ent, usercmd_t *ucmd)
 	// Not idle yet.
 	return false;
 }
+
+
 
 /*
 ==============
@@ -2133,17 +2120,76 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	}
 //ZOID
 
-	// Detect ZBot, blab it to everyone, then kick the bastard.  If they keep
-	// trying to log in, they'll keep getting outed and kicked.  Ha!
-	if (deathmatch->value && BigZbotCheck (ent, ucmd))
+	// If it's time to kick the player, do so.
+	if (client->resp.kick_framenum != 0
+	&& level.framenum >= client->resp.kick_framenum)
 	{
-		// Tell everyone.
-		gi.bprintf (PRINT_CHAT, ">>> Zbot detected: %s <<<\n",
-			ent->client->pers.netname);
-
-		// Now kick the bastard.
 		gi.AddCommandString (va ("kick %d\n", ent - g_edicts - 1));
 		stuffcmd (ent, "disconnect\n");
+	}
+
+#if 0
+	// HACK
+	if (client->resp.saw_fire)
+	{
+		int botLoop;
+
+		botLoop = (client->nextBotRecord + 40) % 50;
+		for (;;)
+		{
+			if (client->botRecord[botLoop].fire)
+				goto hackDontLogThis;
+			botLoop++;
+			if (botLoop == 50)
+				botLoop = 0;
+			if (botLoop == client->nextBotRecord)
+				break;
+		}
+		client->resp.saw_fire = false;
+		LogPlayerMovement (ent);
+hackDontLogThis:;
+	}
+	if (ucmd->buttons & BUTTON_ATTACK)
+		client->resp.saw_fire = true;
+#endif
+
+	// Detect bots, blab it to everyone, then kick the bastard.  If they keep
+	// trying to log in, they'll keep getting outed and kicked.  Ha!
+	if (deathmatch->value)
+	{
+		int botCode = BotCheck (ent, ucmd);
+		if (botCode)
+		{
+			const char *botType;
+
+			// Figure out what kind of bot it was.
+			switch (botCode)
+			{
+				case 1:
+				case 2:
+				case 3:
+					botType = "ZBot"; break;
+				case 4:
+				case 5:
+					botType = "RatBot"; break;
+				default:
+					botType = "Unknown bot"; break;
+			}
+
+			// Tell everyone.
+			gi.bprintf (PRINT_CHAT, ">>> %s detected: %s <<<\n",
+				botType, ent->client->pers.netname);
+
+#ifdef BOT_HARD_EVIDENCE
+			// Log it.
+			if (client->resp.kick_framenum == 0)
+				LogPlayerMovement (ent, botCode);
+#endif BOT_HARD_EVIDENCE
+
+			// Remember to kick the bastard.
+			if (client->resp.kick_framenum == 0)
+				client->resp.kick_framenum = level.framenum + 2;
+		}
 	}
 
 	// Detect idle players.
@@ -2151,9 +2197,9 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	{
 		gi.bprintf (PRINT_HIGH, "Idle timeout: %s\n", ent->client->pers.netname);
 
-		// Disconnect them.
-		stuffcmd (ent, "disconnect\n");
-		gi.AddCommandString (va ("kick %d\n", ent - g_edicts - 1));
+		// Remember to disconnect them.
+		if (client->resp.kick_framenum == 0)
+			client->resp.kick_framenum = level.framenum + 2;
 	}
 }
 

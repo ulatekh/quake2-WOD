@@ -12,6 +12,9 @@
 #include "p_menu.h"
 //ZOID
 
+// Define this to collect hard evidence about bot detections.
+#define BOT_HARD_EVIDENCE
+
 // the "gameversion" client command will print this plus compile date
 #define	GAMEVERSION		"wod6x"
 #define	GAMEVERSION_E	"wode1x"
@@ -1132,17 +1135,24 @@ typedef struct
 	qboolean	id_state;
 //ZOID
 
-	// Zbot check
-	short angles[2][2];
-	int tog;
-	int jitter;				// The number of jitters in the series
-	float jitter_time;	// The time of the first jitter in the series
-	float jitter_last;	// The time of the last jitter in the series
-
 	// Idle check
 	float idleTime;
 
+	// When to kick the player
+	int kick_framenum;
+
 } client_respawn_t;
+
+typedef struct
+{
+	byte	fire : 1;			// Whether the fire button was hit
+	byte	hitClient : 1;		// Whether a client was being pointed at
+	int	pitch, yaw;			// Pitch and yaw
+	int	forwardmove, sidemove, upmove;		// Movement
+	int	impulse;				// Any impulses sent
+	double clientDist;		// If hitClient is true, distance from the firing
+									// line to the client's origin
+} bot_record_t;
 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
@@ -1263,6 +1273,26 @@ struct gclient_s
 //ZOID
 
 	float		tripwire_debounce_time;
+
+	// Player movement data for bot checking.
+	bot_record_t botRecord[3];
+
+	// Lithium Zbot check
+	int jitter;						// The number of jitters in the series
+	int jitter_time;				// The frame# of the first jitter in the series
+	int jitter_last;				// The frame# of the last jitter in the series
+
+	// L-Fire's Zbot check
+	int zbotSequenceCount;
+	int zbotDetectFrame;
+
+	// My RatBot check.
+	int ratBotState;
+
+#ifdef BOT_HARD_EVIDENCE
+	bot_record_t botLog[50];
+	int nextBotLog;
+#endif BOT_HARD_EVIDENCE
 };
 
 

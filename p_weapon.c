@@ -14,7 +14,8 @@ static byte		is_silenced;
 void weapon_grenade_fire (edict_t *ent, qboolean held);
 
 
-static void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result)
+void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance,
+							 vec3_t forward, vec3_t right, vec3_t result)
 {
 	vec3_t	_distance;
 
@@ -2102,6 +2103,71 @@ void Weapon_Shotgun (edict_t *ent)
 }
 
 
+void weapon_sawedoffshotgun_fire (edict_t *ent)
+{
+	vec3_t		start;
+	vec3_t		forward, right;
+	vec3_t		offset;
+	int			damage = 4;
+	int			kick = 8;
+	int			mod;
+
+	if (ent->client->pers.inventory[ent->client->ammo_index]
+		< ent->client->pers.weapon->quantity)
+	{
+		ent->client->ps.gunframe++;
+		return;
+	}
+
+	AngleVectors (ent->client->v_angle, forward, right, NULL);
+
+	VectorScale (forward, -2, ent->client->kick_origin);
+	ent->client->kick_angles[0] = -2;
+
+	VectorSet(offset, 0, 8,  ent->viewheight-8);
+	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
+
+	if (is_quad)
+	{
+		damage *= 4;
+		kick *= 4;
+	}
+
+	// Set up the means of death.
+	mod = MOD_SHOTGUN;
+	if ((int)fragban->value & WB_SHOTGUN)
+		mod |= MOD_NOFRAG;
+
+	if (deathmatch->value)
+		fire_shotgun (ent, start, forward, damage, kick, 250, 250,
+			DEFAULT_DEATHMATCH_SHOTGUN_COUNT, mod);
+	else
+		fire_shotgun (ent, start, forward, damage, kick, 250, 250,
+			DEFAULT_SHOTGUN_COUNT, mod);
+
+	// send muzzle flash
+	gi.WriteByte (svc_muzzleflash);
+	gi.WriteShort (ent-g_edicts);
+	gi.WriteByte (MZ_SHOTGUN | is_silenced);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);
+
+	ent->client->ps.gunframe++;
+	PlayerNoise(ent, start, PNOISE_WEAPON);
+
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
+}
+
+void Weapon_SawedOffShotgun (edict_t *ent)
+{
+	static int	pause_frames[]	= {22, 28, 34, 0};
+	static int	fire_frames[]	= {8, 9, 0};
+
+	Weapon_Generic (ent, 7, 18, 36, 39, pause_frames, fire_frames, weapon_sawedoffshotgun_fire);
+}
+
+
 void weapon_supershotgun_fire (edict_t *ent)
 {
 	vec3_t		start;
@@ -2361,7 +2427,8 @@ FLAMETHROWER (used to be the railgun)
 ======================================================================
 */
 
-void fire_rg (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int effect)
+void fire_rg (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper,
+				  int effect)
 {
 	vec3_t	forward, right;
 	vec3_t	start;
@@ -2380,7 +2447,8 @@ void fire_rg (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int eff
 	ent->client->kick_angles[0] = -1;
 
 	// ow, my flesh, its burning!
-	PBM_FireFlamer (ent, start, forward, 1200, 70, direct_damage, radius_damage, 100, 50);
+	PBM_FireFlamer (ent, start, forward, 1200, 70, direct_damage,
+		radius_damage, 100, 50);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);

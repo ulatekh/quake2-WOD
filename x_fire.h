@@ -67,6 +67,12 @@ void     PBM_FireballTouch
 void     PBM_FireFlamer
  (edict_t *self, vec3_t start, vec3_t dir, int speed, float radius,
   vec3_t damage, vec3_t radius_damage, int rain_chance, int blast_chance);
+void     PBM_FireFlamer
+ (edict_t *self, vec3_t start, vec3_t dir, int speed, float radius,
+  vec3_t damage, vec3_t radius_damage, int rain_chance, int blast_chance);
+void
+PBM_LobFlamer (edict_t *self, vec3_t start, vec3_t dir, int speed, float radius,
+					vec3_t damage, vec3_t radius_damage);
 
 
 /*=============================  END OF FILE =============================*/

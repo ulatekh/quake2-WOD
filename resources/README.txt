@@ -1,5 +1,5 @@
 =================================================
-Weapons of Destruction for Quake2 - *Version 6.06*
+Weapons of Destruction for Quake2 - *Version 6.07*
 =================================================
 
 Author: Steven Boswell a.k.a. Hash Assassin
@@ -26,7 +26,7 @@ Say c:\quake2\weapons
 things consistent, so that QuakeII knows how to match up servers with
 what you have installed on your machine.)
 
-Unzip my mod using winzip -or- pkunzip -d wod606.zip
+Unzip my mod using winzip -or- pkunzip -d wod607.zip
 Unzip the files straight into the weapons directory.  (If you unzip
 to another directory and then move the files over, be sure you move
 any hidden files too.)
@@ -54,7 +54,7 @@ locate such servers for you.  Follow the directions that come with
 GameSpy and PingTool to install them.
 
 ==========================================
-Description of Weapons of Destruction 6.06
+Description of Weapons of Destruction 6.07
 ==========================================
 
 There are three ways to enjoy Weapons of Destruction:
@@ -308,6 +308,8 @@ Steve thanks:
  http://members.home.com/hocus/
 -L-Fire, for giving me the time to do this.
  http://www.planetquake.com/lfire/
+-(CS)Hoowa, for all the help with bot detection.
+ http://members.home.net/hoowa/
 -George for the PingTool tabs.
  http://pingtool.com/
 -All the great people that run WoD servers.  YOU RULE!
@@ -321,6 +323,12 @@ Editors used by Steve: Microsoft Developer Studio and vi.
 Mod History
 ===========
 
+6.07
+-Super-blaster weapon banning fixed.
+-Bot-kick and idle-kick messages get sent to the player before they're kicked.  (Before, they
+ might not.)
+-Vastly improved ZBot detection.  Newly added RatBot detection.  Works even if Zorbot is used.
+-A "botdetect.log" file gets written into the "weapons" directory, with all the info on the luser.
 6.06
 -Homing rocketlauncher changed to guided rocketlauncher.
 -Push/pull strength decreases with distance.

@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "x_fbomb.h"
+#include "x_fire.h"
 
 
 /*
@@ -859,7 +860,7 @@ void Grenade_Explode_dM (edict_t *ent)
 	int mod;
 
 	// If we somehow don't have an owner any more, just die.
-	// (Why wouldn't we have an owner?)
+	// (Why wouldn't we have an owner?  Weird-ass bug.)
 	if (!(ent->owner))
 	{
 		gi.dprintf ("WTF: dM grenade without an owner\n");
@@ -1048,6 +1049,33 @@ void Grenade_Explode_dM (edict_t *ent)
 		gi.WritePosition (origin);
 		gi.multicast (ent->s.origin, MULTICAST_PVS);
 		origin[2] = origin[2] + 4;
+
+#if 1
+		// Throw flaming balls.
+		for (n = 0; n < 25; n++)
+		{
+			vec3_t direct_damage = {6, 9, 25};
+			vec3_t radius_damage = {6, 4, 25};
+			vec3_t direction, ballorigin;
+
+			// Pick a random direction to throw the flaming ball.
+			VectorSet (direction, crandom(), crandom(), crandom());
+			VectorNormalize (direction);
+
+			// Find where that will take us.
+			VectorMA (ent->s.origin, 10, direction, ballorigin);
+			if (gi.pointcontents (ballorigin) & MASK_SOLID)
+			{
+				// Try getting out of the solid.
+				VectorNegate (direction, direction);
+				VectorMA (ent->s.origin, 10, direction, ballorigin);
+			}
+
+			// Now fire the ball.
+			PBM_LobFlamer (ent->owner, ballorigin, direction, 500, 70,
+				direct_damage, radius_damage);
+		}
+#else
 		// Throw napalm flames:
 		for(n = 0; n < 8; n++)
 		{
@@ -1071,6 +1099,7 @@ void Grenade_Explode_dM (edict_t *ent)
 			flame->nextthink = level.time + random();
 			flame->classname = "napalm";
 		}
+#endif
 	}
 	else if(ent->dmg == 5)
 	{

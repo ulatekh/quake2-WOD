@@ -19,6 +19,7 @@ void Weapon_GrenadeLauncher (edict_t *ent);
 void Weapon_Railgun (edict_t *ent);
 void Weapon_Railgun2 (edict_t *ent);
 void Weapon_Sniper (edict_t *ent);
+void Weapon_SawedOffShotgun (edict_t *ent);
 void Weapon_BFG (edict_t *ent);
 void Weapon_Plasma (edict_t *ent);
 void Weapon_GuidedRocketLauncher (edict_t *ent);
@@ -1619,6 +1620,52 @@ gitem_t gI_weapon_shotgun =
 /* precache */ "weapons/shotgf1b.wav weapons/shotgr1b.wav"
 };
 
+/*QUAKED weapon_sawedoffshotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
+*/
+#if 0
+gitem_t gI_weapon_sniper =
+{
+	"weapon_sawedoffshotgun", 
+	Pickup_Weapon,
+	Use_Weapon,
+	Drop_Weapon,
+	Weapon_SawedOffShotgun,
+	"misc/w_pkup.wav",
+	"models/weapons/g_shotg/tris.md2", EF_ROTATE,
+	"models/weapons/v_shotg/tris.md2",
+/* icon */		"w_shotgun",
+/* pickup */	"Long Barrelled Shotgun",
+	0,
+	1,
+	&gI_ammo_shells,
+	IT_WEAPON|IT_STAY_COOP,
+	NULL,
+	0,
+/* precache */ "weapons/shotgf1b.wav weapons/shotgr1b.wav"
+};
+#else
+gitem_t gI_weapon_sniper =
+{
+	"weapon_sniper", 
+	Pickup_Weapon,
+	Use_Weapon,
+	Drop_Weapon,
+	Weapon_Sniper,
+	"misc/w_pkup.wav",
+	"models/weapons/g_rail/tris.md2", EF_ROTATE,
+	"models/weapons/v_rail/tris.md2",
+/* icon */		"w_railgun",
+/* pickup */	"Sniper Gun",
+	0,
+	5,
+	&gI_ammo_shells,
+	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
+	NULL,
+	0,
+/* precache */ "weapons/rg_hum.wav models/monsters/parasite/tip/tris.md2"
+};
+#endif
+
 /*QUAKED weapon_supershotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
 */
 gitem_t gI_weapon_supershotgun =
@@ -1841,7 +1888,7 @@ gitem_t gI_weapon_plasmagrenade =
 /* icon */		"a_grenades",
 /* pickup */	"Plasma Grenade",
 /* width */		3,
-	5 /* 1 */,
+	5,
 	&gI_ammo_grenades,
 	IT_WEAPON,
 	NULL,
@@ -2127,29 +2174,6 @@ gitem_t gI_weapon_bfg =
 	NULL,
 	0,
 /* precache */ "sprites/s_bfg1.sp2 sprites/s_bfg2.sp2 sprites/s_bfg3.sp2 weapons/bfg__f1y.wav weapons/bfg__l1a.wav weapons/bfg__x1b.wav weapons/bfg_hum.wav"
-};
-
-/*QUAKED weapon_sniper (.3 .3 1) (-16 -16 -16) (16 16 16)
-*/
-gitem_t gI_weapon_sniper =
-{
-	"weapon_sniper", 
-	Pickup_Weapon,
-	Use_Weapon,
-	Drop_Weapon,
-	Weapon_Sniper,
-	"misc/w_pkup.wav",
-	"models/weapons/g_rail/tris.md2", EF_ROTATE,
-	"models/weapons/v_rail/tris.md2",
-/* icon */		"w_railgun",
-/* pickup */	"Sniper Gun",
-	0,
-	5,
-	&gI_ammo_shells,
-	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
-	NULL,
-	0,
-/* precache */ "weapons/rg_hum.wav models/monsters/parasite/tip/tris.md2"
 };
 
 /*QUAKED weapon_plasma (.3 .3 1) (-16 -16 -16) (16 16 16)
