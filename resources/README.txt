@@ -1,22 +1,34 @@
 =================================================
-Weapons of Destruction for Quake2 - *Version 6.07*
+Weapons of Destruction for Quake2 - *Version 6.08*
 =================================================
 
 Author: Steven Boswell a.k.a. Hash Assassin
 Original author: Matt Wright a.k.a. PunK
 
-Email: weapons@telefragged.com
+E-mail: weapons@telefragged.com
 
-Date: 4/23/99
+Date: 7/11/99
 
 Page: http://www.telefragged.com/weapons/ - The official Weapons of
 Destruction page.  Includes the old source of 3.6, 5.4a, and 6.05, and
 all recent news about the mod.  Also check out this page and ensure you
 have the latest version.
 
-========================
-Installation - Important
-========================
+==============
+IMPORTANT NOTE
+==============
+This documentation assumes you know how to use your computer, and know
+your way around it pretty well.  If you don't, I suggest buying and
+reading a book called "Windows For Dummies".  (Don't be put off by the
+"dummies" thing: it just means the book doesn't require any prior
+knowledge of anything about your computer.  I myself had to buy a
+"Windows NT 4.0 For Dummies" book when I got my current job, even though
+I had 15 years of experience with computers and my degree in computer
+science.  We're *all* a dummy at some point. :-)
+
+============
+Installation
+============
 
 Make a directory in your Quake2 Directory, 
 
@@ -26,19 +38,19 @@ Say c:\quake2\weapons
 things consistent, so that QuakeII knows how to match up servers with
 what you have installed on your machine.)
 
-Unzip my mod using winzip -or- pkunzip -d wod607.zip
+Unzip my mod using winzip -or- pkunzip -d wod608.zip
 Unzip the files straight into the weapons directory.  (If you unzip
 to another directory and then move the files over, be sure you move
 any hidden files too.)
 
-If you want to be able to play Extinction, the teamplay variant of WoD,
-you'll need to have Zoid CTF installed.  If you don't have it installed,
-http://www.planetquake.com/files/ contains several places where you can
-download it.  Then, after it's installed to a "ctf" directory under your
-Quake2 directory, copy ctf/pak0.pak to weapons/pak1.pak -- then
-you're ready for Extinction.  (I apologize for this step...Id Software
-should have realized CTF wouldn't be the only teamplay mod people would
-want to play.)
+If you want to be able to play Team Deathmatch or Extinction, you'll
+need to have Capture The Flag installed.  If you don't have it
+installed, http://www.planetquake.com/files/ contains several places
+where you can download it.  Then, after it's installed to a "ctf"
+directory under your Quake2 directory, copy ctf/pak0.pak to
+weapons/pak1.pak -- then you're ready for Team Deathmatch or Extinction.
+(I apologize for this step...Id Software should have realized CTF
+wouldn't be the only teamplay mod people would want to play.)
 
 Now, to start, launch Quake and type "set game weapons" in the console.
 You can now start a single-player game, or a deathmatch server, or an
@@ -48,16 +60,19 @@ If you have trouble installing WoD, feel free to e-mail me.
 
 You must have Quake2 version 3.20 to run this patch.
 
-To locate WoD and WoD:Extinction servers on the Net, the distribution
-comes with tabs for GameSpy and PingTool that will automatically
-locate such servers for you.  Follow the directions that come with
-GameSpy and PingTool to install them.
+To locate WoD and servers on the Net, the distribution comes with tabs
+for GameSpy and PingTool that will automatically locate such servers for
+you.  Follow the directions that come with GameSpy and PingTool to
+install them.
+
+See server_readme.txt, also included with this distribution, for
+instructions on how to run a WoD server.
 
 ==========================================
-Description of Weapons of Destruction 6.07
+Description of Weapons of Destruction 6.08
 ==========================================
 
-There are three ways to enjoy Weapons of Destruction:
+There are four ways to enjoy Weapons of Destruction:
 
 o Single-player
   The Strogg won't know what hit them.  To make things a little more
@@ -67,11 +82,16 @@ o Deathmatch
   The classic way.  Get a bunch of your friends together and blow each
   other to smithereens.  Or join a public server and wreak chaos on
   total strangers.  Either way is fun.
+o Team deathmatch
+  Just like normal deathmatch, except two teams fight each other.
 o Extinction
-  Teamplay WoD!  Two teams fight over control of the spawnpoints.  Once a
-  team has no spawnpoints, they can't spawn into the game, and are in
-  danger of going extinct.  Who needs a wimpy "capture the flag" game
-  when you can fight to the death?
+  Another teamplay variant.  Two teams fight over control of the
+  spawnpoints.  Once a team has no spawnpoints, they can't spawn into
+  the game -- instead, they float around like ghosts.  Then once all
+  team members are dead, the team goes extinct, and the other team
+  wins.
+  Who needs a wimpy "capture the flag" game when you can fight to the
+  death?
 
 Weapons of Destruction adds several new weapons and features to the
 game.  All the weapons are available as "alternates" to the normal
@@ -310,6 +330,8 @@ Steve thanks:
  http://www.planetquake.com/lfire/
 -(CS)Hoowa, for all the help with bot detection.
  http://members.home.net/hoowa/
+-Harley{Wod}, for goading me into writing the teamplay DM variant.
+ http://www.harleysquakeworld.com/
 -George for the PingTool tabs.
  http://pingtool.com/
 -All the great people that run WoD servers.  YOU RULE!
@@ -323,6 +345,9 @@ Editors used by Steve: Microsoft Developer Studio and vi.
 Mod History
 ===========
 
+6.08
+-Added teamplay DM.
+-A few more tweaks to bot detection, to eliminate false positives.
 6.07
 -Super-blaster weapon banning fixed.
 -Bot-kick and idle-kick messages get sent to the player before they're kicked.  (Before, they

@@ -750,6 +750,8 @@ redoMove:
 			backoff = 2;
 		else if (ent->movetype == MOVETYPE_BOUNCE)
 			backoff = 1.5;
+		else if (ent->movetype == MOVETYPE_SPLAT)
+			backoff = 1.25;
 		else
 			backoff = 1;
 
@@ -997,6 +999,7 @@ void G_RunEntity (edict_t *ent)
 		break;
 	case MOVETYPE_TOSS:
 	case MOVETYPE_BOUNCE:
+	case MOVETYPE_SPLAT:
 	case MOVETYPE_FLY:
 	case MOVETYPE_FLYMISSILE:
 	case MOVETYPE_FLYRICOCHET: 

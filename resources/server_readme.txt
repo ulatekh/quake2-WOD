@@ -2,19 +2,30 @@
                Instructions for running a WoD server
                *************************************
 
+This documentation assumes you're already familiar with running Q2 and
+know your way around it pretty well.  If you don't, I suggest going to
+http://www.planetquake.com/console/ to learn about all the different
+things you can do at the Q2 console.
+
+-----
+
 I suggest naming your Weapons of Destruction directory "weapons".  That
 seems to be the standard over the Internet.  And it makes it much
 easier, when it comes to automatic downloads and all that, to know all
 Weapons of Destruction files are going into the same directory.
 
-Two default config files have been provided -- server.cfg for deathmatch,
-server_e.cfg for Extinction.  You will probably want to edit them before
-running your server for the first time (though their defaults work
-well).
+Three default config files have been provided -- server.cfg for
+deathmatch, server_t.cfg for team deathmatch, server_e.cfg for
+Extinction.  You will probably want to edit them before running your
+server for the first time (though their defaults work well).
 
 To run a dedicated server, the command is:
 
 quake2 +set dedicated 1 +set game weapons +exec server.cfg
+
+or, for team deathmatch,
+
+quake2 +set dedicated 1 +set game weapons +exec server_t.cfg
 
 or, for Extinction,
 
@@ -22,11 +33,11 @@ quake2 +set dedicated 1 +set game weapons +exec server_e.cfg
 
 -----
 
-Try "set maplist 1" on your deathmatch server...the next map will be
-chosen from maplist.txt, instead of running in the normal loop.
-(maplist will be subsequently set to 2, 3, etc. by the server,
-indicating where it is in the maplist.  It will loop back to 1 at the
-end of the file.)
+Try "set maplist 1" on your deathmatch or team-deathmatch server...the
+next map will be chosen from maplist.txt, instead of running in the
+normal loop.  (maplist will be subsequently set to 2, 3, etc. by the
+server, indicating where it is in the maplist.  It will loop back to 1
+at the end of the file.)
 
 I recommend starting with either "biggun" or "fact3" -- in my
 experience, those are the two biggest fragfest maps in the standard
@@ -39,7 +50,28 @@ maplist.txt contains the name of each of the good maps, 10 times,
 shuffled together thoroughly.  Should be fine for most uses!
 
 Don't use maplist with Extinction.  Extinction needs modified maps in
-order to work, and they're set up to run in a loop.
+order to work, and they're set up to run in a loop.  (The only maps that
+presently work with Extinction are jail1, jail5, mine1, strike, ware1,
+and ware2.)
+
+-----
+
+Your server can have a "message of the day".  It'll be shown briefly
+to players as they log in (and will appear in their scrollback).  The
+standard name for the MOTD file is "motd.txt", but that can be changed
+by changing the value of the "motdfile" variable.  (The MOTD file will
+always be looked for in your "weapons" directory.)
+
+NOTE: due to limitations in the Q2 network protocol, your MOTD can't be
+very long.  There is a per-packet size limit of 1500 bytes, and the
+MOTD is not the only thing being transmitted in the first packet.  If
+your MOTD is too long, your players will overflow immediately upon
+connection, and won't be able to connect.  This is even more true for
+Teamplay DM or Extinction, which display a menu to new players -- the
+menu takes up even more space in the first packet.  I'll fix this
+eventually, but the solution is sorta complicated and involved, and kinda
+more work than it's really worth, so until I waste the time to do it, just
+be aware the limitation exists.
 
 -----
 
@@ -157,6 +189,14 @@ idledetect - The number of minutes a player can be idle before they're
 	kicked.  (Set it to 0 to turn it off.)
 maplistfile - The name of the maplist file.  Default is "maplist.txt"
 motdfile - The name of the message-of-the-day file.  Default is "motd.txt"
+
+Changed dmflags:
+
+DF_TEAMREBALANCE - Available under Teamplay DM or Extinction.  Replaces
+	DF_CTF_NO_TECH (since there aren't any techs in WoD).  If set, then
+	after each game, the teams are rearranged according to players'
+	frags-per-minute.  (This is probably what you'd want to run on a
+	public Teamplay WoD server.)
 
 -----
 

@@ -27,8 +27,99 @@ struct ctfgame_s
 
 ctfgame_t ctfgame;
 
+cvar_t *teamplay;
 cvar_t *ctf;
 cvar_t *ctf_forcejoin;
+
+char *teamplay_statusbar =
+"yb	-24 "
+
+// health
+"xv	0 "
+"hnum "
+"xv	50 "
+"pic 0 "
+
+// ammo
+"if 2 "
+"	xv	100 "
+"	anum "
+"	xv	150 "
+"	pic 2 "
+"endif "
+
+// armor
+"if 4 "
+"	xv	200 "
+"	rnum "
+"	xv	250 "
+"	pic 4 "
+"endif "
+
+// selected item
+"if 6 "
+"	xv	296 "
+"	pic 6 "
+"endif "
+
+"yb	-50 "
+
+// picked up item
+"if 7 "
+"	xv	0 "
+"	pic 7 "
+"	xv	26 "
+"	yb	-42 "
+"	stat_string 8 "
+"	yb	-50 "
+"endif "
+
+//  help / weapon icon 
+"if 11 "
+  "xv 148 "
+  "pic 11 "
+"endif "
+
+//  frags
+"xr	-50 "
+"yt 2 "
+"num 3 14 "
+
+// red team
+"yb -102 "
+"if 17 "
+  "xr -26 "
+  "pic 17 "
+"endif "
+//joined overlay
+"if 22 "
+  "yb -104 "
+  "xr -28 "
+  "pic 22 "
+"endif "
+
+// blue team
+"yb -75 "
+"if 19 "
+  "xr -26 "
+  "pic 19 "
+"endif "
+//joined overlay
+"if 23 "
+  "yb -77 "
+  "xr -28 "
+  "pic 23 "
+"endif "
+
+// id view state
+"if 27 "
+  "xv 0 "
+  "yb -58 "
+  "string \"Viewing\" "
+  "xv 64 "
+  "stat_string 27 "
+"endif "
+;
 
 char *ctf_statusbar =
 "yb	-24 "
@@ -184,27 +275,51 @@ static edict_t *loc_findradius (edict_t *from, vec3_t org, float rad)
 	return NULL;
 }
 
+void loc_buildboxpoints(vec3_t p[8], vec3_t org, vec3_t mins, vec3_t maxs)
+{
+	VectorAdd(org, mins, p[0]);
+	VectorCopy(p[0], p[1]);
+	p[1][0] -= mins[0];
+	VectorCopy(p[0], p[2]);
+	p[2][1] -= mins[1];
+	VectorCopy(p[0], p[3]);
+	p[3][0] -= mins[0];
+	p[3][1] -= mins[1];
+	VectorAdd(org, maxs, p[4]);
+	VectorCopy(p[4], p[5]);
+	p[5][0] -= maxs[0];
+	VectorCopy(p[0], p[6]);
+	p[6][1] -= maxs[1];
+	VectorCopy(p[0], p[7]);
+	p[7][0] -= maxs[0];
+	p[7][1] -= maxs[1];
+}
+
 static qboolean loc_CanSee (edict_t *targ, edict_t *inflictor)
 {
 	trace_t	trace;
-	vec3_t	targpoint;
+	vec3_t	targpoints[8];
 	int i;
 	vec3_t viewpoint;
 
+// bmodels need special checking because their origin is 0,0,0
 	if (targ->movetype == MOVETYPE_PUSH)
 		return false; // bmodels not supported
 
-	// Find the center of the target.
-	for (i = 0; i < 3; i++)
-		targpoint[i] = (targ->mins[i] + targ->maxs[i]) / 2.0;
+	// if not in pvs, can't see
+	if (!gi.inPVS (targ->s.origin, inflictor->s.origin))
+		return false;
+
+	loc_buildboxpoints(targpoints, targ->s.origin, targ->mins, targ->maxs);
 	
 	VectorCopy(inflictor->s.origin, viewpoint);
 	viewpoint[2] += inflictor->viewheight;
 
-	trace = gi.trace (viewpoint, vec3_origin, vec3_origin, targpoint,
-		inflictor, MASK_SOLID);
-	if (trace.fraction == 1.0)
-		return true;
+	for (i = 0; i < 8; i++) {
+		trace = gi.trace (viewpoint, vec3_origin, vec3_origin, targpoints[i], inflictor, MASK_SOLID);
+		if (trace.fraction == 1.0)
+			return true;
+	}
 
 	return false;
 }
@@ -217,10 +332,15 @@ void CTFInit(void)
 	memset (&ctfgame, 0, sizeof (ctfgame));
 
 	// See if we're doing teamplay.
+	teamplay = gi.cvar ("teamplay", "0", CVAR_SERVERINFO|CVAR_LATCH);
 	ctf = gi.cvar ("ctf", "0", CVAR_SERVERINFO|CVAR_LATCH);
 	ctf_forcejoin = gi.cvar ("ctf_forcejoin", "", 0);
 
-	// If we are, set up a few things.
+	// Make sure the variables are consistent.
+	if (!teamplay->value && ctf->value)
+		gi.error ("ctf set without teamplay being set");
+
+	// If we are doing Extinction, set up a few things.
 	if (ctf->value)
 	{
 		// Change the gamename.
@@ -231,6 +351,13 @@ void CTFInit(void)
 
 		// Start with round 1.
 		ctfgame.round = 1;
+	}
+
+	// If we are doing teamplay DM, set up a few things.
+	else if (teamplay->value)
+	{
+		// Change the gamename.
+		gi.cvar_forceset ("gamename", GAMEVERSION_T);
 	}
 }
 
@@ -630,9 +757,19 @@ void CTFID_f (edict_t *ent)
 	}
 }
 
+void CTFID (edict_t *ent, pmenu_t *p)
+{
+	// No player ID if it's been banned.
+	if ((int)featureban->value & FB_ID)
+		return;
+
+	ent->client->resp.id_state = !ent->client->resp.id_state;
+	PMenu_Close (ent);
+}
+
 static void CTFSetIDView(edict_t *ent)
 {
-	vec3_t	forward, dir;
+	vec3_t	forward, dir, end;
 	trace_t	tr;
 	edict_t	*who, *best;
 	float	bd = 0, d;
@@ -640,17 +777,15 @@ static void CTFSetIDView(edict_t *ent)
 
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 
-	AngleVectors(ent->client->v_angle, forward, NULL, NULL);
-	VectorScale(forward, 1024, forward);
-	VectorAdd(ent->s.origin, forward, forward);
-	tr = gi.trace(ent->s.origin, NULL, NULL, forward, ent, MASK_SOLID);
+	AngleVectors (ent->client->v_angle, forward, NULL, NULL);
+	VectorMA (ent->s.origin, 1024, forward, end);
+	tr = gi.trace(ent->s.origin, NULL, NULL, end, ent, MASK_SOLID);
 	if (tr.fraction < 1 && tr.ent && tr.ent->client) {
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 
-			CS_PLAYERSKINS + (ent - g_edicts - 1);
+			CS_PLAYERSKINS + (tr.ent - g_edicts - 1);
 		return;
 	}
 
-	AngleVectors(ent->client->v_angle, forward, NULL, NULL);
 	best = NULL;
 	for (i = 1; i <= maxclients->value; i++) {
 		who = g_edicts + i;
@@ -659,7 +794,7 @@ static void CTFSetIDView(edict_t *ent)
 		VectorSubtract(who->s.origin, ent->s.origin, dir);
 		VectorNormalize(dir);
 		d = DotProduct(forward, dir);
-		if (d > bd && loc_CanSee(ent, who)) {
+		if (d > bd && loc_CanSee(who, ent)) {
 			bd = d;
 			best = who;
 		}
@@ -673,6 +808,9 @@ void SetCTFStats(edict_t *ent)
 {
 	int p1, p2;
 
+	if (!teamplay->value)
+		return;
+
 	// logo headers for the frag display
 	ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = gi.imageindex ("ctfsb1");
 	ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = gi.imageindex ("ctfsb2");
@@ -681,11 +819,22 @@ void SetCTFStats(edict_t *ent)
 	if ((level.intermissiontime || level.framenum < ctfgame.matchStartFrame)
 	&& (level.framenum & 8)) // blink 1/8th second
 	{
-		if (ctfgame.spawn1 == ctfgame.spawncount)
-			ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = 0;
-		else if (ctfgame.spawn2 == ctfgame.spawncount)
-			ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = 0;
-		// else tie game!
+		if (ctf->value)
+		{
+			if (ctfgame.spawn1 == ctfgame.spawncount)
+				ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = 0;
+			else if (ctfgame.spawn2 == ctfgame.spawncount)
+				ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = 0;
+			// else tie game!
+		}
+		else if (teamplay->value)
+		{
+			if (ctfgame.total1 > ctfgame.total2)
+				ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = 0;
+			else if (ctfgame.total1 < ctfgame.total2)
+				ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = 0;
+			// else tie game!
+		}
 	}
 
 	// figure out what icon to display for team logos
@@ -699,41 +848,48 @@ void SetCTFStats(edict_t *ent)
 	ent->client->ps.stats[STAT_CTF_TEAM1_PIC] = p1;
 	ent->client->ps.stats[STAT_CTF_TEAM2_PIC] = p2;
 
-	ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = ctfgame.spawn1;
-	ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = ctfgame.spawn2;
-	ent->client->ps.stats[STAT_CTF_NOTCAPPED] = ctfgame.spawncount
-		- ctfgame.spawn1 - ctfgame.spawn2;
-
 	ent->client->ps.stats[STAT_CTF_JOINED_TEAM1_PIC] = 0;
 	ent->client->ps.stats[STAT_CTF_JOINED_TEAM2_PIC] = 0;
 	if (ent->client->resp.ctf_team == CTF_TEAM1)
-		ent->client->ps.stats[STAT_CTF_JOINED_TEAM1_PIC] = gi.imageindex ("i_ctfj");
+		ent->client->ps.stats[STAT_CTF_JOINED_TEAM1_PIC]
+			= gi.imageindex ("i_ctfj");
 	else if (ent->client->resp.ctf_team == CTF_TEAM2)
-		ent->client->ps.stats[STAT_CTF_JOINED_TEAM2_PIC] = gi.imageindex ("i_ctfj");
+		ent->client->ps.stats[STAT_CTF_JOINED_TEAM2_PIC]
+			= gi.imageindex ("i_ctfj");
 
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	if (ent->client->resp.id_state)
-		CTFSetIDView(ent);
+		CTFSetIDView (ent);
 
-	// Display countdown to the beginning of the match.
-	if (ctfgame.matchStartFrame)
+	if (ctf->value)
 	{
-		if (level.framenum & 4)
+		ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = ctfgame.spawn1;
+		ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = ctfgame.spawn2;
+		ent->client->ps.stats[STAT_CTF_NOTCAPPED] = ctfgame.spawncount
+			- ctfgame.spawn1 - ctfgame.spawn2;
+
+		// Display countdown to the beginning of the match.
+		if (ctfgame.matchStartFrame)
 		{
-			if (ent->client->resp.ctf_team == CTF_TEAM1)
-				ent->client->ps.stats[STAT_TIMER_ICON] = p1;
-			else if (ent->client->resp.ctf_team == CTF_TEAM2)
-				ent->client->ps.stats[STAT_TIMER_ICON] = p2;
+			if (level.framenum & 4)
+			{
+				if (ent->client->resp.ctf_team == CTF_TEAM1)
+					ent->client->ps.stats[STAT_TIMER_ICON] = p1;
+				else if (ent->client->resp.ctf_team == CTF_TEAM2)
+					ent->client->ps.stats[STAT_TIMER_ICON] = p2;
+			}
+			else
+			{
+				if (ent->client->resp.ctf_team == CTF_TEAM1)
+					ent->client->ps.stats[STAT_TIMER_ICON]
+						= gi.imageindex ("i_ctf1t");
+				else if (ent->client->resp.ctf_team == CTF_TEAM2)
+					ent->client->ps.stats[STAT_TIMER_ICON]
+						= gi.imageindex ("i_ctf2t");
+			}
+			ent->client->ps.stats[STAT_TIMER]
+				= (ctfgame.matchStartFrame + 3 - level.framenum)/10;
 		}
-		else
-		{
-			if (ent->client->resp.ctf_team == CTF_TEAM1)
-				ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("i_ctf1t");
-			else if (ent->client->resp.ctf_team == CTF_TEAM2)
-				ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("i_ctf2t");
-		}
-		ent->client->ps.stats[STAT_TIMER]
-			= (ctfgame.matchStartFrame + 3 - level.framenum)/10;
 	}
 }
 
@@ -805,7 +961,7 @@ void CTFTeam_f (edict_t *ent)
 	char *t;
 	int desired_team;
 
-	if (!ctf->value)
+	if (!teamplay->value)
 		return;
 
 	t = gi.args();
@@ -902,14 +1058,22 @@ void CTFScoreboardMessage (edict_t *ent, edict_t *killer, char string[1400])
 	len = 0;
 
 	// team one
-	sprintf(string, "if 24 xv 8 yv 8 pic 24 endif "
-		"xv 40 yv 28 string \"%4d/%-3d\" "
-		"xv 98 yv 12 num 2 18 "
-		"if 25 xv 168 yv 8 pic 25 endif "
-		"xv 200 yv 28 string \"%4d/%-3d\" "
-		"xv 256 yv 12 num 2 20 ",
-		totalscore[0], total[0],
-		totalscore[1], total[1]);
+	if (ctf->value)
+		sprintf(string, "if 24 xv 8 yv 8 pic 24 endif "
+			"xv 40 yv 28 string \"%4d/%-3d\" "
+			"xv 98 yv 12 num 2 18 "
+			"if 25 xv 168 yv 8 pic 25 endif "
+			"xv 200 yv 28 string \"%4d/%-3d\" "
+			"xv 256 yv 12 num 2 20 ",
+			totalscore[0], total[0],
+			totalscore[1], total[1]);
+	else
+		sprintf(string, "if 24 xv 8 yv 8 pic 24 endif "
+			"xv 40 yv 28 string \"%4d/%-3d\" "
+			"if 25 xv 168 yv 8 pic 25 endif "
+			"xv 200 yv 28 string \"%4d/%-3d\" ",
+			totalscore[0], total[0],
+			totalscore[1], total[1]);
 	len = strlen(string);
 
 	for (i=0 ; i<16 ; i++)
@@ -1103,7 +1267,7 @@ void CTFJoinTeam2(edict_t *ent, pmenu_t *p)
 
 void CTFChaseCam(edict_t *ent, pmenu_t *p)
 {
-	int i;
+	int i, numspec;
 	edict_t *e;
 
 	if (ent->client->chase_target) {
@@ -1112,10 +1276,26 @@ void CTFChaseCam(edict_t *ent, pmenu_t *p)
 		return;
 	}
 
-	for (i = 1; i <= maxclients->value; i++) {
+	// count spectators
+	for (i = 1, numspec = 0; i <= maxclients->value; i++)
+		if (g_edicts[i].inuse && g_edicts[i].client->chase_target != NULL)
+			numspec++;
+
+	if (numspec >= maxspectators->value)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Server spectator limit is full.");
+		return;
+	}
+
+	// pick someone to chase
+	for (i = 1; i <= maxclients->value; i++)
+	{
 		e = g_edicts + i;
-		if (e->inuse && e->solid != SOLID_NOT) {
+		if (e->inuse && e != ent && e->solid != SOLID_NOT)
+		{
 			ent->client->chase_target = e;
+			TeamplayMakeObserver (ent);
+			ent->client->resp.ctf_team = CTF_NOTEAM;
 			PMenu_Close(ent);
 			ent->client->update_chase = true;
 			break;
@@ -1174,14 +1354,13 @@ pmenu_t joinmenu[] = {
 	{ "Join Blue Team",					PMENU_ALIGN_LEFT, NULL, CTFJoinTeam2 },
 	{ NULL,									PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "Chase Camera",						PMENU_ALIGN_LEFT, NULL, CTFChaseCam },
+	{ "Player ID",							PMENU_ALIGN_LEFT, NULL, CTFID },
 	{ "Instructions",						PMENU_ALIGN_LEFT, NULL, CTFCredits },
 	{ NULL,									PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "Use [ and ] to move cursor",	PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "ENTER to select",					PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "ESC to Exit Menu",				PMENU_ALIGN_LEFT, NULL, NULL },
 	{ "(TAB to Return)",					PMENU_ALIGN_LEFT, NULL, NULL },
-	{ NULL,									PMENU_ALIGN_LEFT, NULL, NULL },
-	{ "WoD:E v" CTF_STRING_VERSION,	PMENU_ALIGN_RIGHT, NULL, NULL },
 };
 
 int CTFUpdateJoinMenu(edict_t *ent)
@@ -1191,16 +1370,33 @@ int CTFUpdateJoinMenu(edict_t *ent)
 	static char team2players[32];
 	int num1, num2, i;
 
+	if (ctf->value)
+	{
+		joinmenu[1].text = "*EXTINCTION";
+		joinmenu[10].text = "Instructions";
+		joinmenu[10].SelectFunc = CTFCredits;
+	}
+	else
+	{
+		joinmenu[1].text = "*Teamplay DM";
+		joinmenu[10].text = NULL;
+		joinmenu[10].SelectFunc = NULL;
+	}
+
 	joinmenu[4].text = "Join Red Team";
 	joinmenu[4].SelectFunc = CTFJoinTeam1;
 	joinmenu[6].text = "Join Blue Team";
 	joinmenu[6].SelectFunc = CTFJoinTeam2;
 
-	if (ctf_forcejoin->string && *ctf_forcejoin->string) {
-		if (stricmp(ctf_forcejoin->string, "red") == 0) {
+	if (ctf_forcejoin->string && *ctf_forcejoin->string)
+	{
+		if (stricmp(ctf_forcejoin->string, "red") == 0)
+		{
 			joinmenu[6].text = NULL;
 			joinmenu[6].SelectFunc = NULL;
-		} else if (stricmp(ctf_forcejoin->string, "blue") == 0) {
+		}
+		else if (stricmp(ctf_forcejoin->string, "blue") == 0)
+		{
 			joinmenu[4].text = NULL;
 			joinmenu[4].SelectFunc = NULL;
 		}
@@ -1210,6 +1406,11 @@ int CTFUpdateJoinMenu(edict_t *ent)
 		joinmenu[8].text = "Leave Chase Camera";
 	else
 		joinmenu[8].text = "Chase Camera";
+
+	if (ent->client->resp.id_state)
+		joinmenu[9].text = "Turn Player ID off";
+	else
+		joinmenu[9].text = "Turn Player ID on";
 
 	levelname[0] = '*';
 	if (g_edicts[0].message)
@@ -1291,9 +1492,8 @@ qboolean CTFStartClient(edict_t *ent)
 		TeamplayMakeObserver (ent);
 		ent->client->resp.ctf_team = CTF_NOTEAM;
 
-		// show them the instructions
-		PMenu_Open (ent, creditsmenu, -1, sizeof(creditsmenu) / sizeof(pmenu_t));
-		//CTFOpenJoinMenu(ent);
+		// show them the initial menu
+		CTFOpenJoinMenu(ent);
 
 		return true;
 	}
@@ -1709,80 +1909,6 @@ void TeamplayDoCountdown (void)
 			ctfgame.matchStartFrame = 0;
 		}
 	}
-}
-
-
-void TeamplaySpawnEntities (char *mapname, char *entities, char *spawnpoint)
-{
-	FILE *f;
-	char szFile[MAX_QPATH];
-	int nEntSize, nRead;
-	char *pszCustomEnt;
-
-	// If teamplay is off, do the normal thing.
-	if (!ctf->value)
-	{
-		SpawnEntities (mapname, entities, spawnpoint);
-		return;
-	}
-
-	// Create the pathname to the entity file.
-	Com_sprintf (szFile, sizeof (szFile), "%s/ent/%s.ent",
-		gamedir->string, mapname);
-
-	// Try to open it.
-	f = fopen (szFile, "rb");
-	if (!f)
-	{
-		// No custom entity file, so just use the default.
-		SpawnEntities (mapname, entities, spawnpoint);
-		return;
-	}
-
-	// Get the size of the file.
-	if (fseek (f, 0, SEEK_END) != 0)
-	{
-		gi.dprintf ("TeamplaySpawnEntities(): fseek %s\n", szFile);
-		goto errClose;
-	}
-	nEntSize = ftell (f);
-	if (nEntSize < 0)
-	{
-		gi.dprintf ("TeamplaySpawnEntities(): ftell %s (%d)\n", szFile, nEntSize);
-		goto errClose;
-	}
-	if (fseek (f, 0, SEEK_SET) != 0)
-	{
-		gi.dprintf ("TeamplaySpawnEntities(): fseek %s\n", szFile);
-		goto errClose;
-	}
-
-	// Create a buffer and read the custom entity file.
-	pszCustomEnt = malloc (nEntSize + 1);
-	if (!pszCustomEnt)
-	{
-		gi.dprintf ("TeamplaySpawnEntities(): malloc\n");
-		goto errClose;
-	}
-	nRead = fread (pszCustomEnt, 1, nEntSize, f);
-	if (nRead != nEntSize)
-	{
-		gi.dprintf ("TeamplaySpawnEntities(): fread %s (%d/%d)\n",
-			szFile, nRead, nEntSize);
-		goto errFree;
-	}
-
-	// Null-terminate the string.
-	pszCustomEnt[nEntSize] = '\0';
-
-	// Now spawn *these* entities!
-	SpawnEntities (mapname, pszCustomEnt, spawnpoint);
-
-	// Clean up.
-errFree:
-	free (pszCustomEnt);
-errClose:
-	fclose (f);
 }
 
 

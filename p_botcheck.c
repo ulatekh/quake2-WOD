@@ -1,37 +1,5 @@
-/*============================================================================
-ZbotCheck v1.01 for Quake 2 by Matt "WhiteFang" Ayres (matt@lithium.com)
-
-This is provided for mod authors to implement Zbot detection, nothing more.
-The code has so far proven to be reliable at detecting Zbot auto-aim clients
-(cheaters).  However, no guarantees of any kind are made.  This is provided
-as-is.  You must be familiar with Quake 2 mod coding to make use of this.
-
-In g_local.h, add to struct client_respawn_t:
-
-	short angles[2][2];
-	int tog;
-	int jitter;				// The number of jitters in the series
-	float jitter_time;	// The time of the first jitter in the series
-	float jitter_last;	// The time of the last jitter in the series
-
-Next, in p_client.c, add a simple forward declaration:
-
-	qboolean ZbotCheck(edict_t *ent, usercmd_t *ucmd);
-
-Then in p_client.c, anywhere in the ClientThink function, call the
-ZbotCheck function.  Pass it the same parameters you get from ClientThink.
-It will return true if the client is using a Zbot.  Simple example:
-
-	if(ZbotCheck(ent, ucmd))
-		gi.bprintf(PRINT_HIGH, ">>> Zbot detected: %s\n",
-		ent->client->pers.netname);
-
-From here you can do as you please with the cheater.  ZbotCheck will only
-return true once, following returns will be false.
-============================================================================*/
-
 #include "g_local.h"
-#include "zbotcheck.h"
+#include "p_botcheck.h"
 
 
 
@@ -58,6 +26,7 @@ DistanceFromPointToLine (vec3_t point, vec3_t linePoint, vec3_t lineDir)
 
 
 
+// Calculate the bot-info record from the player movement data.
 bot_record_t
 GetBotRecord (edict_t *ent, usercmd_t *ucmd)
 {
@@ -71,6 +40,10 @@ GetBotRecord (edict_t *ent, usercmd_t *ucmd)
 	br.sidemove = ucmd->sidemove;
 	br.upmove = ucmd->upmove;
 	br.impulse = ucmd->impulse;
+
+	// (This has to be recorded by whoever is making an array of these
+	// structures.)
+	br.angleSumChange = -1;
 
 	// Examine the aiming pattern.
 	if (br.fire)
@@ -107,13 +80,33 @@ GetBotRecord (edict_t *ent, usercmd_t *ucmd)
 
 
 
+// Determine the difference in the angle-sums between two frames.
+static int
+AngleSumChange (bot_record_t *one, bot_record_t *two)
+{
+	int pitchChange, yawChange;
+
+	// Basically, it's a simple absolute-difference, but with a correction for
+	// wraparound.
+	pitchChange = abs (one->pitch - two->pitch);
+	if (pitchChange > 32767)
+		pitchChange = 65536 - pitchChange;
+	yawChange = abs (one->yaw - two->yaw);
+	if (yawChange > 32767)
+		yawChange = 65536 - yawChange;
+
+	return pitchChange + yawChange;
+}
+
+
+
 #define ZBOT_JITTERMAX	3
 #define ZBOT_JITTERTIME	20
 #define ZBOT_NOJITTERMOVE 100
 #define ZBOT_JITTERMOVE 500
 
 static qboolean
-ZbotCheckLithium (edict_t *ent, usercmd_t *ucmd)
+ZbotCheckLithium (edict_t *ent)
 {
 	bot_record_t *br0, *br1, *br2;
 
@@ -123,10 +116,8 @@ ZbotCheckLithium (edict_t *ent, usercmd_t *ucmd)
 	br2 = &ent->client->botRecord[2];
 
 	// Are they jittering in a zbot-like way?
-	if (abs (br0->pitch - br2->pitch) + abs (br0->yaw - br2->yaw)
-		<= ZBOT_NOJITTERMOVE
-	&& abs (br0->pitch - br1->pitch) + abs (br0->yaw - br1->yaw)
-		>= ZBOT_JITTERMOVE)
+	if (AngleSumChange (br0, br2) <= ZBOT_NOJITTERMOVE
+	&& AngleSumChange (br0, br1) >= ZBOT_JITTERMOVE)
 	{
 		if (ent->client->jitter == 0
 		|| level.framenum <= ent->client->jitter_last + 1)
@@ -159,12 +150,12 @@ ZbotCheckLithium (edict_t *ent, usercmd_t *ucmd)
 #define ZBOT_MAX_FRAMES			5		// Must occur within # server frames
 
 static qboolean
-ZbotCheckLFire (edict_t *ent, usercmd_t *ucmd)
+ZbotCheckLFire (edict_t *ent)
 {
 	// Not what we're looking for?
 	if (ent->client->botRecord[0].fire == ent->client->botRecord[1].fire
-	|| (ent->client->botRecord[0].pitch == ent->client->botRecord[1].pitch
-		&& ent->client->botRecord[0].yaw == ent->client->botRecord[1].yaw))
+	|| ent->client->botRecord[0].pitch == ent->client->botRecord[1].pitch
+	|| ent->client->botRecord[0].yaw == ent->client->botRecord[1].yaw)
 	{
 		// Reset detection.
 		ent->client->zbotSequenceCount = 0;
@@ -199,19 +190,16 @@ ZbotCheckLFire (edict_t *ent, usercmd_t *ucmd)
 
 
 static qboolean
-RatBotCheck (edict_t *ent, usercmd_t *ucmd)
+RatBotCheck (edict_t *ent)
 {
 	gclient_t *client = ent->client;
 
 	// Fetch the data we need to do this check.
-	vec_t currentPitch = client->botRecord[0].pitch;
-	vec_t currentYaw = client->botRecord[0].yaw;
 	qboolean currentFire = client->botRecord[0].fire;
-	vec_t previousPitch = client->botRecord[1].pitch;
-	vec_t previousYaw = client->botRecord[1].yaw;
 	qboolean previousFire = client->botRecord[1].fire;
-	vec_t angleSumChange = fabs (previousPitch - currentPitch)
-		+ fabs (previousYaw - currentYaw);
+	bot_record_t *br0 = &client->botRecord[0];
+	bot_record_t *br1 = &client->botRecord[1];
+	int angleSumChange = AngleSumChange (br0, br1);
 
 	// What we do depends on where we are in our RatBot check.
 	if (client->ratBotState == 0)
@@ -227,9 +215,14 @@ RatBotCheck (edict_t *ent, usercmd_t *ucmd)
 		// Are they continuing to fire?
 		if (previousFire && currentFire)
 		{
-			// If the angle-sum-change is 100 or less (but not zero), this may be
-			// a RatBot firing sequence.
-			if (angleSumChange <= 100 && angleSumChange > 0)
+			// If any part of the aiming angle hasn't changed, this isn't a
+			// RatBot.
+			if (br0->pitch == br1->pitch || br0->yaw == br1->yaw)
+				client->ratBotState = 0;
+
+			// If the angle-sum-change is 100 or less, this may be a RatBot
+			// firing sequence.
+			else if (angleSumChange <= 100)
 				client->ratBotState++;
 
 			// If not, it still might be, but be more strict about it.
@@ -265,11 +258,13 @@ RatBotCheck (edict_t *ent, usercmd_t *ucmd)
 
 
 static qboolean
-SlowRatBotCheck (edict_t *ent, usercmd_t *ucmd)
+SlowRatBotCheck (edict_t *ent)
 {
 	gclient_t *client = ent->client;
 	int i, fire_count;
 	bot_record_t *br0, *br1;
+	int angleSumChange, angleSumChangeBegin, angleSumChangeEnd;
+	int fire_asc_total, fire_asc_count, fire_asc_high;
 
 	// Locate the current fire frame.
 	i = client->nextBotLog - 1;
@@ -291,12 +286,16 @@ SlowRatBotCheck (edict_t *ent, usercmd_t *ucmd)
 		return false;
 
 	// Make sure the angle-sum-change is 1000 or greater.
-	if (abs (br0->pitch - br1->pitch) + abs (br0->yaw - br1->yaw) < 500)
+	angleSumChangeBegin = angleSumChange = AngleSumChange (br0, br1);
+	if (angleSumChange < 1000)
 		return false;
 
 	// Look at the whole string of fire frames, make sure the angle-sum-change
 	// between them all is less than 100.
 	fire_count = 0;
+	fire_asc_total = 0;
+	fire_asc_count = 0;
+	fire_asc_high = 0;
 	for (;;)
 	{
 		// Go back another frame.
@@ -310,21 +309,53 @@ SlowRatBotCheck (edict_t *ent, usercmd_t *ucmd)
 		if (!br0->fire)
 			break;
 
+#if 0
 		// Make sure the angle-sum-change is 100 or less.
 		if (abs (br0->pitch - br1->pitch) + abs (br0->yaw - br1->yaw) > 100)
 			return false;
+#endif
+
+		// If any part of the aiming angle hasn't changed, this may be a false
+		// positive.  We just have to lose these detections...sigh...
+		if (br0->pitch == br1->pitch || br0->yaw == br1->yaw)
+			return false;
+
+		// Factor this frame into the running average.
+		angleSumChange = AngleSumChange (br0, br1);
+		fire_asc_total += angleSumChange;
+		fire_asc_count++;
+		if (fire_asc_high < angleSumChange)
+			fire_asc_high = angleSumChange;
 
 		// That's one more fire frame.
 		fire_count++;
 	}
 
 	// Make sure there were enough fire frames to be convincing.
-	if (fire_count < 5)
+	if (fire_count < 6)
 		return false;
 
 	// Make sure the angle-sum-change is, again, 1000 or greater.
-	if (abs (br0->pitch - br1->pitch) + abs (br0->yaw - br1->yaw) < 500)
+	angleSumChangeEnd = angleSumChange = AngleSumChange (br0, br1);
+	if (angleSumChange < 1000)
 		return false;
+
+	// Make sure the average angle-sum-change in the firing range was less
+	// than 10% of the smallest of the angle-sum-changes at the beginning and
+	// end.
+	if (angleSumChange > angleSumChangeBegin)
+		angleSumChange = angleSumChangeBegin;
+	if ((double)fire_asc_total / (double)fire_asc_count
+		> (double)angleSumChange * .10)
+			return false;
+
+#if 0
+	// Make sure that the largest angle-sum-change in the firing range is
+	// less than 30% of the smallest of the angle-sum-changes at the beginning
+	// and end.
+	if (fire_asc_high > angleSumChange * 3 / 10)
+		return false;
+#endif
 
 	// Looks like a RatBot to us.
 	return true;
@@ -352,23 +383,23 @@ BotCheck (edict_t *ent, usercmd_t *ucmd)
 	botCode = 0;
 
 	// Look for ZBot impulses.
-	if (ucmd->impulse >= 169 && ucmd->impulse <= 174)
+	if (br.impulse >= 169 && br.impulse <= 174)
 		botCode = 1;
 
 	// Use Lithium's ZBot checker.
-	if (ZbotCheckLithium (ent, ucmd))
+	if (ZbotCheckLithium (ent))
 		botCode = 2;
 
 	// Use L-Fire's ZBot checker.
-	if (ZbotCheckLFire (ent, ucmd))
+	if (ZbotCheckLFire (ent))
 		botCode = 3;
 
 	// Look for RatBot impulses.
-	if (ucmd->impulse >= 150 && ucmd->impulse <= 153)
+	if (br.impulse >= 150 && br.impulse <= 153)
 		botCode = 4;
 
 	// Look for a RatBot firing pattern.
-	if (RatBotCheck (ent, ucmd))
+	if (SlowRatBotCheck (ent))
 		botCode = 5;
 
 	// Return what happened.
@@ -383,6 +414,11 @@ static void
 RecordPlayerMovement (edict_t *ent, bot_record_t br)
 {
 	gclient_t *client = ent->client;
+
+	// Calculate the angle-sum-change, now that we know where the previous
+	// record is.
+	br.angleSumChange = AngleSumChange (&br,
+		&client->botLog[(client->nextBotLog == 0) ? 49 : (client->nextBotLog - 1)]);
 
 	// Store the bot record.
 	client->botLog[client->nextBotLog] = br;
@@ -424,7 +460,7 @@ LogPlayerMovement (edict_t *ent, int botCode)
 		case 5:
 			botType = "RatBot"; testType = "Hash"; break;
 		default:
-			botType = "UNKNOWN"; testType = "UNKNOWN"; break;
+			botType = "(none)"; testType = "(none)"; break;
 	}
 
 	// Parse their IP address.
@@ -447,9 +483,9 @@ LogPlayerMovement (edict_t *ent, int botCode)
 		(int)u.c[0], (int)u.c[1], (int)u.c[2], (int)u.c[3]);
 	fprintf (log, "Bot type: %s\nTest type: %s\n", botType, testType);
 	fprintf (log, "\n");
-	fprintf (log, "Fire    Angles     Forward  Side    Up   Imp ShotError\n");
-	fprintf (log, "---- ------------- ------- ------ ------ --- ---------\n");
-// fprintf (log, "FIRE -xxxxx,-xxxxx  -xxxxx -xxxxx -xxxxx xxx xx.xxxxxx\n");
+	fprintf (log, "Fire    Angles     Forward  Side    Up   Imp ShotError A.S.Chg\n");
+	fprintf (log, "---- ------------- ------- ------ ------ --- --------- -------\n");
+// fprintf (log, "FIRE -xxxxx,-xxxxx  -xxxxx -xxxxx -xxxxx xxx xx.xxxxxx xxxxxxx\n");
 	i = client->nextBotLog;
 	for (;;)
 	{
@@ -459,15 +495,17 @@ LogPlayerMovement (edict_t *ent, int botCode)
 
 		// Print this record.
 		sprintf (angleBuffer, "%i,%i", br->pitch, br->yaw);
-		sprintf (shotErrorBuffer, "%9.6lf", br->clientDist);
-		fprintf (log, "%4s %13s  %6i %6i %6i %3i %9s\n",
-			(br->fire) ? "FIRE" : "",
+		if (br->hitClient)
+			sprintf (shotErrorBuffer, "%9.6lf", br->clientDist);
+		fprintf (log, "%4s %13s  %6i %6i %6i %3i %9s %7i\n",
+			((br->fire) ? "FIRE" : ""),
 			angleBuffer,
 			br->forwardmove,
 			br->sidemove,
 			br->upmove,
 			br->impulse,
-			(br->hitClient) ? shotErrorBuffer : "");
+			((br->hitClient) ? shotErrorBuffer : ""),
+			br->angleSumChange);
 
 		// Move to the next record.
 		i++;
@@ -476,7 +514,8 @@ LogPlayerMovement (edict_t *ent, int botCode)
 		if (i == client->nextBotLog)
 			break;
  	}
-	fprintf (log, "#------------------------------------------------#\n");
+	fprintf (log, "#----------------------------------------------------------"
+		"----#\n");
 
 	// That's it for the log entry.
 	fclose (log);

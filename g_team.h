@@ -1,9 +1,4 @@
 
-#define CTF_VERSION			0.2
-#define CTF_VSTRING2(x) #x
-#define CTF_VSTRING(x) CTF_VSTRING2(x)
-#define CTF_STRING_VERSION  CTF_VSTRING(CTF_VERSION)
-
 #define STAT_CTF_TEAM1_PIC			17
 #define STAT_CTF_TEAM1_CAPS			18
 #define STAT_CTF_TEAM2_PIC			19
@@ -26,7 +21,9 @@ typedef enum {
 	CTF_STATE_PLAYING
 } ctfstate_t;
 
+extern cvar_t *teamplay;
 extern cvar_t *ctf;
+extern cvar_t *ctf_forcejoin;
 
 #define CTF_TEAM1_SKIN "ctf_r"
 #define CTF_TEAM2_SKIN "ctf_b"
@@ -61,6 +58,7 @@ char *CTFCheckRules (void);
 void SP_misc_ctf_banner (edict_t *ent);
 void SP_misc_ctf_small_banner (edict_t *ent);
 
+extern char *teamplay_statusbar;
 extern char *ctf_statusbar;
 
 void UpdateChaseCam (edict_t *ent);
@@ -77,7 +75,6 @@ void TeamplayCheckRespawn (void);
 
 qboolean TeamplayCheckCountdown (void);
 void TeamplayDoCountdown (void);
-void TeamplaySpawnEntities (char *mapname, char *entities, char *spawnpoint);
 
 qboolean TeamplayCheckRound1 (void);
 qboolean TeamplayCheckRound2 (void);

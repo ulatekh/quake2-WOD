@@ -70,7 +70,7 @@ void BeginIntermission (edict_t *targ)
 		return;		// already activated
 
 //ZOID
-	if (deathmatch->value && ctf->value)
+	if (deathmatch->value && teamplay->value)
 		CTFCalcScores();
 //ZOID
 
@@ -179,7 +179,7 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 			ent->client->pers.scanner_active = 2;
 
 //ZOID
-	if (ctf->value && ent->client->showscores)
+	if (teamplay->value && ent->client->showscores)
 	{
 		CTFScoreboardMessage (ent, killer, string);
 		//return;

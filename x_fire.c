@@ -228,7 +228,7 @@ void PBM_BurnDamage (edict_t *victim, edict_t *fire, vec3_t damage)
 
 	// If the owner of the fire is on the same team as the victim, don't set the
 	// victim on fire.  (Let people set themselves on fire, though.)
-	if (ctf->value && victim->client && fire->owner && fire->owner->client
+	if (teamplay->value && victim->client && fire->owner && fire->owner->client
 	&& victim->client->resp.ctf_team == fire->owner->client->resp.ctf_team
 	&& victim != fire->owner)
 		return;
@@ -250,13 +250,37 @@ void PBM_BurnDamage (edict_t *victim, edict_t *fire, vec3_t damage)
 	if ((rand() % 40) < chance)
 		PBM_Ignite(victim, fire->owner);
 
-	/* Inflict some burn damage. */
-	mod = MOD_RAILGUN;
-	if ((int)fragban->value & WB_FLAMETHROWER)
-		mod |= MOD_NOFRAG;
+	// If the entity is frozen, the damage will go towards unfreezing them.
+	// 10 points of damage == 1 second of thaw.
+	if (victim->frozen)
+	{
+		float meltPoints;
 
-	T_Damage(victim, fire, fire->owner, vec3_origin, victim->s.origin,
-		vec3_origin, points, 0, 0, mod);
+		// Calculate what it'll take to unfreeze them completely.
+		meltPoints = (victim->frozentime - level.time) * 10.0;
+
+		// If that's more than the damage, put only that much of the damage
+		// toward unmelting.
+		if (meltPoints > points)
+			meltPoints = points;
+
+		// Put some damage toward thawing.
+		points -= meltPoints;
+
+		// Thaw them a bit.
+		victim->frozentime -= meltPoints / 10.0;
+	}
+
+	/* Inflict some burn damage. */
+	if (points > 0)
+	{
+		mod = MOD_RAILGUN;
+		if ((int)fragban->value & WB_FLAMETHROWER)
+			mod |= MOD_NOFRAG;
+
+		T_Damage(victim, fire, fire->owner, vec3_origin, victim->s.origin,
+			vec3_origin, points, 0, 0, mod);
+	}
 }
 
 /*-------------------------------------------------------- New Code --------
@@ -684,6 +708,54 @@ void PBM_FireballTouch (edict_t *self, edict_t *other, cplane_t *plane,
 	PBM_BecomeNewExplosion (self);
 }
 
+void
+PBM_NapalmThink (edict_t *self)
+{
+	vec3_t dir;
+
+	// If we've stopped moving, explode.
+	if (VectorCompare (self->velocity, vec3_origin))
+	{
+		PBM_FireballTouch (self,
+			(self->groundentity) ? self->groundentity : world,
+			NULL, NULL);
+		return;
+	}
+
+	// Point in the direction we're gliding.
+	VectorNormalize2 (self->velocity, dir);
+	vectoangles (dir, self->s.angles);
+	self->s.angles[0] -= 90;
+
+	PBM_CheckFire (self);
+}
+
+// Toss a bouncing flaming ball.  For the new napalm.
+void
+PBM_NapalmTouch (edict_t *ent, edict_t *other, cplane_t *plane,
+					  csurface_t *surf)
+{
+	if (surf && (surf->flags & SURF_SKY))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+
+	// From this point on, bounce weakly.
+	ent->movetype  = MOVETYPE_SPLAT;
+	ent->think     = PBM_NapalmThink;
+
+	// Bounce some of the time.
+	if (plane)
+	{
+		if (rand() < (RAND_MAX/2))
+			PBM_FireballTouch (ent, other, plane, surf);
+		return;
+	}
+
+	PBM_FireballTouch (ent, other, plane, surf);
+}
+
 /*--------------------------------------------------------- New Code -------
 //  Create and launch a fireball.
 //------------------------------------------------------------------------*/
@@ -712,7 +784,7 @@ void PBM_FireFlamer
 	fireball->s.sound      = gi.soundindex ("player/fry.wav");
 	fireball->owner        = self;
 	fireball->classname    = "fire";
-	fireball->touch        = PBM_FireballTouch;
+	fireball->touch        = PBM_NapalmTouch;
 	fireball->burnout      = level.time + 6;
 	fireball->timestamp    = 0;
 	fireball->nextthink    = level.time + FRAMETIME;
@@ -741,41 +813,6 @@ void PBM_FireFlamer
 
 }
 
-// Toss a bouncing flaming ball.  For the new napalm.
-void
-PBM_NapalmTouch (edict_t *ent, edict_t *other, cplane_t *plane,
-					  csurface_t *surf)
-{
-	if (surf && (surf->flags & SURF_SKY))
-	{
-		G_FreeEdict (ent);
-		return;
-	}
-
-	// Bounce off non-floors all the time, and floors once.
-	if (plane)
-	{
-		if (plane->normal[2] > 0.7)
-			ent->touch = PBM_FireballTouch;
-		return;
-	}
-
-	PBM_FireballTouch (ent, other, plane, surf);
-}
-
-void
-PBM_NapalmThink (edict_t *self)
-{
-	vec3_t dir;
-
-	// Point in the direction we're gliding.
-	VectorNormalize2 (self->velocity, dir);
-	vectoangles (dir, self->s.angles);
-	self->s.angles[0] -= 90;
-
-	PBM_CheckFire (self);
-}
-
 void
 PBM_LobFlamer (edict_t *self, vec3_t start, vec3_t dir, int speed, float radius,
 					vec3_t damage, vec3_t radius_damage)
@@ -802,7 +839,7 @@ PBM_LobFlamer (edict_t *self, vec3_t start, vec3_t dir, int speed, float radius,
 	fireball->owner        = self;
 	fireball->classname    = "fire";
 	fireball->touch        = PBM_NapalmTouch;
-	fireball->burnout      = level.time + 6;
+	fireball->burnout      = level.time + 4;
 	fireball->timestamp    = 0;
 	fireball->nextthink    = level.time + FRAMETIME;
 	fireball->think        = PBM_NapalmThink;

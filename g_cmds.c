@@ -33,7 +33,7 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 
 	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
 	{
-		if (ctf->value
+		if (teamplay->value
 		&& ent1->client && ent2->client
 		&& ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
 			return true;
@@ -395,7 +395,6 @@ void Cmd_Noclip_f (edict_t *ent)
 /*
 =====
 cmd_kamikaze_f
-added so player cannot kamikaze when dead
 =====
 */
 
@@ -406,7 +405,9 @@ void Cmd_Kamikaze_f (edict_t *ent)
 		return;
 
 	// Or when you're a ghost.
-	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+	if (teamplay->value
+	&& ent->movetype == MOVETYPE_NOCLIP
+	&& ent->solid == SOLID_NOT)
 		return;
 	
 	// Or if you're frozen.
@@ -752,29 +753,32 @@ void Cmd_Inven_f (edict_t *ent)
 	cl->showscores = false;
 	cl->showhelp = false;
 
-//ZOID
+	// If the menu's up, close it: that's the end of the cycle.
 	if (ent->client->menu)
 	{
-		PMenu_Close(ent);
+		PMenu_Close (ent);
 		ent->client->update_chase = true;
 		return;
 	}
-//ZOID
 
+	// If this is a teamplay game and they just closed the inventory window,
+	// show the menu.
+	if (teamplay->value
+	&& (cl->showinventory || cl->resp.ctf_team == CTF_NOTEAM))
+	{
+		cl->showinventory = false;
+		CTFOpenJoinMenu(ent);
+		return;
+	}
+
+	// If the inventory's up, close it.
 	if (cl->showinventory)
 	{
 		cl->showinventory = false;
 		return;
 	}
 
-//ZOID
-	if (ctf->value && cl->resp.ctf_team == CTF_NOTEAM)
-	{
-		CTFOpenJoinMenu(ent);
-		return;
-	}
-//ZOID
-
+	// Otherwise, we're gonna show the inventory window.
 	cl->showinventory = true;
 
 	gi.WriteByte (svc_inventory);
@@ -1096,7 +1100,9 @@ void Cmd_Push_f (edict_t *ent)
 		return;
 
 	// Or when you're a ghost.
-	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+	if (teamplay->value
+	&& ent->movetype == MOVETYPE_NOCLIP
+	&& ent->solid == SOLID_NOT)
 		return;
 
 	// Or if you're frozen.
@@ -1162,7 +1168,9 @@ void Cmd_Pull_f (edict_t *ent)
 		return;
 
 	// Or when you're a ghost.
-	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+	if (teamplay->value
+	&& ent->movetype == MOVETYPE_NOCLIP
+	&& ent->solid == SOLID_NOT)
 		return;
 
 	// Or if you're frozen.
@@ -1226,7 +1234,9 @@ void Cmd_Wave_f (edict_t *ent)
 		return;
 
 	// Or when you're a ghost.
-	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+	if (teamplay->value
+	&& ent->movetype == MOVETYPE_NOCLIP
+	&& ent->solid == SOLID_NOT)
 		return;
 
 	if (ent->client->anim_priority > ANIM_WAVE)
@@ -1313,12 +1323,12 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 		return;
 
 	// If there's no teamplay, don't do team chat.
-	if (!ctf->value
+	if (!teamplay->value
 	&& !((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
 		team = false;
 
 	// If this player is dead or a ghost, don't allow team chat.
-	if (ctf->value
+	if (teamplay->value
 	&& (ent->deadflag
 		|| (ent->solid == SOLID_NOT && ent->movetype == MOVETYPE_NOCLIP))
 	&& !TeamplayCheckCountdown())

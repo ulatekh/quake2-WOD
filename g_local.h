@@ -17,7 +17,8 @@
 
 // the "gameversion" client command will print this plus compile date
 #define	GAMEVERSION		"wod6x"
-#define	GAMEVERSION_E	"wode1x"
+#define	GAMEVERSION_T	"wod6xT"
+#define	GAMEVERSION_E	"wod6xE"
 
 // protocol bytes that can be directly added to messages
 #define	svc_muzzleflash		1
@@ -84,6 +85,7 @@
 #define FB_SCANNER					0x00020000
 #define FB_ZOOM						0x00040000
 #define FB_JETPACK					0x00080000
+#define FB_CROUCH						0x00100000
 
 //==================================================================
 
@@ -243,6 +245,7 @@ MOVETYPE_FLY,
 MOVETYPE_TOSS,			// gravity
 MOVETYPE_FLYMISSILE,	// extra size to monsters
 MOVETYPE_BOUNCE,
+MOVETYPE_SPLAT,
 MOVETYPE_FLYRICOCHET
 
 } movetype_t;
@@ -390,7 +393,7 @@ typedef struct
 
 	int			power_cubes;		// ugly necessity for coop
 
-	// The time/frags from round 1.  (Needed for teamplay.)
+	// The time/frags from round 1.  (Needed for Extinction.)
 	float			roundTimelimit;
 	int			roundFraglimit;
 } level_locals_t;
@@ -632,8 +635,6 @@ extern	cvar_t	*gamedir;
 extern	cvar_t	*maplistfile;
 extern	cvar_t	*motdfile;
 
-extern	cvar_t	*teamplay;
-
 extern	cvar_t	*weaponban;
 extern	cvar_t	*featureban;
 extern	cvar_t	*fragban;
@@ -777,6 +778,7 @@ extern gitem_t gI_item_health;
 // g_spawn.c
 //
 void SpawnEntities (char *mapname, char *entities, char *spawnpoint);
+void CustomSpawnEntities (char *mapname, char *entities, char *spawnpoint);
 
 //
 // g_utils.c
@@ -825,7 +827,8 @@ void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_
 #define DEFAULT_BULLET_VSPREAD	500
 #define DEFAULT_SHOTGUN_HSPREAD	1000
 #define DEFAULT_SHOTGUN_VSPREAD	500
-#define DEFAULT_DEATHMATCH_SHOTGUN_COUNT	12
+#define DEFAULT_DEATHMATCH_SHOTGUN_COUNT	16
+#define DEFAULT_STREETSWEEPER_COUNT	12
 #define DEFAULT_SHOTGUN_COUNT	12
 #define DEFAULT_SSHOTGUN_COUNT	20
 
@@ -967,6 +970,12 @@ void InitClientPersistant (gclient_t *client);
 void InitClientResp (gclient_t *client);
 void InitBodyQue (void);
 void ClientBeginServerFrame (edict_t *ent);
+
+//
+// g_light.c
+//
+extern cvar_t *sv_autodark;
+extern void G_LightLevels (void);
 
 //
 // g_player.c
@@ -1141,6 +1150,10 @@ typedef struct
 	// When to kick the player
 	int kick_framenum;
 
+	// Player logging.
+	qboolean log_player;
+	qboolean saw_fire;
+
 } client_respawn_t;
 
 typedef struct
@@ -1152,6 +1165,7 @@ typedef struct
 	int	impulse;				// Any impulses sent
 	double clientDist;		// If hitClient is true, distance from the firing
 									// line to the client's origin
+	int angleSumChange;		// The angle-sum-change between this & previous
 } bot_record_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1266,7 +1280,6 @@ struct gclient_s
 	/* WonderSlug End */
 
 //ZOID
-	qboolean	inmenu;				// in menu
 	pmenuhnd_t	*menu;				// current menu
 	edict_t		*chase_target;
 	qboolean	update_chase;

@@ -1646,7 +1646,7 @@ void Machinegun_Fire (edict_t *ent)
 	float	damage_radius;
 	int		radius_damage;
 
-	damage = 15 + (int)(random() * 10.0);
+	damage = 15 + (int)(random() * 15.0);
 	radius_damage = 15 + (int)(random() * 10.0);
 	damage_radius = 20;
 	if (is_quad)
@@ -1983,10 +1983,10 @@ void weapon_streetsweeper_fire (edict_t *ent)
 
 	if (deathmatch->value)
 		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
-			DEFAULT_DEATHMATCH_SHOTGUN_COUNT, mod);
+			DEFAULT_STREETSWEEPER_COUNT, mod);
 	else
 		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
-			DEFAULT_SHOTGUN_COUNT, mod);
+			DEFAULT_STREETSWEEPER_COUNT, mod);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -2665,9 +2665,9 @@ void Weapon_Freezer_Fire (edict_t *ent)
 	int		damage;
 
 	if (deathmatch->value)
-		damage = 40;
+		damage = 20;
 	else
-		damage = 25;
+		damage = 15;
 	Freezer_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
 	ent->client->ps.gunframe++;
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))

@@ -1863,7 +1863,7 @@ gitem_t gI_weapon_railbomb =
 	"models/items/ammo/grenades/medium/tris.md2", 0,
 	"models/weapons/v_handgr/tris.md2",
 /* icon */		"a_grenades",
-/* pickup */	"Rail Bomb",
+/* pickup */	"Freeze Grenade",
 /* width */		3,
 	5 /* 1 */,
 	&gI_ammo_grenades,

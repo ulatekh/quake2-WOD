@@ -57,7 +57,7 @@ LINK32=link.exe
 # Begin Special Build Tool
 SOURCE=$(InputPath)
 PostBuild_Desc=Copying to WOD directory
-PostBuild_Cmds=copy Release\gamex86.dll C:\Quake2\weapons
+PostBuild_Cmds=copy Release\gamex86.dll C:\Games\Quake2\weapons
 # End Special Build Tool
 
 !ELSEIF  "$(CFG)" == "game - Win32 Debug"
@@ -123,6 +123,10 @@ SOURCE=.\g_func.c
 # Begin Source File
 
 SOURCE=.\g_items.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\g_light.c
 # End Source File
 # Begin Source File
 
@@ -298,6 +302,10 @@ SOURCE=.\maplist.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\p_botcheck.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\p_client.c
 # End Source File
 # Begin Source File
@@ -450,6 +458,10 @@ SOURCE=.\m_tank.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\p_botcheck.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\p_menu.h
 # End Source File
 # Begin Source File
@@ -472,14 +484,6 @@ SOURCE=.\x_fire.h
 # Begin Source File
 
 SOURCE=.\notes.txt
-# End Source File
-# Begin Source File
-
-SOURCE=.\teamplay.txt
-# End Source File
-# Begin Source File
-
-SOURCE=.\zbotcheck.obj
 # End Source File
 # End Target
 # End Project

@@ -77,6 +77,10 @@ void Killed (edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, v
 
 	targ->enemy = attacker;
 
+	// No being frozen when you're dead.
+	targ->frozen = 0;
+	targ->frozentime = level.time;
+
 	if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD))
 	{
 //		targ->svflags |= SVF_DEADMONSTER;	// now treat as a different content type
@@ -351,9 +355,10 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker)
 qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker)
 {
 //ZOID
-	if (ctf->value && targ->client && attacker->client)
-		if (targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
-			targ != attacker)
+	if (teamplay->value && targ->client && attacker->client)
+		if (targ->client->resp.ctf_team == attacker->client->resp.ctf_team
+		&& targ != attacker
+		&& ((int)(dmflags->value) & DF_NO_FRIENDLY_FIRE))
 			return true;
 //ZOID
 
@@ -382,11 +387,12 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		if (coop->value
 			|| (deathmatch->value
 				&& (((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))
-					|| ctf->value)))
+					|| teamplay->value)))
 		{
 			if (OnSameTeam (targ, attacker))
 			{
-				if ((int)(dmflags->value) & DF_NO_FRIENDLY_FIRE)
+				if (!(dflags & DAMAGE_NO_PROTECTION)
+				&& (int)(dmflags->value) & DF_NO_FRIENDLY_FIRE)
 					damage = 0;
 				else
 					mod |= MOD_FRIENDLY_FIRE;
@@ -465,7 +471,7 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	}
 
 	//team armor protect
-	if (ctf->value && targ->client && attacker->client &&
+	if (teamplay->value && targ->client && attacker->client &&
 		targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
 		targ != attacker && ((int)dmflags->value & DF_ARMOR_PROTECT))
 	{

@@ -56,7 +56,9 @@ void ShowScanner(edict_t *ent,char *layout)
 			continue;
 
 		// Don't show ghosts either.
-		if (ctf->value && player->movetype == MOVETYPE_NOCLIP && player->solid == SOLID_NOT)
+		if (teamplay->value
+		&& player->movetype == MOVETYPE_NOCLIP
+		&& player->solid == SOLID_NOT)
 			continue;
 
 		// calc player to enemy vector

@@ -134,7 +134,9 @@ PlaceLaserTripwire (edict_t *ent)
 		return;
 
 	// Or when you're a ghost.
-	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+	if (teamplay->value
+	&& ent->movetype == MOVETYPE_NOCLIP
+	&& ent->solid == SOLID_NOT)
 		return;
 
 	// Or if you're frozen.
@@ -214,8 +216,8 @@ PlaceLaserTripwire (edict_t *ent)
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade2/tris.md2");
 	grenade->classname = "lasertrip_grenade";
 	grenade->owner = ent;
-	grenade->think = NULL;
-	grenade->nextthink = 0;
+	grenade->think = weapon_lasertrip_die;
+	grenade->nextthink = level.time + 90;
 
 	// Make the grenade react to radius damage, i.e. people can try to blow
 	// them up.

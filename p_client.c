@@ -1,6 +1,6 @@
 #include "g_local.h"
 #include "m_player.h"
-#include "zbotcheck.h"
+#include "p_botcheck.h"
 
 
 void ClientUserinfoChanged (edict_t *ent, char *userinfo);
@@ -492,8 +492,8 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message2 = "'s cluster grenades";
 				break;
 			case MOD_RAILBOMB:
-            message = "stood too close to";
-            message2 = "'s rail bomb";
+				message = "was frozen to death by";
+            message2 = "'s freeze grenade";
 				break;
 			case MOD_PLASMAG:
 				message = "came face to face with";
@@ -893,10 +893,8 @@ void InitClientResp (gclient_t *client)
 	client->resp.enterframe = level.framenum;
 	client->resp.coop_respawn = client->pers;
  
-//ZOID
-	if (ctf->value && client->resp.ctf_team < CTF_TEAM1)
-		CTFAssignTeam(client);
-//ZOID
+	if (teamplay->value && client->resp.ctf_team < CTF_NOTEAM)
+		CTFAssignTeam (client);
 }
 
 /*
@@ -1386,7 +1384,7 @@ void PutClientInServer (edict_t *ent)
 	// start unfrozen
 	ent->frozen = 0;
 	// *********************
-	// start invulnerable for 3 seconds in DM, but not teamplay.
+	// start invulnerable for 3 seconds in DM, but not Extinction.
 	if (deathmatch->value && !ctf->value)
 		ent->client->invincible_framenum = level.framenum + 30;
 	// *********************
@@ -1467,10 +1465,8 @@ void PutClientInServer (edict_t *ent)
 	client->dM_ammoCost = 1;
 	// DM end
 
-//ZOID
-	if (ctf->value && CTFStartClient(ent))
+	if (teamplay->value && CTFStartClient(ent))
 		return;
-//ZOID
 
 	if (!KillBox (ent))
 	{	// could't spawn in?
@@ -1511,6 +1507,10 @@ void ClientBeginDeathmatch (edict_t *ent)
 	gi.WriteByte (MZ_LOGIN);
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 	gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
+
+	// HACK: clip the dM_grenade value.  (It gets out of kilter every once in
+	// a while, for some totally bizarre reason.)
+	ent->client->dM_grenade %= 7;
 	
 	// If the MOTD hasn't been loaded, do so.
 	if (gMOTD == ((char *)-1))
@@ -1673,7 +1673,7 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 
 	// combine name and skin into a configstring
 //ZOID
-	if (ctf->value)
+	if (teamplay->value)
 		CTFAssignSkin(ent, s);
 	else
 //ZOID
@@ -1761,10 +1761,14 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 	// take it, otherwise spawn one from scratch
 	if (ent->inuse == false)
 	{
-//ZOID -- force team join
-		if (ctf->value)
-			ent->client->resp.ctf_team = -1;
-//ZOID
+		// If this is a team game. set up their initial team.
+		if (teamplay->value)
+		{
+			if ((int)dmflags->value & DF_CTF_FORCEJOIN)
+				ent->client->resp.ctf_team = -1;
+			else
+				ent->client->resp.ctf_team = CTF_NOTEAM;
+		}
 
 		// clear the respawning variables
 		InitClientResp (ent->client);
@@ -1923,6 +1927,27 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		return;
 	}
 //ZOID
+
+	// If crouching has been banned, filter out any crouch.  (Allow swimming
+	// in water, though.)
+	if (((int)featureban->value & FB_CROUCH)
+	&& ent->groundentity
+	&& ucmd->upmove < 0)
+		ucmd->upmove = 0;
+
+	// Limit movement to 400 in any direction.  (Damn cheaters.)
+	if (ucmd->forwardmove < -400)
+		ucmd->forwardmove = -400;
+	else if (ucmd->forwardmove > 400)
+		ucmd->forwardmove = 400;
+	if (ucmd->sidemove < -400)
+		ucmd->sidemove = -400;
+	else if (ucmd->sidemove > 400)
+		ucmd->sidemove = 400;
+	if (ucmd->upmove < -400)
+		ucmd->upmove = -400;
+	else if (ucmd->upmove > 400)
+		ucmd->upmove = 400;
 
 	// set up for pmove
 	memset (&pm, 0, sizeof(pm));
@@ -2128,30 +2153,32 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		stuffcmd (ent, "disconnect\n");
 	}
 
-#if 0
-	// HACK
-	if (client->resp.saw_fire)
+#ifdef BOT_HARD_EVIDENCE
+	// If it's time to log the player, do so.
+	if (client->resp.log_player && client->resp.saw_fire)
 	{
 		int botLoop;
 
-		botLoop = (client->nextBotRecord + 40) % 50;
+		botLoop = (client->nextBotLog + 40) % 50;
 		for (;;)
 		{
-			if (client->botRecord[botLoop].fire)
-				goto hackDontLogThis;
+			if (client->botLog[botLoop].fire)
+				goto dontLogThis;
 			botLoop++;
 			if (botLoop == 50)
 				botLoop = 0;
-			if (botLoop == client->nextBotRecord)
+			if (botLoop == client->nextBotLog)
 				break;
 		}
 		client->resp.saw_fire = false;
-		LogPlayerMovement (ent);
-hackDontLogThis:;
+		LogPlayerMovement (ent, 0);
+		gi.cprintf (NULL, PRINT_HIGH, "%s's shot logged.\n",
+			client->pers.netname);
+dontLogThis:;
 	}
 	if (ucmd->buttons & BUTTON_ATTACK)
 		client->resp.saw_fire = true;
-#endif
+#endif BOT_HARD_EVIDENCE
 
 	// Detect bots, blab it to everyone, then kick the bastard.  If they keep
 	// trying to log in, they'll keep getting outed and kicked.  Ha!
@@ -2184,6 +2211,7 @@ hackDontLogThis:;
 			// Log it.
 			if (client->resp.kick_framenum == 0)
 				LogPlayerMovement (ent, botCode);
+			//client->resp.saw_fire = false;
 #endif BOT_HARD_EVIDENCE
 
 			// Remember to kick the bastard.
@@ -2193,13 +2221,13 @@ hackDontLogThis:;
 	}
 
 	// Detect idle players.
-	if (deathmatch->value && IdleCheck (ent, ucmd))
+	if (deathmatch->value && IdleCheck (ent, ucmd)
+		&& client->resp.kick_framenum == 0)
 	{
 		gi.bprintf (PRINT_HIGH, "Idle timeout: %s\n", ent->client->pers.netname);
 
 		// Remember to disconnect them.
-		if (client->resp.kick_framenum == 0)
-			client->resp.kick_framenum = level.framenum + 2;
+		client->resp.kick_framenum = level.framenum + 2;
 	}
 }
 

@@ -74,7 +74,7 @@ void MaintainLinks (edict_t *ent)
 
 	// create temp entity chain
 	gi.WriteByte (svc_temp_entity);
-	if (ctf->value)
+	if (teamplay->value)
 	{
 		gi.WriteByte (TE_GRAPPLE_CABLE);
 		gi.WriteShort (ent->owner - g_edicts);
@@ -333,7 +333,7 @@ void FireHook (edict_t *ent)
 	newhook->solid = SOLID_BBOX;
 	VectorClear (newhook->mins);
 	VectorClear (newhook->maxs);
-	if (ctf->value)
+	if (teamplay->value)
 		newhook->s.modelindex = gi.modelindex ("models/weapons/grapple/hook/tris.md2");
 	else
 		newhook->s.modelindex = gi.modelindex ("models/objects/debris2/tris.md2");
@@ -368,7 +368,9 @@ void Cmd_Hook_f (edict_t *ent)
 		return;
 
 	// Or when you're a ghost.
-	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+	if (teamplay->value
+	&& ent->movetype == MOVETYPE_NOCLIP
+	&& ent->solid == SOLID_NOT)
 		return;
 	
 	// Or when you're frozen.

@@ -369,7 +369,7 @@ void ExitLevel (void)
 //ZOID
 
 	// Forcibly rebalance the teams after each game.
-	if (ctf->value && ((int)dmflags->value & DF_TEAMREBALANCE))
+	if (teamplay->value && ((int)dmflags->value & DF_TEAMREBALANCE))
 		TeamplayRebalanceTeams();
 }
 
@@ -447,6 +447,9 @@ void G_RunFrame (void)
 	// see if needpass needs updated
 	CheckNeedPass ();
 
+	// adjust the lightlevels if necessary
+	G_LightLevels();
+
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();
 }
@@ -484,5 +487,5 @@ HACK_SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	memset (modelSeen, 0, sizeof (modelSeen));
 
 	// Proceed.
-	TeamplaySpawnEntities (mapname, entities, spawnpoint);
+	CustomSpawnEntities (mapname, entities, spawnpoint);
 }

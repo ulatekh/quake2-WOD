@@ -32,7 +32,6 @@ void PMenu_Open(edict_t *ent, pmenu_t *entries, int cur, int num)
 		hnd->cur = i;
 
 	ent->client->showscores = true;
-	ent->client->inmenu = true;
 	ent->client->menu = hnd;
 
 	PMenu_Update(ent);
@@ -47,6 +46,13 @@ void PMenu_Close(edict_t *ent)
 	free(ent->client->menu);
 	ent->client->menu = NULL;
 	ent->client->showscores = false;
+
+#if 0
+	// clear any old menu
+	gi.WriteByte (svc_layout);
+	gi.WriteString ("");
+	gi.unicast (ent, true);
+#endif
 }
 
 void PMenu_Update(edict_t *ent)

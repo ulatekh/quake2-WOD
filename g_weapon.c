@@ -2,6 +2,165 @@
 #include "x_fbomb.h"
 #include "x_fire.h"
 
+// MakeBurstDirections()
+//
+// Looks for unobstructed directions leading away from a point.
+typedef struct
+{
+	vec3_t start;
+	vec3_t end;
+} BurstDirection;
+
+int
+MakeBurstDirections (int               numberWanted,
+							BurstDirection *  buffer,
+							int               insideRadius,
+							int               outsideRadius,
+							int               insideStep,
+							int               outsideStep,
+							edict_t *         ent)
+{
+	int originX, originY, originZ;
+	int xi, xo, yi, yo, zi, zo;
+	BurstDirection *here;
+	int low, high;
+
+	// Get the origin.
+	originX = ent->s.origin[0];
+	originY = ent->s.origin[1];
+	originZ = ent->s.origin[2];
+
+	// Generate every possibility, to start with.
+	here = buffer;
+	for (xo = originX - outsideRadius, xi = originX - insideRadius;
+		  xo <= originX + outsideRadius && xi <= originX + insideRadius;
+		  xo += outsideStep, xi += insideStep)
+	{
+		for (yo = originY - outsideRadius, yi = originY - insideRadius;
+			  yo <= originY + outsideRadius && yi <= originY + insideRadius;
+			  yo += outsideStep, yi += insideStep)
+		{
+			// Generate the points on the +Z and -Z boundaries.
+			VectorSet (here->start, xi, yi, originZ - insideRadius);
+			VectorSet (here->end, xo, yo, originZ - outsideRadius);
+			here++;
+			VectorSet (here->start, xi, yi, originZ + insideRadius);
+			VectorSet (here->end, xo, yo, originZ + outsideRadius);
+			here++;
+		}
+	}
+	for (xo = originX - outsideRadius, xi = originX - insideRadius;
+		  xo <= originX + outsideRadius && xi <= originX + insideRadius;
+		  xo += outsideStep, xi += insideStep)
+	{
+		for (zo = originZ - outsideRadius + outsideStep,
+				 zi = originZ - insideRadius + insideStep;
+			  zo <= originZ + outsideRadius - outsideStep
+				  && zi <= originZ + insideRadius - insideStep;
+			  zo += outsideStep, zi += insideStep)
+		{
+			// Generate the points on the +Y and -Y boundaries.
+			VectorSet (here->start, xi, originY - insideRadius, zi);
+			VectorSet (here->end, xo, originY - outsideRadius, zo);
+			here++;
+			VectorSet (here->start, xi, originY + insideRadius, zi);
+			VectorSet (here->end, xo, originY + outsideRadius, zo);
+			here++;
+		}
+	}
+	for (yo = originY - outsideRadius + outsideStep,
+			 yi = originY - insideRadius + insideStep;
+		  yo <= originY + outsideRadius - outsideStep
+			  && yi <= originY + insideRadius - insideStep;
+		  yo += outsideStep, yi += insideStep)
+	{
+		for (zo = originZ - outsideRadius + outsideStep,
+				 zi = originZ - insideRadius + insideStep;
+			  zo <= originZ + outsideRadius - outsideStep
+				  && zi <= originZ + insideRadius - insideStep;
+			  zo += outsideStep, zi += insideStep)
+		{
+			// Generate the points on the +X and -X boundaries.
+			VectorSet (here->start, originX - insideRadius, yi, zi);
+			VectorSet (here->end, originX - outsideRadius, yo, zo);
+			here++;
+			VectorSet (here->start, originX + insideRadius, yi, zi);
+			VectorSet (here->end, originX + outsideRadius, yo, zo);
+			here++;
+		}
+	}
+
+	// Figure out how many initial points there were, and prepare to pick
+	// through them.
+	low = 0;
+	high = here - buffer;
+
+	if (high != 152 && high != 56)
+		gi.error ("MakeBurstdirections: expected 152 or 56, got %i\n", high);
+
+	// Until we get all the unobstructed directions we asked for, search through
+	// the list and choose points at random.
+	while (low < numberWanted && low != high)
+	{
+		int current;
+		trace_t tr;
+
+		// Look for another one.
+		current = (rand() % (high - low)) + low;
+		here = buffer + current;
+
+		// Trace to see if this path is unobstructed.
+		tr = gi.trace (here->start, vec3_origin, vec3_origin, here->end,
+			ent, CONTENTS_SOLID);
+		if (!(tr.ent && tr.ent->takedamage)
+		&& tr.fraction < 1.0)
+		{
+			// Remove this path from consideration.
+			high--;
+			*here = buffer[high];
+
+#if 0
+			// Remove all paths that are cut by this plane too.
+			if (!tr.allsolid)
+			{
+				while (current < high)
+				{
+					if (DotProduct (tr.plane.normal, here->start) < tr.plane.dist
+					|| DotProduct (tr.plane.normal, here->end) < tr.plane.dist)
+					{
+						high--;
+						*here = buffer[high];
+					}
+					else
+					{
+						current++;
+						here++;
+					}
+				}
+			}
+#endif
+
+			// Try another random point.
+			continue;
+		}
+
+		// This point made the cut.  Save it.
+		if (current != low)
+		{
+			BurstDirection swap;
+
+			swap = buffer[low];
+			buffer[low] = *here;
+			*here = swap;
+		}
+		low++;
+	}
+
+	// Return the number we generated.
+	return low;
+}
+
+
 
 /*
 =================
@@ -364,7 +523,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 
 		bolt->s.frame = 3;
 
-		if (ctf->value && self->client)
+		if (teamplay->value && self->client)
 		{
 			// Team colors for blaster lasers.
 			if (self->client->resp.ctf_team == CTF_TEAM1)
@@ -826,6 +985,9 @@ void Shrap_Explode_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurfac
 		if ((int)fragban->value & WB_SHRAPNELGRENADE)
 			mod |= MOD_NOFRAG;
 
+		if (other->takedamage)
+			T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
+			(plane) ? plane->normal : vec3_origin, 50, 150, DAMAGE_BULLET, mod);
 		T_RadiusDamage (ent, ent->owner, 50, NULL, 50, mod);
 	}
 
@@ -953,6 +1115,79 @@ void Grenade_Explode_dM (edict_t *ent)
 	}
 	else if(ent->dmg == 2)
 	{
+#if 1
+		edict_t *other;
+
+		// Make the frozen sound.
+		gi.sound (ent, CHAN_VOICE, gi.soundindex ("weapons/frozen.wav"), 1,
+			ATTN_NORM, 0);
+		
+		// Show a grenade explosion.
+		VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
+		gi.WriteByte (svc_temp_entity);
+		if (ent->waterlevel)
+		{
+			if (ent->groundentity)
+				gi.WriteByte (TE_GRENADE_EXPLOSION_WATER);
+			else
+				gi.WriteByte (TE_ROCKET_EXPLOSION_WATER);
+		}
+		else
+		{
+			if (ent->groundentity)
+				gi.WriteByte (TE_GRENADE_EXPLOSION);
+			else
+				gi.WriteByte (TE_ROCKET_EXPLOSION);
+		}
+		gi.WritePosition (origin);
+		gi.multicast (ent->s.origin, MULTICAST_PVS);
+		
+		// Freeze everyone in the area.
+		other = NULL;
+		while ((other = findradius (other, ent->s.origin, 300)) != NULL)
+		{
+			float freezeTime;
+			vec3_t v;
+			int damage;
+			int mod;
+
+			if (!CanDamage (other, ent))
+				continue;
+
+			// Calculate the distance from the grenade to the victim.
+			VectorSubtract (other->s.origin, ent->s.origin, v);
+			
+			// How close they are affects how long they're frozen.
+			freezeTime = 7.0 - VectorLength (v) / (300.0 / 7.0);
+			if (freezeTime < 0.0)
+				freezeTime = 0.0;
+
+			// Set up the means of death.
+			mod = MOD_RAILBOMB;
+			if ((int)fragban->value & WB_RAILBOMB)
+				mod |= MOD_NOFRAG;
+
+			// Hurt them, keep track of whether we could.
+			damage = other->health;
+			T_Damage (other, ent, ent->owner, v, ent->s.origin,
+				vec3_origin, (int)(freezeTime * 5), (int)(freezeTime * 5),
+				DAMAGE_RADIUS|DAMAGE_ENERGY, mod);
+			damage -= other->health;
+
+			// If we hurt them without killing them, freeze them.
+			if (!other->deadflag && damage > 0)
+			{
+				// Freeze them for this long.
+				if (other->frozen)
+					other->frozentime += freezeTime;
+				else
+					other->frozentime = level.time + freezeTime;
+
+				// Freeze them.
+				other->frozen = 1;
+			}
+		}
+#else
 		// ///------>> RailBomb:
 
 		// Set up the means of death.
@@ -990,6 +1225,7 @@ void Grenade_Explode_dM (edict_t *ent)
 			AngleVectors (grenade_angs, forward, right, up);
 			fire_rail (ent->owner, origin, forward, 60, 120);
 		}
+#endif
 	}
 	else if (ent->dmg == 3)
 	{
@@ -1052,28 +1288,29 @@ void Grenade_Explode_dM (edict_t *ent)
 
 #if 1
 		// Throw flaming balls.
-		for (n = 0; n < 25; n++)
 		{
 			vec3_t direct_damage = {6, 9, 25};
 			vec3_t radius_damage = {6, 4, 25};
-			vec3_t direction, ballorigin;
+			int ballsToThrow = 20;
+			BurstDirection burstBuffer[56];
+			vec3_t direction;
 
-			// Pick a random direction to throw the flaming ball.
-			VectorSet (direction, crandom(), crandom(), crandom());
-			VectorNormalize (direction);
+			// Try to pick 20 random burst directions around the grenade.
+			ballsToThrow = MakeBurstDirections (ballsToThrow, burstBuffer,
+				3, 15, 2, 10, ent);
 
-			// Find where that will take us.
-			VectorMA (ent->s.origin, 10, direction, ballorigin);
-			if (gi.pointcontents (ballorigin) & MASK_SOLID)
+			// Throw them.
+			for (n = 0; n < ballsToThrow; n++)
 			{
-				// Try getting out of the solid.
-				VectorNegate (direction, direction);
-				VectorMA (ent->s.origin, 10, direction, ballorigin);
-			}
+				// Calculate the direction to throw the flaming ball.
+				VectorSubtract (burstBuffer[n].end, burstBuffer[n].start,
+					direction);
+				VectorNormalize (direction);
 
-			// Now fire the ball.
-			PBM_LobFlamer (ent->owner, ballorigin, direction, 500, 70,
-				direct_damage, radius_damage);
+				// Now fire the ball.
+				PBM_LobFlamer (ent->owner, burstBuffer[n].start, direction,
+					400 + (rand() % 200), 70, direct_damage, radius_damage);
+			}
 		}
 #else
 		// Throw napalm flames:
@@ -1105,6 +1342,9 @@ void Grenade_Explode_dM (edict_t *ent)
 	{
 		// ///------>> Shrapnel:
 
+		int shrapToThrow = 30;
+		BurstDirection burstBuffer[152];
+
 		// Big explosion effect:
 		for(n = 0; n < 128; n+=32)
 		{
@@ -1116,18 +1356,19 @@ void Grenade_Explode_dM (edict_t *ent)
 		}
 
 		VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
-		origin[2] = origin[2] + 64;
 
-		for (n = 0; n < 30; n++)
+		// Try to pick 30 random burst directions around the grenade.
+		shrapToThrow = MakeBurstDirections (shrapToThrow, burstBuffer,
+			10, 100, 4, 40, ent);
+
+		// Throw them.
+		for (n = 0; n < shrapToThrow; n++)
 		{
-			grenade_angs[0] = 0;
-			grenade_angs[1] = n * 12;
-			grenade_angs[2] = 0;
-			AngleVectors (grenade_angs, forward, right, up);
+			VectorSubtract (burstBuffer[n].end, burstBuffer[n].start, forward);
+			VectorNormalize (forward);
 			flame = G_Spawn();
-			VectorCopy (origin, flame->s.origin);
-			VectorClear (flame->velocity);
-			VectorMA (flame->velocity, 550, forward, flame->velocity);
+			VectorCopy (burstBuffer[n].start, flame->s.origin);
+			VectorScale (forward, 750, flame->velocity);
 			flame->movetype = MOVETYPE_TOSS;
 			flame->clipmask = MASK_SHOT;
 			flame->solid = SOLID_TRIGGER;
@@ -1758,8 +1999,8 @@ void bfg_think (edict_t *self)
 			continue;
 
 //ZOID
-		//don't target teammates in CTF
-		if (ctf->value && ent->client &&
+		//don't target teammates in teamplay.
+		if (teamplay->value && ent->client &&
 			self->owner->client &&
 			ent->client->resp.ctf_team == self->owner->client->resp.ctf_team)
 			continue;
@@ -2246,7 +2487,7 @@ fire_guidedrocket (edict_t *self, vec3_t start, vec3_t dir, int damage,
 				continue;
 			if (blip->health <= 0)
 				continue;
-			if (ctf->value
+			if (teamplay->value
 			&& blip->client
 			&& self->client->resp.ctf_team == blip->client->resp.ctf_team)
 				continue;

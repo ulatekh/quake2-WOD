@@ -376,7 +376,9 @@ void SP_Decoy (edict_t *self)
 		return;
 
 	// Or when you're a ghost.
-	if (ctf->value && self->movetype == MOVETYPE_NOCLIP && self->solid == SOLID_NOT)
+	if (teamplay->value
+	&& self->movetype == MOVETYPE_NOCLIP
+	&& self->solid == SOLID_NOT)
 		return;
 
 	// Or when you're frozen.

@@ -174,6 +174,7 @@ void InitGame (void)
 	needpass = gi.cvar ("needpass", "0", CVAR_SERVERINFO);
 	filterban = gi.cvar ("filterban", "1", 0);
 	idledetect = gi.cvar ("idledetect", "0", 0);
+	sv_autodark = gi.cvar ("autodark", "", 0);
 
 	g_select_empty = gi.cvar ("g_select_empty", "0", CVAR_ARCHIVE);
 

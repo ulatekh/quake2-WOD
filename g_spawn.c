@@ -572,8 +572,8 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 		com_token = COM_Parse (&entities);
 		if (!entities)
 			break;
-		if (com_token[0] != '{')
-			gi.error ("ED_LoadFromFile: found %s when expecting {",com_token);
+		if (com_token[0] != '{' /* } */)
+			gi.error ("ED_LoadFromFile: found %s when expecting {" /* } */,com_token);
 
 		if (!ent)
 			ent = g_edicts;
@@ -646,6 +646,85 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	G_FindTeams ();
 
 	PlayerTrail_Init ();
+}
+
+
+void CustomSpawnEntities (char *mapname, char *entities, char *spawnpoint)
+{
+	FILE *f;
+	char szFile[MAX_QPATH];
+	int nEntSize, nRead;
+	char *pszCustomEnt;
+
+	// Create the pathname to the entity file.
+	if (ctf->value)
+		Com_sprintf (szFile, sizeof (szFile), "%s/ent/ext/%s.ent",
+			gamedir->string, mapname);
+	else if (teamplay->value)
+		Com_sprintf (szFile, sizeof (szFile), "%s/ent/team/%s.ent",
+			gamedir->string, mapname);
+	else if (deathmatch->value)
+		Com_sprintf (szFile, sizeof (szFile), "%s/ent/dm/%s.ent",
+			gamedir->string, mapname);
+	else
+	{
+		SpawnEntities (mapname, entities, spawnpoint);
+		return;
+	}
+
+	// Try to open it.
+	f = fopen (szFile, "rb");
+	if (!f)
+	{
+		// No custom entity file, so just use the default.
+		SpawnEntities (mapname, entities, spawnpoint);
+		return;
+	}
+
+	// Get the size of the file.
+	if (fseek (f, 0, SEEK_END) != 0)
+	{
+		gi.dprintf ("CustomSpawnEntities(): fseek %s\n", szFile);
+		goto errClose;
+	}
+	nEntSize = ftell (f);
+	if (nEntSize < 0)
+	{
+		gi.dprintf ("CustomSpawnEntities(): ftell %s (%d)\n", szFile, nEntSize);
+		goto errClose;
+	}
+	if (fseek (f, 0, SEEK_SET) != 0)
+	{
+		gi.dprintf ("CustomSpawnEntities(): fseek %s\n", szFile);
+		goto errClose;
+	}
+
+	// Create a buffer and read the custom entity file.
+	pszCustomEnt = malloc (nEntSize + 1);
+	if (!pszCustomEnt)
+	{
+		gi.dprintf ("CustomSpawnEntities(): malloc\n");
+		goto errClose;
+	}
+	nRead = fread (pszCustomEnt, 1, nEntSize, f);
+	if (nRead != nEntSize)
+	{
+		gi.dprintf ("CustomSpawnEntities(): fread %s (%d/%d)\n",
+			szFile, nRead, nEntSize);
+		goto errFree;
+	}
+
+	// Null-terminate the string.
+	pszCustomEnt[nEntSize] = '\0';
+
+	// Now spawn *these* entities!
+	SpawnEntities (mapname, pszCustomEnt, spawnpoint);
+
+	// Clean up.
+errFree:
+	free (pszCustomEnt);
+errClose:
+	fclose (f);
 }
 
 
@@ -731,18 +810,6 @@ char *single_statusbar =
 "	pic	11 "
 "endif "
 
-
-// rangefinder
-/*
-"if 16 "
-" xv 210 "
-" num 4 16 "
-" xv 234 "
-" yb -59 "
-" string RANGE "
-"endif "
-removed in dm */
-
 ;
 
 char *dm_statusbar =
@@ -807,7 +874,6 @@ char *dm_statusbar =
 "yt 2 "
 "num 3 14"
 
-
 ;
 
 
@@ -867,9 +933,13 @@ void SP_worldspawn (edict_t *ent)
 	if (deathmatch->value)
 	{
 //ZOID
-		if (ctf->value)
+		if (teamplay->value)
 		{
-			gi.configstring (CS_STATUSBAR, ctf_statusbar);
+			if (ctf->value)
+				gi.configstring (CS_STATUSBAR, ctf_statusbar);
+			else
+				gi.configstring (CS_STATUSBAR, teamplay_statusbar);
+
 			//precaches
 			gi.imageindex("ctfsb1");
 			gi.imageindex("ctfsb2");
@@ -998,18 +1068,7 @@ void SP_worldspawn (edict_t *ent)
 	if (deathmatch->value)
 	{
 		// Abbreviated light tables (since lights are freed anyway).
-		gi.configstring(CS_LIGHTS+0, "m");
-		gi.configstring(CS_LIGHTS+1, "m");
-		gi.configstring(CS_LIGHTS+2, "m");
-		gi.configstring(CS_LIGHTS+3, "m");
-		gi.configstring(CS_LIGHTS+4, "m");
-		gi.configstring(CS_LIGHTS+5,"m");
-		gi.configstring(CS_LIGHTS+6, "m");
-		gi.configstring(CS_LIGHTS+7, "m");
-		gi.configstring(CS_LIGHTS+8, "m");
-		gi.configstring(CS_LIGHTS+9, "m");
-		gi.configstring(CS_LIGHTS+10, "m");
-		gi.configstring(CS_LIGHTS+11, "m");
+		G_LightLevels();
 		gi.configstring(CS_LIGHTS+63, "a");
 	}
 	else

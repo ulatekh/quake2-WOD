@@ -394,7 +394,7 @@ void SVCmd_Team_f (void)
 	int i;
 	edict_t *ent;
 
-	if (!ctf->value)
+	if (!teamplay->value)
 		return;
 	
 	if (gi.argc() != 4)
@@ -441,6 +441,35 @@ void SVCmd_PlaySound_f (void)
 		gi.soundindex (gi.argv (2)), 1, ATTN_NONE, 0);
 }
 
+
+void SVCmd_LogPlayer_f (void)
+{
+	int i;
+	edict_t *ent;
+
+	if (gi.argc() != 3)
+	{
+		gi.cprintf (NULL, PRINT_HIGH, "Usage: logplayer <player #>\n");
+		return;
+	}
+
+	i = atoi (gi.argv (2));
+	if (i >= 0 && i < (int)maxclients->value)
+	{
+		ent = g_edicts + i + 1;
+		if (ent->inuse && ent->client)
+		{
+			// Toggle their "log player" flag.
+			ent->client->resp.log_player = !ent->client->resp.log_player;
+
+			// Let them know what happened.
+			gi.cprintf (NULL, PRINT_HIGH, "Logging %s for %s.\n",
+				((ent->client->resp.log_player) ? "on" : "off"),
+				ent->client->pers.netname);
+		}
+	}
+}
+
 /*
 =================
 ServerCommand
@@ -473,6 +502,8 @@ void	ServerCommand (void)
 		Svcmd_Survey_f();
 	else if (Q_stricmp (cmd, "team") == 0)
 		SVCmd_Team_f();
+	else if (Q_stricmp (cmd, "logplayer") == 0)
+		SVCmd_LogPlayer_f();
 	else
 		gi.cprintf (NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd);
 }

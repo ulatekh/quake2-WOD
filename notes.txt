@@ -1,10 +1,11 @@
 To do
 -----
+Add flashlight.
+Gib more.
 If a weapon gets crushed out of existence, because it got blown there by some
 	explosion, make sure it gets respawned.  (*_blocked() functions in g_func.c)
 BUG: large values of weaponban will overload the float->int conversion.  Just
 	atoi() on the string and keep the value around.
-BUG: player ID doesn't work.
 BUG: frozen players are partly transparent to being shot?  Origin/min/max prob?
 BUG: "NULL ent->think, classname func_door"?!?!  Happens on mintro...maybe
 	other maps too.
@@ -26,7 +27,6 @@ When someone disconnects, go through the entities, find all of the entities
 	owned by that person, and remove them.  Mostly an issue for lasersights and
 	laser tripwires.
 Maybe make bazooka-fired grenades vulnerable.
-Have wall-grenades explode harmlessly (mostly) when shot.
 Allow the scanner to be moved to various parts of the screen, not just center.
 If someone can gib a person who's still alive, make them have blood trails
 	and identifiable body parts.  Have them bounce and even ricochet.  Have
@@ -49,9 +49,7 @@ maplist should control not just the map, but the # of players that need to be
 	present for the map to be run (so big maps can be run), and maybe even set
 	coop, ctf, and other flags.  Then a single server could alternate between
 	coop, deathmatch, and CTF!  Pretty wild.
-Allow the maplist file name to be set; at a minimum, this'll help with running
-	a DM and Extinction server from the same directory.
-blackbox.efs.org suggestions: flood protection, frag logging.
+blackbox.efs.org suggestions: frag logging.
 JustShootMe suggestions: more types of grappling hooks, less-busy cataclysm
 	device explosion.
 Integrate in GibStats?  http://www.planetquake.com/gibstats/
@@ -70,8 +68,7 @@ Give supershotgun inflictors credit for kills from enemies flying into walls.
 Can't his Escape to see menu when the scanner is up...must turn scanner off
 	first.
 Drop cells when you die holding the super blaster.
-Throw alternate weapons when you die.  Handle picking them up anyway.
-Make tripwires and bazookas fire the fire grenades.
+Make tripwires fire the fire grenades.
 Fix fire dripping through floors.
 Keep laser tripwire explosions from setting each other off.
 Get rid of plasma rifle spindown time.
@@ -107,8 +104,11 @@ Freeze grenades!  Freeze people, freeze the ground so people slide too!
 Vacuum grenade?  Explodes into a black-hole sort of thing?
 Light saber as the new alternate blaster.  Even more Jedi stuff!
 Beef up machinegun by having bullets ricochet a few times?
+Maybe the alternate BFG would be a homing energy ball?
 
 WoD flags
 ---------
 Shootable homing-rockets vs. not-shootable
 Drop jetpack when killed vs. explode jetpack when killed
+Homing-rockets vs. laser-guided rockets
+Flying bazooka grenades vs. lobbed bazooka grenades
