@@ -21,10 +21,15 @@ cvar_t	*skill;
 cvar_t	*fraglimit;
 cvar_t	*timelimit;
 cvar_t	*password;
+cvar_t	*spectator_password;
+cvar_t	*needpass;
 cvar_t	*maxclients;
+cvar_t	*maxspectators;
 cvar_t	*maxentities;
 cvar_t	*g_select_empty;
 cvar_t	*dedicated;
+
+cvar_t	*filterban;
 
 cvar_t	*sv_maxvelocity;
 cvar_t	*sv_gravity;
@@ -43,9 +48,16 @@ cvar_t	*bob_roll;
 
 cvar_t	*sv_cheats;
 
+cvar_t	*flood_msgs;
+cvar_t	*flood_persecond;
+cvar_t	*flood_waitdelay;
+
+cvar_t	*weaponban;
+cvar_t	*featureban;
+cvar_t	*fragban;
 
 
-void SpawnEntities (char *mapname, char *entities, char *spawnpoint);
+
 void ClientThink (edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect (edict_t *ent, char *userinfo);
 void ClientUserinfoChanged (edict_t *ent, char *userinfo);
@@ -184,13 +196,21 @@ void EndDMLevel (void)
 {
 	edict_t		*ent;
 
+	// go to round 2
+	if (ctf->value && TeamplayCheckRound1())
+	{
+		TeamplayStartRound2();
+		return;
+	}
+
 	// stay on same level flag
-	if ((int)dmflags->value & DF_SAME_LEVEL)
+	else if ((int)dmflags->value & DF_SAME_LEVEL)
 	{
 		ent = G_Spawn ();
 		ent->classname = "target_changelevel";
 		ent->map = level.mapname;
 	}
+
 	// get the next one out of the maplist
 	else if (maplist->value && MaplistNext())
 	{
@@ -198,14 +218,18 @@ void EndDMLevel (void)
 		ent->classname = "target_changelevel";
 		ent->map = level.nextmap;
 	}
+
+	// go to a specific map
 	else if (level.nextmap[0])
-	{	// go to a specific map
+	{
 		ent = G_Spawn ();
 		ent->classname = "target_changelevel";
 		ent->map = level.nextmap;
 	}
+
+	// search for a changelevel
 	else
-	{	// search for a changelevel
+	{
 		ent = G_Find (NULL, FOFS(classname), "target_changelevel");
 		if (!ent)
 		{	// the map designer didn't include a changelevel,
@@ -217,6 +241,32 @@ void EndDMLevel (void)
 	}
 
 	BeginIntermission (ent);
+}
+
+/*
+=================
+CheckNeedPass
+=================
+*/
+void CheckNeedPass (void)
+{
+	int need;
+
+	// if password or spectator_password has changed, update needpass
+	// as needed
+	if (password->modified || spectator_password->modified) 
+	{
+		password->modified = spectator_password->modified = false;
+
+		need = 0;
+
+		if (*password->string && Q_stricmp(password->string, "none"))
+			need |= 1;
+		if (*spectator_password->string && Q_stricmp(spectator_password->string, "none"))
+			need |= 2;
+
+		gi.cvar_set("needpass", va("%d", need));
+	}
 }
 
 /*
@@ -235,9 +285,27 @@ void CheckDMRules (void)
 	if (!deathmatch->value)
 		return;
 
+	if (ctf->value)
+	{
+		char *winner;
+
+		winner = CTFCheckRules();
+		if (winner)
+		{
+			if (TeamplayCheckRound1())
+				gi.bprintf (PRINT_HIGH, "The %s team wins Round 1.\n", winner);
+			else
+				gi.bprintf (PRINT_HIGH, "Game over.  The %s team wins.\n", winner);
+			EndDMLevel ();
+			return;
+		}
+	}
+
 	if (timelimit->value)
 	{
-		if (level.time >= timelimit->value*60)
+		float timelimitvalue = timelimit->value*60 + level.roundTimelimit;
+
+		if (level.time >= timelimitvalue)
 		{
 			gi.bprintf (PRINT_HIGH, "Timelimit hit.\n");
 			EndDMLevel ();
@@ -247,13 +315,15 @@ void CheckDMRules (void)
 
 	if (fraglimit->value)
 	{
+		int fraglimitvalue = fraglimit->value + level.roundFraglimit;
+
 		for (i=0 ; i<maxclients->value ; i++)
 		{
 			cl = game.clients + i;
 			if (!g_edicts[i+1].inuse)
 				continue;
 
-			if (cl->resp.score >= fraglimit->value)
+			if (cl->resp.score >= fraglimitvalue)
 			{
 				gi.bprintf (PRINT_HIGH, "Fraglimit hit.\n");
 				EndDMLevel ();
@@ -292,6 +362,13 @@ void ExitLevel (void)
 			ent->health = ent->client->pers.max_health;
 	}
 
+//ZOID
+	CTFInit();
+//ZOID
+
+	// Forcibly rebalance the teams after each game.
+	if (ctf->value && ((int)dmflags->value & DF_TEAMREBALANCE))
+		TeamplayRebalanceTeams();
 }
 
 /*
@@ -353,8 +430,20 @@ void G_RunFrame (void)
 		G_RunEntity (ent);
 	}
 
+	if (ctf->value)
+	{
+		// continue the countdown
+		TeamplayDoCountdown();
+
+		// see if any ghost-players can be respawned now.
+		TeamplayCheckRespawn();
+	}
+
 	// see if it is time to end a deathmatch
 	CheckDMRules ();
+
+	// see if needpass needs updated
+	CheckNeedPass ();
 
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();
@@ -393,5 +482,5 @@ HACK_SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	memset (modelSeen, 0, sizeof (modelSeen));
 
 	// Proceed.
-	SpawnEntities (mapname, entities, spawnpoint);
+	TeamplaySpawnEntities (mapname, entities, spawnpoint);
 }

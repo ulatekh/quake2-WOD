@@ -25,7 +25,17 @@ void SP_LaserSight (edict_t *self)
 		return;
 	}
 
-	gi.cprintf (self, PRINT_HIGH, "Lasersight on.\n");
+	// No lasersight when you're dead.
+	if (self->deadflag)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && self->movetype == MOVETYPE_NOCLIP && self->solid == SOLID_NOT)
+		return;
+	
+	// Or if lasersights have been banned.
+	if ((int)featureban->value & FB_LASERSIGHT)
+		return;
 
 	AngleVectors (self->client->v_angle, forward, right, NULL);
 
@@ -43,7 +53,9 @@ void SP_LaserSight (edict_t *self)
 	lss->s.renderfx |= RF_FULLBRIGHT;
 
 	lss->think = LaserSightThink;
-	lss->nextthink = level.time + 0.1;
+	lss->nextthink = level.time + FRAMETIME;
+
+	gi.cprintf (self, PRINT_HIGH, "Lasersight on.\n");
 }
 
 
@@ -51,7 +63,7 @@ void SP_LaserSight (edict_t *self)
 LaserSightThink
 
 Updates the sights position, angle, and shape
-is the lasersight entity
+of the lasersight entity
 ---------------------------------------------*/
 
 void LaserSightThink (edict_t *self)
@@ -86,13 +98,11 @@ void LaserSightThink (edict_t *self)
 	else
 		self->s.skinnum = 0; */
 
-#if 0
 	// If the laser sight is on someone, glow.
 	if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
 		self->s.renderfx |= RF_SHELL_RED;
 	else
 		self->s.renderfx &= ~RF_SHELL_RED;
-#endif
 
 	vectoangles(tr.plane.normal,self->s.angles);
 	VectorCopy(tr.endpos,self->s.origin);

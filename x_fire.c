@@ -249,33 +249,45 @@ qboolean PBM_FireResistant (edict_t *ent)
 //  NOTES:  Damage = 1d(die) + base.  (This is D&D notation)
 //          Chance is expressed as a percentange.  (e.g., 20 = 20%.)
 //------------------------------------------------------------------------*/
-void PBM_BurnDamage
-(edict_t *victim, edict_t *fire, vec3_t damage)
+void PBM_BurnDamage (edict_t *victim, edict_t *fire, vec3_t damage)
 {
 	int   points;
 	int   die = (int)damage[0];
 	int   base = (int)damage[1];
 	int   chance = (int)damage[2];
+	int	mod;
 
-/* Calculate damage. */
+	// If the owner of the fire is on the same team as the victim, don't set the
+	// victim on fire.  (Let people set themselves on fire, though.)
+	if (ctf->value && victim->client && fire->owner && fire->owner->client
+	&& victim->client->resp.ctf_team == fire->owner->client->resp.ctf_team
+	&& victim != fire->owner)
+		return;
+
+	/* Calculate damage. */
 	if (die > 0)
 		points = (rand() % die) + base + 1;
 	else
 		points = base;
 
-/* FIXME:  Check for quad damage bonus. */
-	if (fire->owner->client)
-		if (fire->owner->client->quad_framenum > level.framenum)
-		{	chance *= 4;
-			points *= 4;
-		}
+	/* Check for quad damage bonus. */
+	if (fire->owner->client
+	&& fire->owner->client->quad_framenum > level.framenum)
+	{	chance *= 4;
+		points *= 4;
+	}
 
-/* Check if entity will catch on fire. */
+	/* Check if entity will catch on fire. */
 	if ((rand() % 40) < chance)
 		PBM_Ignite(victim, fire->owner);
 
-/* Inflict some burn damage. */
-	T_Damage(victim, fire, fire->owner, vec3_origin, victim->s.origin, vec3_origin, points, 0, 0, MOD_RAILGUN);
+	/* Inflict some burn damage. */
+	mod = MOD_RAILGUN;
+	if ((int)fragban->value & WB_FLAMETHROWER)
+		mod |= MOD_NOFRAG;
+
+	T_Damage(victim, fire, fire->owner, vec3_origin, victim->s.origin,
+		vec3_origin, points, 0, 0, mod);
 }
 
 /*-------------------------------------------------------- New Code --------
@@ -602,8 +614,10 @@ void PBM_CloudBurstDamage (edict_t *self)
 /*--------------------------------------------------------- New Code -------
 //  This creates a flaming cloud that can rain fire.
 //------------------------------------------------------------------------*/
-void PBM_FlameCloud
-(edict_t *attacker, vec3_t start, vec3_t cloud, vec3_t timer, qboolean deadly, float radius, vec3_t damage, vec3_t radius_damage, int rain_chance, int blast_chance)
+void PBM_FlameCloud (edict_t *attacker, vec3_t start, vec3_t cloud,
+							vec3_t timer, qboolean deadly, float radius,
+							vec3_t damage, vec3_t radius_damage, int rain_chance,
+							int blast_chance)
 {
 	vec3_t  spot;
 	edict_t  *smoke;
@@ -662,8 +676,8 @@ void PBM_FlameCloud
 /*--------------------------------------------------------- New Code -------
 //  The fireball impacts and delivers pain and flames.
 //------------------------------------------------------------------------*/
-void PBM_FireballTouch
-(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void PBM_FireballTouch (edict_t *self, edict_t *other, cplane_t *plane,
+								csurface_t *surf)
 {
 	vec3_t origin;
 

@@ -8,8 +8,13 @@
 #define	GAME_INCLUDE
 #include "game.h"
 
+//ZOID
+#include "p_menu.h"
+//ZOID
+
 // the "gameversion" client command will print this plus compile date
-#define	GAMEVERSION	"wod6x"
+#define	GAMEVERSION		"wod6x"
+#define	GAMEVERSION_E	"wode1x"
 
 // protocol bytes that can be directly added to messages
 #define	svc_muzzleflash		1
@@ -17,6 +22,65 @@
 #define	svc_temp_entity		3
 #define	svc_layout			4
 #define	svc_inventory		5
+#define	svc_stufftext		11
+
+//==================================================================
+
+// Weapon banning flags.
+#define WB_SUPERBLASTER				0x00000001
+#define WB_SHOTGUN					0x00000002
+#define WB_SNIPERGUN					0x00000004
+#define WB_SUPERSHOTGUN				0x00000008
+#define WB_FREEZEGUN					0x00000010
+#define WB_MACHINEGUN				0x00000020
+#define WB_MACHINEROCKETGUN		0x00000040
+#define WB_BURSTMACHINEGUN			0x00000080
+#define WB_CHAINGUN					0x00000100
+#define WB_STREETSWEEPER			0x00000200
+#define WB_GRENADE					0x00000400
+#define WB_CLUSTERGRENADE			0x00000800
+#define WB_RAILBOMB					0x00001000
+#define WB_PLASMAGRENADE			0x00002000
+#define WB_NAPALMGRENADE			0x00004000
+#define WB_SHRAPNELGRENADE			0x00008000
+#define WB_CATACLYSMDEVICE			0x00010000
+#define WB_GRENADELAUNCHER			0x00020000
+#define WB_BAZOOKA					0x00040000
+#define WB_ROCKETLAUNCHER			0x00080000
+#define WB_HOMINGROCKETLAUNCHER	0x00100000
+#define WB_HYPERBLASTER				0x00200000
+#define WB_PLASMARIFLE				0x00400000
+#define WB_RAILGUN					0x00800000
+#define WB_FLAMETHROWER				0x01000000
+#define WB_BFG10K						0x02000000
+
+// Frag banning flags (used in addition to weapon banning flags).
+#define WFB_BLASTER					0x04000000
+#define WFB_TELEFRAG					0x08000000
+#define WFB_KAMIKAZE					0x10000000
+#define WFB_HOOK						0x20000000
+
+// Feature banning flags.
+#define FB_BANDOLIER					0x00000001
+#define FB_AMMOPACK					0x00000002
+#define FB_SILENCER					0x00000004
+#define FB_REBREATHER				0x00000008
+#define FB_ENVIROSUIT				0x00000010
+#define FB_ADRENALINE				0x00000020
+#define FB_MEGAHEALTH				0x00000040
+#define FB_POWERARMOR				0x00000080
+#define FB_INVULNERABILITY			0x00000100
+#define FB_DECOY						0x00000200
+#define FB_HOOK						0x00000400
+#define FB_ID							0x00000800
+#define FB_KAMIKAZE					0x00001000
+#define FB_LASERSIGHT				0x00002000
+#define FB_TRIPLASER					0x00004000
+#define FB_NIGHTVISION				0x00008000
+#define FB_PUSHPULL					0x00010000
+#define FB_SCANNER					0x00020000
+#define FB_ZOOM						0x00040000
+#define FB_JETPACK					0x00080000
 
 //==================================================================
 
@@ -59,7 +123,7 @@
 
 #define MELEE_DISTANCE	80
 
-#define BODY_QUEUE_SIZE		8
+#define BODY_QUEUE_SIZE		16
 
 typedef enum
 {
@@ -193,13 +257,27 @@ typedef struct
 
 
 // gitem_t->flags
-#define	IT_WEAPON		1		// use makes active weapon
-#define	IT_AMMO			2
-#define IT_ARMOR			4
-#define IT_STAY_COOP		8
-#define IT_KEY				16
-#define IT_POWERUP		32
-#define	IT_ALTWEAPON	64		// for weapon switching (see Cmd_Use_f())
+#define IT_WEAPON		1		// use makes active weapon
+#define IT_AMMO		2
+#define IT_ARMOR		4
+#define IT_NOT_DM		8		// Doesn't appear in DM, so don't send configstring
+#define IT_STAY_COOP	16
+#define IT_KEY			32
+#define IT_POWERUP	64
+#define IT_ALTWEAPON	128	// for weapon switching (see Cmd_Use_f())
+
+// gitem_t->weapmodel for weapons indicates model index
+#define WEAP_BLASTER			1 
+#define WEAP_SHOTGUN			2 
+#define WEAP_SUPERSHOTGUN		3 
+#define WEAP_MACHINEGUN			4 
+#define WEAP_CHAINGUN			5 
+#define WEAP_GRENADES			6 
+#define WEAP_GRENADELAUNCHER	7 
+#define WEAP_ROCKETLAUNCHER		8 
+#define WEAP_HYPERBLASTER		9 
+#define WEAP_RAILGUN			10
+#define WEAP_BFG				11
 
 typedef struct gitem_s
 {
@@ -308,6 +386,10 @@ typedef struct
 	int			body_que;			// dead bodies
 
 	int			power_cubes;		// ugly necessity for coop
+
+	// The time/frags from round 1.  (Needed for teamplay.)
+	float			roundTimelimit;
+	int			roundFraglimit;
 } level_locals_t;
 
 
@@ -491,7 +573,8 @@ extern	int	body_armor_index;
 #define MOD_FREEZE		53
 #define MOD_STREETSWEEP	54
 #define MOD_BOLTTHROWER	55
-#define MOD_FRIENDLY_FIRE	0x8000000
+#define MOD_FRIENDLY_FIRE	0x04000000
+#define MOD_NOFRAG			0x08000000
 
 extern	int	meansOfDeath;
 
@@ -514,8 +597,12 @@ extern	cvar_t	*skill;
 extern	cvar_t	*fraglimit;
 extern	cvar_t	*timelimit;
 extern	cvar_t	*password;
+extern	cvar_t	*spectator_password;
+extern	cvar_t	*needpass;
 extern	cvar_t	*g_select_empty;
 extern	cvar_t	*dedicated;
+
+extern	cvar_t	*filterban;
 
 extern	cvar_t	*sv_gravity;
 extern	cvar_t	*sv_maxvelocity;
@@ -532,9 +619,19 @@ extern	cvar_t	*bob_roll;
 
 extern	cvar_t	*sv_cheats;
 extern	cvar_t	*maxclients;
+extern	cvar_t	*maxspectators;
+
+extern	cvar_t	*flood_msgs;
+extern	cvar_t	*flood_persecond;
+extern	cvar_t	*flood_waitdelay;
+
 extern	cvar_t	*gamedir;
 
-extern	cvar_t	*allow_cataclysm;
+extern	cvar_t	*teamplay;
+
+extern	cvar_t	*weaponban;
+extern	cvar_t	*featureban;
+extern	cvar_t	*fragban;
 
 
 #define world	(&g_edicts[0])
@@ -553,6 +650,7 @@ extern	cvar_t	*allow_cataclysm;
 // and saving / loading games
 //
 #define FFL_SPAWNTEMP		1
+#define FFL_NOSPAWN			2
 
 typedef enum {
 	F_INT, 
@@ -564,6 +662,8 @@ typedef enum {
 	F_EDICT,			// index on disk, pointer in memory
 	F_ITEM,				// index on disk, pointer in memory
 	F_CLIENT,			// index on disk, pointer in memory
+	F_FUNCTION,
+	F_MMOVE,
 	F_IGNORE
 } fieldtype_t;
 
@@ -666,6 +766,11 @@ extern gitem_t gI_key_airstrike_target;
 extern gitem_t gI_item_health;
 
 //
+// g_spawn.c
+//
+void SpawnEntities (char *mapname, char *entities, char *spawnpoint);
+
+//
 // g_utils.c
 //
 qboolean	KillBox (edict_t *ent);
@@ -696,6 +801,7 @@ void vectoangles (vec3_t vec, vec3_t angles);
 //
 qboolean OnSameTeam (edict_t *ent1, edict_t *ent2);
 qboolean CanDamage (edict_t *targ, edict_t *inflictor);
+qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker);
 void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir, vec3_t point, vec3_t normal, int damage, int knockback, int dflags, int mod);
 void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
@@ -788,7 +894,7 @@ void fire_bullet (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
 void fire_shotgun (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
 // void fire_blaster (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int effect, qboolean hyper);
 void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius);
-void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, qboolean held);
+//void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, qboolean held);
 void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick);
 void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius);
@@ -863,7 +969,14 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 //
 // g_svcmds.c
 //
+typedef struct
+{
+	unsigned	mask;
+	unsigned	compare;
+} ipfilter_t;
+qboolean StringToFilter (char *s, ipfilter_t *f);
 void	ServerCommand (void);
+qboolean SV_FilterPacket (char *from);
 
 //
 // p_view.c
@@ -877,6 +990,8 @@ void ThirdEnd (edict_t *ent);
 //
 void MoveClientToIntermission (edict_t *client);
 void G_SetStats (edict_t *ent);
+void G_SetSpectatorStats (edict_t *ent);
+void G_CheckChaseStats (edict_t *ent);
 void ValidateSelectedItem (edict_t *ent);
 void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
 
@@ -884,11 +999,14 @@ void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
 // p_hook.c
 //
 void Cmd_Hook_f (edict_t *ent);
+void DropHook (edict_t *ent);
 
 //
-// g_pweapon.c
+// g_weapon.c
 //
 void PlayerNoise(edict_t *who, vec3_t where, int type);
+void P_ProjectSource (gclient_t *client, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result);
+void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, int *pause_frames, int *fire_frames, void (*fire)(edict_t *ent));
 
 //
 // m_move.c
@@ -911,6 +1029,14 @@ void SaveClientData (void);
 void FetchClientEntData (edict_t *ent);
 
 //
+// g_chase.c
+//
+void UpdateChaseCam(edict_t *ent);
+void ChaseNext(edict_t *ent);
+void ChasePrev(edict_t *ent);
+void GetChaseTarget(edict_t *ent);
+
+//
 // wf_decoy.c
 //
 void SP_Decoy (edict_t *self);
@@ -926,9 +1052,7 @@ void free_decoy (edict_t *self);
 #define	ANIM_PAIN		3
 #define	ANIM_ATTACK		4
 #define	ANIM_DEATH		5
-// ### Hentai ### BEGIN
-#define ANIM_REVERSE	-1
-// ### Hentai ### END
+#define	ANIM_REVERSE	6
 
 
 
@@ -946,7 +1070,7 @@ typedef struct
 	// values saved and restored from edicts when changing levels
 	int			health;
 	int			max_health;
-	qboolean	powerArmorActive;
+	qboolean		powerArmorActive;
 
 	int			selected_item;
 	int			inventory[MAX_ITEMS];
@@ -966,9 +1090,18 @@ typedef struct
 	int			score;			// for calculating total unit score in coop games
 	
 	char zbotBuf[24];				// For Lithium ZBot detection
+	// Don't add any fields before zbotBuf[], or the precompiled ZbotCheck.o
+	// will get confused and start overwriting the wrong things.
+
+	int			game_helpchanged;
+	int			helpchanged;
+
+	qboolean	spectator;			// client is a spectator
 
 	int	scanner_active;
 	qboolean fire_mode; // Muce: 0 for FA and 1 for BF
+
+	unsigned int ipAddr;		// Their IP address when they first connect
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -981,7 +1114,13 @@ typedef struct
 	int			game_helpchanged;
 	int			helpchanged;
 
+	qboolean	spectator;			// client is a spectator
 
+//ZOID
+	int			ctf_team;			// CTF team
+	int			ctf_state;
+	qboolean	id_state;
+//ZOID
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1061,6 +1200,10 @@ struct gclient_s
 
 	float		pickup_msg_time;
 
+	float		flood_locktill;		// locked from talking
+	float		flood_when[10];		// when messages were said
+	int			flood_whenhead;		// head pointer for when said
+
 	float		respawn_time;		// can respawn when time > this
 
 	int hookstate;
@@ -1090,6 +1233,13 @@ struct gclient_s
 	float kamikaze_framenum; 
 	float kamikaze_timeleft; 
 	/* WonderSlug End */
+
+//ZOID
+	qboolean	inmenu;				// in menu
+	pmenuhnd_t	*menu;				// current menu
+	edict_t		*chase_target;
+	qboolean	update_chase;
+//ZOID
 };
 
 
@@ -1244,7 +1394,7 @@ struct edict_s
 	// *************************
 	// freezing data
 	qboolean frozen;
-	int frozentime;
+	float frozentime;
 	// ************************
 
 	//ThirdPerson Perspective Stuff
@@ -1253,8 +1403,6 @@ struct edict_s
 	int		currentweapon;		// This is for the weapon model info when in 3rd person mode
 	float		thirdoffx;		// So the player can move the camera around
 	float		thirdoffz;
-
-	int homing_lock; //0 = not locked, 1 = locked
 
 	 edict_t *decoy;
 	 edict_t *creator;
@@ -1322,6 +1470,5 @@ void make_debris (edict_t *ent);
 void BigBang (edict_t *ent);
 qboolean isvisible (edict_t *self, edict_t *other);
 
-
-
-
+// get teamplay definitions
+#include "g_team.h"

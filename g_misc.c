@@ -245,9 +245,13 @@ void ThrowClientHead (edict_t *self, int damage)
 		self->client->anim_priority = ANIM_DEATH;
 		self->client->anim_end = self->s.frame;
 	}
-
-	self->think = G_FreeEdict;
-	self->nextthink = level.time + 60 + random()*60;
+#if 0
+	else
+	{
+		self->think = NULL;
+		self->nextthink = 0;
+	}
+#endif
 
 	gi.linkentity (self);
 }
@@ -352,6 +356,7 @@ void path_corner_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface
 		v[2] -= other->mins[2];
 		VectorCopy (v, other->s.origin);
 		next = G_PickTarget(next->target);
+		other->s.event = EV_OTHER_TELEPORT;
 	}
 
 	other->goalentity = other->movetarget = next;
@@ -469,10 +474,23 @@ void SP_point_combat (edict_t *self)
 /*QUAKED viewthing (0 .5 .8) (-8 -8 -8) (8 8 8)
 Just for the debugging level.  Don't use
 */
+static int robotron[4];
+
 void TH_viewthing(edict_t *ent)
 {
 	ent->s.frame = (ent->s.frame + 1) % 7;
+//	ent->s.frame = (ent->s.frame + 1) % 9;
 	ent->nextthink = level.time + FRAMETIME;
+//	return;
+
+	if (ent->spawnflags)
+	{
+		if (ent->s.frame == 0)
+		{
+			ent->spawnflags = (ent->spawnflags + 1) % 4 + 1;
+			ent->s.modelindex = robotron[ent->spawnflags - 1];
+		}
+	}
 }
 
 void SP_viewthing(edict_t *ent)
@@ -1768,9 +1786,9 @@ void SP_misc_teleporter_dest (edict_t *ent)
 	gi.setmodel (ent, "models/objects/dmspot/tris.md2");
 	ent->s.skinnum = 0;
 	ent->solid = SOLID_BBOX;
-//	ent->s.effects |= EF_FLIES;
 	VectorSet (ent->mins, -32, -32, -24);
 	VectorSet (ent->maxs, 32, 32, -16);
+
 	gi.linkentity (ent);
 }
 

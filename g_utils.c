@@ -315,8 +315,14 @@ float vectoyaw (vec3_t vec)
 {
 	float	yaw;
 	
-	if (vec[YAW] == 0 && vec[PITCH] == 0)
+	if (/*vec[YAW] == 0 &&*/ vec[PITCH] == 0) 
+	{
 		yaw = 0;
+		if (vec[YAW] > 0)
+			yaw = 90;
+		else if (vec[YAW] < 0)
+			yaw = -90;
+	} 
 	else
 	{
 		yaw = (int) (atan2(vec[YAW], vec[PITCH]) * 180 / M_PI);
@@ -343,7 +349,12 @@ void vectoangles (vec3_t value1, vec3_t angles)
 	}
 	else
 	{
-		yaw = (int) (atan2(value1[1], value1[0]) * 180 / M_PI);
+		if (value1[0])
+			yaw = (int) (atan2(value1[1], value1[0]) * 180 / M_PI);
+		else if (value1[1] > 0)
+			yaw = 90;
+		else
+			yaw = -90;
 		if (yaw < 0)
 			yaw += 360;
 
@@ -561,15 +572,23 @@ of ent.  Ent should be unlinked before calling this!
 qboolean KillBox (edict_t *ent)
 {
 	trace_t		tr;
+	int mod;
+
+	// Set up the means of death.
+	mod = MOD_TELEFRAG;
+	if ((int)fragban->value & WFB_TELEFRAG)
+		mod |= MOD_NOFRAG;
 
 	while (1)
 	{
-		tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, MASK_PLAYERSOLID);
+		tr = gi.trace (ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL,
+			MASK_PLAYERSOLID);
 		if (!tr.ent)
 			break;
 
 		// nail it
-		T_Damage (tr.ent, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+		T_Damage (tr.ent, ent, ent, vec3_origin, ent->s.origin, vec3_origin,
+			100000, 0, DAMAGE_NO_PROTECTION, mod);
 
 		// if we didn't kill it, fail
 		if (tr.ent->solid)

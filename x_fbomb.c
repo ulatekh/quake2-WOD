@@ -22,15 +22,22 @@ static void FireGrenade_Explode (edict_t *ent)
 	vec3_t		timer = {0, 0.2, 0};
 	vec3_t		damage = {6, 9, 25};
 	vec3_t		radius_damage = {6, 4, 25};
+	int			mod;
 
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
+	// Set up the means of death.
+	mod = MOD_FGRENADE;
+	if ((int)fragban->value & WB_GRENADE)
+		mod |= MOD_NOFRAG;
+
 	//FIXME: if we are onground then raise our Z just a bit since we are a point?
-	T_RadiusDamage(ent, ent->owner, ent->dmg, NULL, ent->dmg_radius, MOD_FGRENADE);
+	T_RadiusDamage(ent, ent->owner, ent->dmg, NULL, ent->dmg_radius, mod);
 	// Flame cloud.
-	PBM_FlameCloud(ent->owner, ent->s.origin, cloud, timer, true, 70, damage, radius_damage, 100, 75);
-	T_ShockWave(ent, 255, 1024);
+	PBM_FlameCloud (ent->owner, ent->s.origin, cloud, timer, true, 70, damage,
+		radius_damage, 100, 75);
+	T_ShockWave (ent, 255, 1024);
 
 	VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 	gi.WriteByte (svc_temp_entity);
@@ -171,7 +178,7 @@ void firerocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t
 	vec3_t		timer = {0, 0.2, 0};
 	vec3_t		damage = {6, 9, 25};
 	vec3_t		radius_damage = {6, 4, 25};
-	int			n;
+	int			n, mod;
 
 	if (other == ent->owner)
 		return;
@@ -190,7 +197,13 @@ void firerocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t
 
 	if (other->takedamage)
 	{
-		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 0, 0, MOD_ROCKET);
+		// Set up the means of death.
+		mod = MOD_ROCKET;
+		if ((int)fragban->value & WB_ROCKETLAUNCHER)
+			mod |= MOD_NOFRAG;
+
+		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
+			plane->normal, ent->dmg, 0, 0, mod);
 	}
 	else
 	{
@@ -206,7 +219,11 @@ void firerocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t
 		}
 	}
 
-	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, MOD_ROCKET);
+	mod = MOD_R_SPLASH;
+	if ((int)fragban->value & WB_ROCKETLAUNCHER)
+		mod |= MOD_NOFRAG;
+	T_RadiusDamage (ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius,
+		mod);
 
 	// Flame cloud.
 	PBM_FlameCloud(ent->owner, ent->s.origin, cloud, timer, true, 70, damage, radius_damage, 100, 75);

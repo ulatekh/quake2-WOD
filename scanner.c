@@ -4,12 +4,24 @@ void	ClearScanner(gclient_t *client)
 {
 	client->pers.scanner_active = 0;
 }
-void Toggle_Scanner (edict_t *ent){	if ((!ent->client) || (ent->health<=0))
+void Toggle_Scanner (edict_t *ent)
+{
+	// No scanner if it's been banned.
+	if ((int)featureban->value & FB_SCANNER)
 		return;
+
+	if (!ent->client || ent->health <= 0)
+		return;
+
 	// toggle low on/off bit (and clear scores/inventory display if required)
-	if ((ent->client->pers.scanner_active ^= 1) & 1)	{
-		ent -> client -> showinventory	= 0;		ent -> client -> showscores		= 0;	}
-	// set "just changed" bit	ent->client->pers.scanner_active |= 2;
+	if ((ent->client->pers.scanner_active ^= 1) & 1)
+	{
+		ent->client->showinventory	= 0;
+		ent->client->showscores = 0;
+	}
+
+	// set "just changed" bit
+	ent->client->pers.scanner_active |= 2;
 }
 void ShowScanner(edict_t *ent,char *layout)
 {
@@ -37,7 +49,14 @@ void ShowScanner(edict_t *ent,char *layout)
 		player++;
 
 		// in use 
-		if (!player->inuse || !player->client || (player == ent) || (player -> health <= 0))
+		if (!player->inuse
+		|| !player->client
+		|| player == ent
+		|| player->deadflag)
+			continue;
+
+		// Don't show ghosts either.
+		if (ctf->value && player->movetype == MOVETYPE_NOCLIP && player->solid == SOLID_NOT)
 			continue;
 
 		// calc player to enemy vector

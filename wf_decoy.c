@@ -276,17 +276,14 @@ void decoy_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 void spawn_decoy (edict_t *owner)
 {
 	edict_t *self;
-	vec3_t forward;
-
-	// No decoys when you're dead.
-	if (owner->deadflag)
-		return;
+	vec3_t forward, up;
 
 	self = G_Spawn();
 
-	// Place decoy 100 units forward of our position
-	AngleVectors(owner->client->v_angle, forward, NULL, NULL);
+	// Place decoy 100 units forward and 25 units up from our position
+	AngleVectors(owner->client->v_angle, forward, NULL, up);
 	VectorMA(owner->s.origin, 100, forward, self->s.origin);
+	VectorMA(self->s.origin, 25, up, self->s.origin);
 
 	//Link two entities together
 	owner->decoy = self;		//for the owner, this is a pointer to the decoy
@@ -297,6 +294,7 @@ void spawn_decoy (edict_t *owner)
 	self->s.skinnum = owner->s.skinnum;
 	self->s.modelindex = owner->s.modelindex;
 	self->s.modelindex2 = owner->s.modelindex2;
+	self->s.number = self - g_edicts;
 
 	self->s.effects = 0;
 	self->s.frame = 0;
@@ -351,7 +349,7 @@ void spawn_decoy (edict_t *owner)
 	//Let monster code control this decoy
 	walkmonster_start (self);
 
-	gi.cprintf (owner, PRINT_HIGH, "Decoy created.\n");
+	gi.cprintf (owner, PRINT_MEDIUM, "Decoy created.\n");
 }
 
 void
@@ -370,6 +368,22 @@ void SP_Decoy (edict_t *self)
 	// See if we should decoy turn it on or off
 	char *string;
 	int turnon;
+
+	// No decoys when you're dead.
+	if (self->deadflag)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && self->movetype == MOVETYPE_NOCLIP && self->solid == SOLID_NOT)
+		return;
+
+	// Or when you're frozen.
+	if (self->frozen)
+		return;
+	
+	// Or if decoys have been banned.
+	if ((int)featureban->value & FB_DECOY)
+		return;
 
 	string = gi.args();
 
@@ -395,10 +409,10 @@ void SP_Decoy (edict_t *self)
 	if (self->decoy)
 	{
 		free_decoy (self);
-		gi.cprintf (self, PRINT_HIGH, "Decoy destroyed.\n");
+		gi.cprintf (self, PRINT_MEDIUM, "Decoy destroyed.\n");
 		return;
 	}
 
 	//Create decoy
-	spawn_decoy(self);
+	spawn_decoy (self);
 }

@@ -35,6 +35,10 @@ field_t fields[] = {
 	{"attenuation", FOFS(attenuation), F_FLOAT},
 	{"map", FOFS(map), F_LSTRING},
 
+	// Added for WoD, for the new style of func_killbox
+	{"mins", FOFS(mins), F_VECTOR},
+	{"maxs", FOFS(maxs), F_VECTOR},
+
 	// temp spawn vars -- only valid when the spawn function is called
 	{"lip", STOFS(lip), F_INT, FFL_SPAWNTEMP},
 	{"distance", STOFS(distance), F_INT, FFL_SPAWNTEMP},
@@ -50,7 +54,9 @@ field_t fields[] = {
 	{"maxyaw", STOFS(maxyaw), F_FLOAT, FFL_SPAWNTEMP},
 	{"minpitch", STOFS(minpitch), F_FLOAT, FFL_SPAWNTEMP},
 	{"maxpitch", STOFS(maxpitch), F_FLOAT, FFL_SPAWNTEMP},
-	{"nextmap", STOFS(nextmap), F_LSTRING, FFL_SPAWNTEMP}
+	{"nextmap", STOFS(nextmap), F_LSTRING, FFL_SPAWNTEMP},
+
+	{NULL, 0, F_INT}
 };
 
 // -------- just for savegames ----------
@@ -149,6 +155,7 @@ void InitGame (void)
 	gi.cvar ("gamedate", __DATE__ , CVAR_SERVERINFO | CVAR_LATCH);
 
 	maxclients = gi.cvar ("maxclients", "4", CVAR_SERVERINFO | CVAR_LATCH);
+	maxspectators = gi.cvar ("maxspectators", "4", CVAR_SERVERINFO);
 	deathmatch = gi.cvar ("deathmatch", "0", CVAR_LATCH);
 	coop = gi.cvar ("coop", "0", CVAR_LATCH);
 	skill = gi.cvar ("skill", "1", CVAR_LATCH);
@@ -160,7 +167,9 @@ void InitGame (void)
 	fraglimit = gi.cvar ("fraglimit", "0", CVAR_SERVERINFO);
 	timelimit = gi.cvar ("timelimit", "0", CVAR_SERVERINFO);
 	password = gi.cvar ("password", "", CVAR_USERINFO);
-	allow_cataclysm = gi.cvar ("allow_cataclysm", "1", 0);
+	spectator_password = gi.cvar ("spectator_password", "", CVAR_USERINFO);
+	needpass = gi.cvar ("needpass", "0", CVAR_SERVERINFO);
+	filterban = gi.cvar ("filterban", "1", 0);
 
 	g_select_empty = gi.cvar ("g_select_empty", "0", CVAR_ARCHIVE);
 
@@ -170,8 +179,15 @@ void InitGame (void)
 	bob_pitch = gi.cvar ("bob_pitch", "0.002", 0);
 	bob_roll = gi.cvar ("bob_roll", "0.002", 0);
 
-	//gi.AddCommandString ("alias +hook \"hook action; wait; hook shrink\"\n");
-	//gi.AddCommandString ("alias -hook \"hook stop\"\n");
+	// flood control
+	flood_msgs = gi.cvar ("flood_msgs", "4", 0);
+	flood_persecond = gi.cvar ("flood_persecond", "4", 0);
+	flood_waitdelay = gi.cvar ("flood_waitdelay", "10", 0);
+
+	// weapon/feature banning
+	weaponban = gi.cvar ("weaponban", "0", CVAR_SERVERINFO);
+	featureban = gi.cvar ("featureban", "0", CVAR_SERVERINFO);
+	fragban = gi.cvar ("fragban", "0", CVAR_SERVERINFO);
 
 	// items
 	InitItems ();
@@ -190,6 +206,10 @@ void InitGame (void)
 	game.maxclients = maxclients->value;
 	game.clients = gi.TagMalloc (game.maxclients * sizeof(game.clients[0]), TAG_GAME);
 	globals.num_edicts = game.maxclients+1;
+
+//ZOID
+	CTFInit();
+//ZOID
 }
 
 //=========================================================

@@ -1541,6 +1541,7 @@ again:
 		first = false;
 		VectorSubtract (ent->s.origin, self->mins, self->s.origin);
 		VectorCopy (self->s.origin, self->s.old_origin);
+		self->s.event = EV_OTHER_TELEPORT;
 		gi.linkentity (self);
 		goto again;
 	}
@@ -2019,10 +2020,33 @@ void use_killbox (edict_t *self, edict_t *other, edict_t *activator)
 	KillBox (self);
 }
 
-void SP_func_killbox (edict_t *ent)
+void touch_killbox (edict_t *self, edict_t *other, cplane_t *plane,
+						  csurface_t *surf)
 {
-	gi.setmodel (ent, ent->model);
-	ent->use = use_killbox;
-	ent->svflags = SVF_NOCLIENT;
+	if (other && (other->client || (other->svflags & SVF_MONSTER)))
+	{
+		T_Damage (other, self, self, vec3_origin, self->s.origin, vec3_origin,
+			100000, 0, DAMAGE_NO_PROTECTION, MOD_UNKNOWN);
+	}
 }
 
+void SP_func_killbox (edict_t *ent)
+{
+	ent->svflags = SVF_NOCLIENT;
+
+	if (ent->model)
+	{
+		// Old-style model-described killbox, triggered by something.
+		gi.setmodel (ent, ent->model);
+		ent->use = use_killbox;
+	}
+	else
+	{
+		// WoD-style min/max-described killbox, triggered by touching
+		ent->solid = SOLID_TRIGGER;
+		ent->touch = touch_killbox;
+
+		// Link it so that touching works.
+		gi.linkentity (ent);
+	}
+}

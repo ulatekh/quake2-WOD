@@ -4,8 +4,6 @@
 
 #include "g_local.h"
 
-cvar_t	*allow_cataclysm;
-
 void BecomeNewExplosion (edict_t *ent);
 
 /*
@@ -18,8 +16,15 @@ New grenade explosion.  Creates ~12 new entities (9 debris, 1 flash, 1 sound + 1
 */
 void Grenade_Explode (edict_t *ent)
 {
+	int mod;
+
+	// Set up the means of death.
+	mod = MOD_CLUSTER;
+	if ((int)fragban->value & WB_CLUSTERGRENADE)
+		mod |= MOD_NOFRAG;
+
 	// do blast damage	
-	T_RadiusDamage(ent, ent->owner, ent->dmg, NULL, ent->dmg_radius, MOD_CLUSTER);
+	T_RadiusDamage(ent, ent->owner, ent->dmg, NULL, ent->dmg_radius, mod);
 
 	// shake view
 	T_ShockWave(ent, 255, 1024);
@@ -44,6 +49,7 @@ void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
 	vec3_t	org;
 	float		spd;
 	vec3_t	origin;
+	int mod;
 
 	// can't be hit by own rocket
 	if (other == ent->owner)
@@ -66,7 +72,13 @@ void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
 	// impact damage
 	if (other->takedamage)
 	{
-		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 0, 0, MOD_HOMING);
+		// Set up the means of death.
+		mod = MOD_ROCKET;
+		if ((int)fragban->value & WB_ROCKETLAUNCHER)
+			mod |= MOD_NOFRAG;
+
+		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
+			plane->normal, ent->dmg, 0, 0, mod);
 	}
 
 	// make some glowing shrapnel
@@ -80,7 +92,11 @@ void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
 	}
 	
 	make_debris (ent);
-	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, MOD_H_SPLASH);
+	mod = MOD_R_SPLASH;
+	if ((int)fragban->value & WB_ROCKETLAUNCHER)
+		mod |= MOD_NOFRAG;
+	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius,
+		mod);
 	T_ShockItems(ent);
 	T_ShockWave(ent, 255, 1024);
 	BecomeNewExplosion (ent);
@@ -198,7 +214,8 @@ void T_ShockItems (edict_t *inflictor)
 				// any problem w/leaving this changed?
 				VectorScale (dir, 3.0 * (float)points / mass, kvel);
 				VectorAdd (ent->velocity, kvel, ent->velocity);
-				VectorAdd (ent->avelocity, 1.5*kvel, ent->avelocity);
+				if (!(ent->svflags & SVF_MONSTER))
+					VectorAdd (ent->avelocity, 1.5*kvel, ent->avelocity);
 
 				//TODO: check groundentity & lower s.origin to keep objects from sticking to floor?
 				ent->velocity[2]+=10;

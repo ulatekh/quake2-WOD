@@ -154,13 +154,24 @@ void DoRespawn (edict_t *ent)
 
 		master = ent->teammaster;
 
-		for (count = 0, ent = master; ent; ent = ent->chain, count++)
-			;
+//ZOID
+//in ctf, when we are weapons stay, only the master of a team of weapons
+//is spawned
+		if (ctf->value &&
+			((int)dmflags->value & DF_WEAPONS_STAY) &&
+			master->item && (master->item->flags & IT_WEAPON))
+			ent = master;
+		else {
+//ZOID
 
-		choice = rand() % count;
+			for (count = 0, ent = master; ent; ent = ent->chain, count++)
+				;
 
-		for (count = 0, ent = master; count < choice; ent = ent->chain, count++)
-			;
+			choice = rand() % count;
+
+			for (count = 0, ent = master; count < choice; ent = ent->chain, count++)
+				;
+		}
 	}
 
 	ent->svflags &= ~SVF_NOCLIENT;
@@ -350,7 +361,7 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 	}
 
 	item = &gI_ammo_grenades;
-	if (item)
+	if (item && !((int)weaponban->value & WB_GRENADE))
 	{
 		index = ITEM_INDEX(item);
 		other->client->pers.inventory[index] += item->quantity * 2;
@@ -510,13 +521,23 @@ qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
 	{
 		max = ent->client->pers.max_grenades;
 
-		// Make sure they have the "launcher" for all the different types.
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_clustergrenade)] = 1;
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railbomb)] = 1;
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasmagrenade)] = 1;
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_napalmgrenade)] = 1;
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_shrapnelgrenade)] = 1;
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_cataclysm)] = 1;
+		// Make sure they have the "launcher" for all the different types,
+		// except the ones that have been banned.
+		if (!((int)weaponban->value & WB_GRENADE))
+		{
+			if (!((int)weaponban->value & WB_CLUSTERGRENADE))
+				ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_clustergrenade)] = 1;
+			if (!((int)weaponban->value & WB_RAILBOMB))
+				ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railbomb)] = 1;
+			if (!((int)weaponban->value & WB_PLASMAGRENADE))
+				ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasmagrenade)] = 1;
+			if (!((int)weaponban->value & WB_NAPALMGRENADE))
+				ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_napalmgrenade)] = 1;
+			if (!((int)weaponban->value & WB_SHRAPNELGRENADE))
+				ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_shrapnelgrenade)] = 1;
+			if (!((int)weaponban->value & WB_CATACLYSMDEVICE))
+				ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_cataclysm)] = 1;
+		}
 	}
 	else if (item->tag == AMMO_CELLS)
 		max = ent->client->pers.max_cells;
@@ -588,6 +609,16 @@ void Drop_Ammo (edict_t *ent, gitem_t *item)
 		dropped->count = item->quantity;
 	else
 		dropped->count = ent->client->pers.inventory[index];
+
+	if (ent->client->pers.weapon && 
+		ent->client->pers.weapon->tag == AMMO_GRENADES &&
+		item->tag == AMMO_GRENADES &&
+		ent->client->pers.inventory[index] - dropped->count <= 0) {
+		gi.cprintf (ent, PRINT_HIGH, "Can't drop current weapon\n");
+		G_FreeEdict(dropped);
+		return;
+	}
+
 	ent->client->pers.inventory[index] -= dropped->count;
 	ValidateSelectedItem (ent);
 }
@@ -616,16 +647,17 @@ qboolean Pickup_Health (edict_t *ent, edict_t *other)
 		if (other->health >= other->max_health)
 			return false;
 
+//ZOID
+	if (other->health >= 250 && ent->count > 25)
+		return false;
+//ZOID
+
 	other->health += ent->count;
 
-	if (ent->count == 2)
-		ent->item->pickup_sound = "items/s_health.wav";
-	else if (ent->count == 10)
-		ent->item->pickup_sound = "items/n_health.wav";
-	else if (ent->count == 25)
-		ent->item->pickup_sound = "items/l_health.wav";
-	else // (ent->count == 100)
-		ent->item->pickup_sound = "items/m_health.wav";
+//ZOID
+	if (other->health > 250 && ent->count > 25)
+		other->health = 250;
+//ZOID
 
 	if (!(ent->style & HEALTH_IGNORE_MAX))
 	{
@@ -851,7 +883,21 @@ void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf
 		if (ent->item->use)
 			other->client->pers.selected_item = other->client->ps.stats[STAT_SELECTED_ITEM] = ITEM_INDEX(ent->item);
 
-		gi.sound(other, CHAN_ITEM, gi.soundindex(ent->item->pickup_sound), 1, ATTN_NORM, 0);
+		if (ent->item->pickup == Pickup_Health)
+		{
+			if (ent->count == 2)
+				gi.sound(other, CHAN_ITEM, gi.soundindex("items/s_health.wav"), 1, ATTN_NORM, 0);
+			else if (ent->count == 10)
+				gi.sound(other, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
+			else if (ent->count == 25)
+				gi.sound(other, CHAN_ITEM, gi.soundindex("items/l_health.wav"), 1, ATTN_NORM, 0);
+			else // (ent->count == 100)
+				gi.sound(other, CHAN_ITEM, gi.soundindex("items/m_health.wav"), 1, ATTN_NORM, 0);
+		}
+		else if (ent->item->pickup_sound)
+		{
+			gi.sound(other, CHAN_ITEM, gi.soundindex(ent->item->pickup_sound), 1, ATTN_NORM, 0);
+		}
 	}
 
 	if (!(ent->spawnflags & ITEM_TARGETS_USED))
@@ -887,7 +933,7 @@ static void drop_make_touchable (edict_t *ent)
 	ent->touch = Touch_Item;
 	if (deathmatch->value)
 	{
-		ent->nextthink = level.time + 29;
+		ent->nextthink = level.time + 30;
 		ent->think = G_FreeEdict;
 	}
 }
@@ -1112,7 +1158,126 @@ be on an entity that hasn't spawned yet.
 */
 void SpawnItem (edict_t *ent, gitem_t *item)
 {
-	PrecacheItem (item);
+	// Some items have been banned.
+	if (item == &gI_item_jetpack
+	&& ((int)featureban->value & FB_JETPACK))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_shotgun
+	&& ((int)weaponban->value & WB_SHOTGUN)
+	&& ((int)weaponban->value & WB_SNIPERGUN))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_supershotgun
+	&& ((int)weaponban->value & WB_SUPERSHOTGUN)
+	&& ((int)weaponban->value & WB_FREEZEGUN))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_machinegun
+	&& ((int)weaponban->value & WB_MACHINEGUN)
+	&& ((int)weaponban->value & WB_MACHINEROCKETGUN)
+	&& ((int)weaponban->value & WB_BURSTMACHINEGUN))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_chaingun
+	&& ((int)weaponban->value & WB_CHAINGUN)
+	&& ((int)weaponban->value & WB_STREETSWEEPER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_grenadelauncher
+	&& (((int)weaponban->value & WB_GRENADE)
+	|| (((int)weaponban->value & WB_GRENADELAUNCHER)
+		&& ((int)weaponban->value & WB_BAZOOKA))))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_rocketlauncher
+	&& ((int)weaponban->value & WB_ROCKETLAUNCHER)
+	&& ((int)weaponban->value & WB_HOMINGROCKETLAUNCHER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_hyperblaster
+	&& ((int)weaponban->value & WB_HYPERBLASTER)
+	&& ((int)weaponban->value & WB_PLASMARIFLE))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_railgun
+	&& ((int)weaponban->value & WB_RAILGUN)
+	&& ((int)weaponban->value & WB_FLAMETHROWER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_weapon_bfg
+	&& ((int)weaponban->value & WB_BFG10K))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_ammo_shells
+	&& ((int)weaponban->value & WB_SHOTGUN)
+	&& ((int)weaponban->value & WB_SNIPERGUN)
+	&& ((int)weaponban->value & WB_SUPERSHOTGUN)
+	&& ((int)weaponban->value & WB_STREETSWEEPER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_ammo_bullets
+	&& ((int)weaponban->value & WB_MACHINEGUN)
+	&& ((int)weaponban->value & WB_MACHINEROCKETGUN)
+	&& ((int)weaponban->value & WB_BURSTMACHINEGUN)
+	&& ((int)weaponban->value & WB_CHAINGUN))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_ammo_grenades
+	&& ((int)weaponban->value & WB_GRENADE))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_ammo_cells
+	&& ((int)weaponban->value & WB_SUPERBLASTER)
+	&& ((int)weaponban->value & WB_FREEZEGUN)
+	&& ((int)weaponban->value & WB_HYPERBLASTER)
+	&& ((int)weaponban->value & WB_PLASMARIFLE)
+	&& ((int)weaponban->value & WB_BFG10K)
+	&& ((int)featureban->value & FB_TRIPLASER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_ammo_rockets
+	&& ((int)weaponban->value & WB_ROCKETLAUNCHER)
+	&& ((int)weaponban->value & WB_HOMINGROCKETLAUNCHER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_ammo_slugs
+	&& ((int)weaponban->value & WB_FLAMETHROWER)
+	&& ((int)weaponban->value & WB_RAILGUN))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
 
 	if (ent->spawnflags)
 	{
@@ -1159,6 +1324,8 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 			}
 		}
 	}
+
+	PrecacheItem (item);
 
 	if (coop->value && (strcmp(ent->classname, "key_power_cube") == 0))
 	{
@@ -1463,11 +1630,11 @@ gitem_t gI_weapon_freezer =
 	Weapon_Freezer,
 	"misc/w_pkup.wav",
 	NULL, 0,
-	"models/weapons/v_rail/tris.md2",
-/* icon */		"w_railgun",
+	"models/weapons/v_shotg2/tris.md2",
+/* icon */		"w_sshotgun",
 /* pickup */	"Freezer",
 	0,
-	20,
+	10,
 	&gI_ammo_cells,
 	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
 	NULL,
@@ -1672,7 +1839,7 @@ gitem_t gI_weapon_cataclysm =
 	"models/items/ammo/grenades/medium/tris.md2", 0,
 	"models/weapons/v_handgr/tris.md2",
 /* icon */		"a_grenades",
-/* pickup */	"Cataclysm device",
+/* pickup */	"Cataclysm Device",
 /* width */		3,
 	10 /* 1 */,
 	&gI_ammo_grenades,
@@ -2229,7 +2396,7 @@ gitem_t gI_item_ancient_head =
 /* width */		2,
 	60,
 	NULL,
-	0,
+	IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2326,7 +2493,7 @@ gitem_t gI_key_data_cd =
 	2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2350,7 +2517,7 @@ gitem_t gI_key_power_cube =
 	2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2374,7 +2541,7 @@ gitem_t gI_key_pyramid =
 	2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2398,7 +2565,7 @@ gitem_t gI_key_data_spinner =
 	2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2422,7 +2589,7 @@ gitem_t gI_key_pass =
 	2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2446,7 +2613,7 @@ gitem_t gI_key_blue_key =
 	2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2470,7 +2637,7 @@ gitem_t gI_key_red_key =
 	2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2494,7 +2661,7 @@ gitem_t gI_key_commander_head =
 /* width */		2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2518,7 +2685,7 @@ gitem_t gI_key_airstrike_target =
 /* width */		2,
 	0,
 	NULL,
-	IT_STAY_COOP|IT_KEY,
+	IT_STAY_COOP|IT_KEY|IT_NOT_DM,
 	NULL,
 	0,
 /* precache */ ""
@@ -2542,7 +2709,7 @@ gitem_t gI_item_health =
 	0,
 	NULL,
 	0,
-/* precache */ ""
+/* precache */ "items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
 };
 
 gitem_t gI_item_null2 =
@@ -2564,11 +2731,13 @@ gitem_t *itemlist[] =
 	&gI_item_power_shield,
 
 	&gI_weapon_blaster,
+	&gI_weapon_superblaster,
 	&gI_weapon_shotgun,
+	&gI_weapon_sniper,
 	&gI_weapon_supershotgun,
-	&gI_weapon_machine,
-	&gI_weapon_machinegun,
 	&gI_weapon_freezer,
+	&gI_weapon_machinegun,
+	&gI_weapon_machine,
 	&gI_weapon_chaingun,
 	&gI_weapon_streetsweeper,
 
@@ -2589,11 +2758,9 @@ gitem_t *itemlist[] =
 	&gI_weapon_homing,
 	&gI_weapon_hyperblaster,
 	&gI_weapon_plasma,
-	&gI_weapon_superblaster,
 	&gI_weapon_railgun,
 	&gI_weapon_railgun2,
 	&gI_weapon_bfg,
-	&gI_weapon_sniper,
 
 	&gI_ammo_shells,
 	&gI_ammo_bullets,
@@ -2819,7 +2986,7 @@ gitem_t	*FindItem (char *pickup_name)
 ===============
 SetItemNames
 
-Called by worldspawn
+Called by SP_worldspawn()
 ===============
 */
 void SetItemNames (void)
@@ -2830,7 +2997,8 @@ void SetItemNames (void)
 	for (i=0 ; i<game.num_items ; i++)
 	{
 		it = itemlist[i];
-		gi.configstring (CS_ITEMS+i, it->pickup_name);
+		if (!(deathmatch->value) || !(it->flags & IT_NOT_DM))
+			gi.configstring (CS_ITEMS+i, it->pickup_name);
 	}
 
 	jacket_armor_index = ITEM_INDEX (&gI_item_armor_jacket);

@@ -5,6 +5,10 @@ void Grenade_Explode_dM (edict_t *ent);
 void weapon_lasertrip_die (edict_t *self, edict_t *inflictor,
 									edict_t *attacker, int damage, vec3_t point)
 {
+	// Make the "laser tripwire shot off the wall" sound.
+	gi.sound (self, CHAN_WEAPON,
+		gi.soundindex ("flyer/flydeth1.wav"), 1, ATTN_NORM, 0);
+
 	// Set off the grenade
 	self->think = Grenade_Explode_dM;
 	self->nextthink = level.time + FRAMETIME;
@@ -57,7 +61,8 @@ static void weapon_lasertrip_think (edict_t *self)
 			gi.sound (self->owner, CHAN_WEAPON,
 				gi.soundindex ("flyer/flysght1.wav"), 1, ATTN_NORM, 0);
 
-			// Set off the grenade
+			// Set off the grenade.
+			self->owner->takedamage = DAMAGE_NO;
 			self->owner->think = Grenade_Explode_dM;
 			self->owner->nextthink = level.time + FRAMETIME;
 
@@ -111,7 +116,7 @@ void
 PlaceLaserTripwire (edict_t *ent)
 {
 	edict_t *laser, *grenade;
-	vec3_t forward, wallp;
+	vec3_t forward, clientp, wallp;
 	trace_t tr;
 	gitem_t *it;
 
@@ -124,8 +129,21 @@ PlaceLaserTripwire (edict_t *ent)
 		0xe0e1e2e3              // bitty yellow strobe
 	};
 
-	// valid ent ?
-	if ((!ent->client) || (ent->health <= 0))
+	// No laser tripwires when you're dead.
+	if (ent->deadflag)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+		return;
+
+	// Or if you're frozen.
+	if (ent->frozen)
+		return;
+
+	// Or if laser tripwires (or grenades) have been banned.
+	if (((int)featureban->value & FB_TRIPLASER)
+	|| ((int)weaponban->value & WB_GRENADE))
 		return;
 
 	// cells for laser ?
@@ -151,18 +169,19 @@ PlaceLaserTripwire (edict_t *ent)
 	}
 
 	// Setup "little look" to close wall
-	VectorCopy (ent->s.origin,wallp);         
+	VectorCopy (ent->s.origin, clientp);
+	clientp[2] += ent->viewheight;
 
 	// Cast along view angle
 	AngleVectors (ent->client->v_angle, forward, NULL, NULL);
 
 	// Setup end point
-	wallp[0]=ent->s.origin[0]+forward[0]*50;
-	wallp[1]=ent->s.origin[1]+forward[1]*50;
-	wallp[2]=ent->s.origin[2]+forward[2]*50;  
+	wallp[0] = clientp[0] + forward[0] * 100;
+	wallp[1] = clientp[1] + forward[1] * 100;
+	wallp[2] = clientp[2] + forward[2] * 100;  
 
 	// trace
-	tr = gi.trace (ent->s.origin, NULL, NULL, wallp, ent, MASK_SOLID);
+	tr = gi.trace (clientp, NULL, NULL, wallp, ent, MASK_SOLID);
 
 	// Line complete ? (ie. no collision)
 	if (tr.fraction == 1.0)
@@ -195,6 +214,8 @@ PlaceLaserTripwire (edict_t *ent)
 	// Make the grenade react to radius damage, i.e. people can try to blow
 	// them up.
 	grenade->solid = SOLID_BBOX;
+	VectorSet (grenade->mins, -8, -8, -8);
+	VectorSet (grenade->maxs, 8, 8, 8);
 	grenade->takedamage = DAMAGE_YES;
 	grenade->clipmask = MASK_SOLID;
 	grenade->health = 100;
@@ -218,7 +239,7 @@ PlaceLaserTripwire (edict_t *ent)
 			grenade->s.effects |= EF_BFG;
 			break;
 
-		case 5:
+		case 4:
 			grenade->s.effects |= EF_COLOR_SHELL;
 			grenade->s.renderfx |= RF_SHELL_RED;
 			grenade->s.effects |= EF_ROCKET;
@@ -240,6 +261,24 @@ PlaceLaserTripwire (edict_t *ent)
 	grenade->dmg_radius = 150;
 
 	gi.linkentity (grenade);
+
+	// MAJOR HACK TO USE THE LASERTRIP GRENADE FEATURE FOR POINT LOCATIONALS.
+	if (sv_cheats->value)
+	{
+		grenade->s.modelindex = gi.modelindex ("models/objects/grenade2/tris.md2");
+		grenade->think = G_FreeEdict;
+		grenade->nextthink = level.time + 3;
+		gi.cprintf (ent, PRINT_HIGH, "Point is [%i,%i,%i]",
+			(int)tr.endpos[0], (int)tr.endpos[1], (int)tr.endpos[2]);
+		if (tr.ent && strcmp (ent->classname, "worldspawn") != 0)
+		{
+			gi.cprintf (ent, PRINT_HIGH, ", classname %s", tr.ent->classname);
+			if (tr.ent->model)
+				gi.cprintf (ent, PRINT_HIGH, ", model %s", tr.ent->model);
+		}
+		gi.cprintf (ent, PRINT_HIGH, "\n");
+		return;
+	}
 	
 	// -----------
 	// Setup laser
@@ -291,9 +330,9 @@ PlaceLaserTripwire (edict_t *ent)
 
 	// Let them know we're done.
 	if (it == &gI_ammo_grenades)
-		gi.cprintf (ent, PRINT_HIGH, "Laser tripwire attached.\n");
+		gi.cprintf (ent, PRINT_MEDIUM, "Laser tripwire attached.\n");
 	else
-		gi.cprintf (ent, PRINT_HIGH, "%s laser tripwire attached.\n",
+		gi.cprintf (ent, PRINT_MEDIUM, "%s laser tripwire attached.\n",
 			it->pickup_name);
 
 	// Make the "laser tripwire set" sound.

@@ -904,16 +904,16 @@ void ai_run (edict_t *self, float dist)
 	vec3_t		v_forward, v_right;
 	float		left, center, right;
 	vec3_t		left_target, right_target;
-// frozen code begin
-	if( self->frozen ) {
-		if( level.time < self->frozentime ) {
+
+	// frozen code begin
+	if (self->frozen)
+	{
+		if (level.time < self->frozentime)
+		{
 			return;
 		}
-	} else { 
-		self->frozen = 0;
 	}
-// frozen code end
-
+	// frozen code end
 
 	// if we're going to a combat point, just proceed
 	if (self->monsterinfo.aiflags & AI_COMBAT_POINT)

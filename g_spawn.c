@@ -137,6 +137,10 @@ spawn_t	spawns[] = {
 	{"info_player_deathmatch", SP_info_player_deathmatch},
 	{"info_player_coop", SP_info_player_coop},
 	{"info_player_intermission", SP_info_player_intermission},
+//ZOID
+	{"info_player_team1", SP_info_player_team1},
+	{"info_player_team2", SP_info_player_team2},
+//ZOID
 
 	{"func_plat", SP_func_plat},
 	{"func_button", SP_func_button},
@@ -200,6 +204,10 @@ spawn_t	spawns[] = {
 
 	{"misc_explobox", SP_misc_explobox},
 	{"misc_banner", SP_misc_banner},
+//ZOID
+	{"misc_ctf_banner", SP_misc_ctf_banner},
+	{"misc_ctf_small_banner", SP_misc_ctf_small_banner},
+//ZOID
 	{"misc_satellite_dish", SP_misc_satellite_dish},
 	{"misc_actor", SP_misc_actor},
 	{"misc_gib_arm", SP_misc_gib_arm},
@@ -213,6 +221,10 @@ spawn_t	spawns[] = {
 	{"misc_strogg_ship", SP_misc_strogg_ship},
 	{"misc_teleporter", SP_misc_teleporter},
 	{"misc_teleporter_dest", SP_misc_teleporter_dest},
+//ZOID
+	{"trigger_teleport", SP_trigger_teleport},
+	{"info_teleport_destination", SP_info_teleport_destination},
+//ZOID
 	{"misc_blackhole", SP_misc_blackhole},
 	{"misc_eastertank", SP_misc_eastertank},
 	{"misc_easterchick", SP_misc_easterchick},
@@ -285,7 +297,7 @@ void ED_CallSpawn (edict_t *ent)
 			return;
 		}
 	}
-	gi.dprintf ("%s doesn't have a spawn function\n", ent->classname);
+	gi.dprintf ("\"%s\" doesn't have a spawn function\n", ent->classname);
 }
 
 /*
@@ -377,7 +389,7 @@ void ED_ParseField (char *key, char *value, edict_t *ent)
 			return;
 		}
 	}
-	gi.dprintf ("%s is not a field\n", key);
+	gi.dprintf ("ED_ParseField(): %s is not a field\n", key);
 }
 
 /*
@@ -746,16 +758,6 @@ char *dm_statusbar =
 "num 3 14"
 
 
-// CCH: rangefinder
-/* "if 16 "
-" xv 210 "
-" num 4 16 "
-" xv 234 "
-" yb -59 "
-" string RANGE "
-"endif "
-removed in dm */
-
 ;
 
 
@@ -813,7 +815,26 @@ void SP_worldspawn (edict_t *ent)
 
 	// status bar program
 	if (deathmatch->value)
-		gi.configstring (CS_STATUSBAR, dm_statusbar);
+	{
+//ZOID
+		if (ctf->value)
+		{
+			gi.configstring (CS_STATUSBAR, ctf_statusbar);
+			//precaches
+			gi.imageindex("ctfsb1");
+			gi.imageindex("ctfsb2");
+			gi.imageindex("i_ctf1");
+			gi.imageindex("i_ctf2");
+			gi.imageindex("i_ctf1d");
+			gi.imageindex("i_ctf2d");
+			gi.imageindex("i_ctf1t");
+			gi.imageindex("i_ctf2t");
+			gi.imageindex("i_ctfj");
+		}
+		else
+//ZOID
+			gi.configstring (CS_STATUSBAR, dm_statusbar);
+	}
 	else
 		gi.configstring (CS_STATUSBAR, single_statusbar);
 
@@ -917,51 +938,74 @@ void SP_worldspawn (edict_t *ent)
 	gi.soundindex ("world/fusein.wav");
 	// "Laser-tripwire fire" sound
 	gi.soundindex ("flyer/flysght1.wav");
+	// "Laser-tripwire shot off the wall" sound
+	gi.soundindex ("flyer/flydeth1.wav");
 
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
 //
 
-	// 0 normal
-	gi.configstring(CS_LIGHTS+0, "m");
-	
-	// 1 FLICKER (first variety)
-	gi.configstring(CS_LIGHTS+1, "mmnmmommommnonmmonqnmmo");
-	
-	// 2 SLOW STRONG PULSE
-	gi.configstring(CS_LIGHTS+2, "abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba");
-	
-	// 3 CANDLE (first variety)
-	gi.configstring(CS_LIGHTS+3, "mmmmmaaaaammmmmaaaaaabcdefgabcdefg");
-	
-	// 4 FAST STROBE
-	gi.configstring(CS_LIGHTS+4, "mamamamamama");
-	
-	// 5 GENTLE PULSE 1
-	gi.configstring(CS_LIGHTS+5,"jklmnopqrstuvwxyzyxwvutsrqponmlkj");
-	
-	// 6 FLICKER (second variety)
-	gi.configstring(CS_LIGHTS+6, "nmonqnmomnmomomno");
-	
-	// 7 CANDLE (second variety)
-	gi.configstring(CS_LIGHTS+7, "mmmaaaabcdefgmmmmaaaammmaamm");
-	
-	// 8 CANDLE (third variety)
-	gi.configstring(CS_LIGHTS+8, "mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa");
-	
-	// 9 SLOW STROBE (fourth variety)
-	gi.configstring(CS_LIGHTS+9, "aaaaaaaazzzzzzzz");
-	
-	// 10 FLUORESCENT FLICKER
-	gi.configstring(CS_LIGHTS+10, "mmamammmmammamamaaamammma");
+	if (deathmatch->value)
+	{
+		// Abbreviated light tables (since lights are freed anyway).
+		gi.configstring(CS_LIGHTS+0, "m");
+		gi.configstring(CS_LIGHTS+1, "m");
+		gi.configstring(CS_LIGHTS+2, "m");
+		gi.configstring(CS_LIGHTS+3, "m");
+		gi.configstring(CS_LIGHTS+4, "m");
+		gi.configstring(CS_LIGHTS+5,"m");
+		gi.configstring(CS_LIGHTS+6, "m");
+		gi.configstring(CS_LIGHTS+7, "m");
+		gi.configstring(CS_LIGHTS+8, "m");
+		gi.configstring(CS_LIGHTS+9, "m");
+		gi.configstring(CS_LIGHTS+10, "m");
+		gi.configstring(CS_LIGHTS+11, "m");
+		gi.configstring(CS_LIGHTS+63, "a");
+	}
+	else
+	{
+		// 0 normal
+		gi.configstring(CS_LIGHTS+0, "m");
+		
+		// 1 FLICKER (first variety)
+		gi.configstring(CS_LIGHTS+1, "mmnmmommommnonmmonqnmmo");
+		
+		// 2 SLOW STRONG PULSE
+		gi.configstring(CS_LIGHTS+2, "abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba");
+		
+		// 3 CANDLE (first variety)
+		gi.configstring(CS_LIGHTS+3, "mmmmmaaaaammmmmaaaaaabcdefgabcdefg");
+		
+		// 4 FAST STROBE
+		gi.configstring(CS_LIGHTS+4, "mamamamamama");
+		
+		// 5 GENTLE PULSE 1
+		gi.configstring(CS_LIGHTS+5,"jklmnopqrstuvwxyzyxwvutsrqponmlkj");
+		
+		// 6 FLICKER (second variety)
+		gi.configstring(CS_LIGHTS+6, "nmonqnmomnmomomno");
+		
+		// 7 CANDLE (second variety)
+		gi.configstring(CS_LIGHTS+7, "mmmaaaabcdefgmmmmaaaammmaamm");
+		
+		// 8 CANDLE (third variety)
+		gi.configstring(CS_LIGHTS+8, "mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa");
+		
+		// 9 SLOW STROBE (fourth variety)
+		gi.configstring(CS_LIGHTS+9, "aaaaaaaazzzzzzzz");
+		
+		// 10 FLUORESCENT FLICKER
+		gi.configstring(CS_LIGHTS+10, "mmamammmmammamamaaamammma");
 
-	// 11 SLOW PULSE NOT FADE TO BLACK
-	gi.configstring(CS_LIGHTS+11, "abcdefghijklmnopqrrqponmlkjihgfedcba");
-	
-	// styles 32-62 are assigned by the light program for switchable lights
+		// 11 SLOW PULSE NOT FADE TO BLACK
+		gi.configstring(CS_LIGHTS+11, "abcdefghijklmnopqrrqponmlkjihgfedcba");
+		
+		// styles 32-62 are assigned by the light program for switchable lights
 
-	// 63 testing
-	gi.configstring(CS_LIGHTS+63, "a");
+		// 63 testing
+		gi.configstring(CS_LIGHTS+63, "a");
+	}
+
 	gi.imageindex (PIC_SCANNER_TAG);
 	gi.imageindex (PIC_DOT_TAG);
 	gi.imageindex (PIC_INVDOT_TAG);

@@ -102,44 +102,119 @@ void PlayerNoise(edict_t *who, vec3_t where, int type)
 qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 {
 	int			index;
+	gitem_t		*item, *item1, *item2;
 	gitem_t		*ammo;
 
-	index = ITEM_INDEX(ent->item);
+	item = ent->item;
+
+	// HACK to use when I'm editing maps for Extinction.
+	if (sv_cheats->value)
+		gi.cprintf (other, PRINT_HIGH, "weapon at [%i,%i,%i]\n",
+			(int)ent->s.origin[0], (int)ent->s.origin[1],
+			(int)ent->s.origin[2]);
+
+	// Determine what weapon was picked up and what weapons will be added to the
+	// inventory, depending on weapon banning.
+	item1 = item2 = NULL;
+	if (item == &gI_weapon_shotgun)
+	{
+		if (!((int)weaponban->value & WB_SHOTGUN))
+			item1 = &gI_weapon_shotgun;
+		else
+			item = &gI_weapon_sniper;
+		if (!((int)weaponban->value & WB_SNIPERGUN))
+			item2 = &gI_weapon_sniper;
+	}
+	else if (item == &gI_weapon_supershotgun)
+	{
+		if (!((int)weaponban->value & WB_SUPERSHOTGUN))
+			item1 = &gI_weapon_supershotgun;
+		else
+			item = &gI_weapon_freezer;
+		if (!((int)weaponban->value & WB_FREEZEGUN))
+			item2 = &gI_weapon_freezer;
+	}
+	else if (item == &gI_weapon_machinegun)
+	{
+		if (!((int)weaponban->value & WB_MACHINEROCKETGUN))
+			item1 = &gI_weapon_machinegun;
+		else
+			item = &gI_weapon_machine;
+		if (!((int)weaponban->value & WB_MACHINEGUN))
+			item2 = &gI_weapon_machine;
+	}
+	else if (item == &gI_weapon_chaingun)
+	{
+		if (!((int)weaponban->value & WB_CHAINGUN))
+			item1 = &gI_weapon_chaingun;
+		else
+			item = &gI_weapon_streetsweeper;
+		if (!((int)weaponban->value & WB_STREETSWEEPER))
+			item2 = &gI_weapon_streetsweeper;
+	}
+	else if (item == &gI_weapon_grenadelauncher)
+	{
+		if (!((int)weaponban->value & WB_GRENADELAUNCHER))
+			item1 = &gI_weapon_grenadelauncher;
+		else
+			item = &gI_weapon_bazooka;
+		if (!((int)weaponban->value & WB_BAZOOKA))
+			item2 = &gI_weapon_bazooka;
+	}
+	else if (item == &gI_weapon_rocketlauncher)
+	{
+		if (!((int)weaponban->value & WB_ROCKETLAUNCHER))
+			item1 = &gI_weapon_rocketlauncher;
+		else
+			item = &gI_weapon_homing;
+		if (!((int)weaponban->value & WB_HOMINGROCKETLAUNCHER))
+			item2 = &gI_weapon_homing;
+	}
+	else if (item == &gI_weapon_hyperblaster)
+	{
+		if (!((int)weaponban->value & WB_HYPERBLASTER))
+			item1 = &gI_weapon_hyperblaster;
+		else
+			item = &gI_weapon_plasma;
+		if (!((int)weaponban->value & WB_PLASMARIFLE))
+			item2 = &gI_weapon_plasma;
+	}
+	else if (item == &gI_weapon_railgun)
+	{
+		if (!((int)weaponban->value & WB_FLAMETHROWER))
+			item1 = &gI_weapon_railgun;
+		else
+			item = &gI_weapon_railgun2;
+		if (!((int)weaponban->value & WB_RAILGUN))
+			item2 = &gI_weapon_railgun2;
+	}
+	else if (item == &gI_weapon_bfg)
+	{
+		if (!((int)weaponban->value & WB_BFG10K))
+			item1 = &gI_weapon_bfg;
+	}
+
+	index = ITEM_INDEX (item);
+	ammo = item->ammo;
 
 	if ((((int)(dmflags->value) & DF_WEAPONS_STAY) || coop->value) 
 	&& other->client->pers.inventory[index])
 	{
 		if (!(ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)))
 			return false;	// leave the weapon for others to pickup
-		if (ent->item->ammo && !Add_Ammo (other, ent->item->ammo, 0))
+		if (ammo && !Add_Ammo (other, ammo, 0))
 			return false;	// gun *and* full ammo already
 	}
 
-	// Increase their inventory of this weapon.
-	other->client->pers.inventory[index]++;
-
-	// Increase their inventory of the special counterpart to this weapon.
-	if (ent->item == &gI_weapon_shotgun)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_sniper)]++;
-	else if (ent->item == &gI_weapon_supershotgun)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_freezer)]++;
-	else if (ent->item == &gI_weapon_machinegun)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)]++;
-	else if (ent->item == &gI_weapon_chaingun)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)]++;
-	else if (ent->item == &gI_weapon_grenadelauncher)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_bazooka)]++;
-	else if (ent->item == &gI_weapon_rocketlauncher)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)]++;
-	else if (ent->item == &gI_weapon_hyperblaster)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)]++;
-	else if (ent->item == &gI_weapon_railgun)
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun2)]++;
+	// Now add the weapons to their inventory.
+	if (item1)
+		other->client->pers.inventory[ITEM_INDEX(item1)]++;
+	if (item2)
+		other->client->pers.inventory[ITEM_INDEX(item2)]++;
 
 	if (!(ent->spawnflags & DROPPED_ITEM))
 	{
 		// give them some ammo with it
-		ammo = ent->item->ammo;
 		if ((int)dmflags->value & DF_INFINITE_AMMO)
 			Add_Ammo (other, ammo, 1000);
 		else
@@ -159,10 +234,10 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		}
 	}
 
-	if (other->client->pers.weapon != ent->item && 
+	if (other->client->pers.weapon != item && 
 		(other->client->pers.inventory[index] == 1) &&
 		(!deathmatch->value || other->client->pers.weapon == &gI_weapon_blaster))
-		other->client->newweapon = ent->item;
+		other->client->newweapon = item;
 
 	return true;
 }
@@ -258,12 +333,12 @@ NoAmmoWeaponChange
 */
 void NoAmmoWeaponChange (edict_t *ent)
 {
-	// Hyperblaster
-	if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_hyperblaster.ammo)]
-		>= gI_weapon_hyperblaster.quantity
-	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_hyperblaster)])
+	// Plasma rifle
+	if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_plasma.ammo)]
+		>= gI_weapon_plasma.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)])
 	{
-		ent->client->newweapon = &gI_weapon_hyperblaster;
+		ent->client->newweapon = &gI_weapon_plasma;
 	}
 
 	// Streetsweeper
@@ -282,17 +357,41 @@ void NoAmmoWeaponChange (edict_t *ent)
 		ent->client->newweapon = &gI_weapon_machinegun;
 	}
 
+	// Hyperblaster
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_hyperblaster.ammo)]
+		>= gI_weapon_hyperblaster.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_hyperblaster)])
+	{
+		ent->client->newweapon = &gI_weapon_hyperblaster;
+	}
+
 	// Chaingun
 	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_chaingun.ammo)]
-		>= gI_weapon_chaingun.quantity * 20
+		>= gI_weapon_chaingun.quantity
 	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)])
 	{
 		ent->client->newweapon = &gI_weapon_chaingun;
 	}
 
+	// Flame rocketlauncher
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_rocketlauncher.ammo)]
+		>= gI_weapon_rocketlauncher.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)])
+	{
+		ent->client->newweapon = &gI_weapon_rocketlauncher;
+	}
+
+	// Homing rocketlauncher
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_homing.ammo)]
+		>= gI_weapon_homing.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)])
+	{
+		ent->client->newweapon = &gI_weapon_homing;
+	}
+
 	// Standard machinegun
 	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_machine.ammo)]
-		>= gI_weapon_machine.quantity * 5
+		>= gI_weapon_machine.quantity
 	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)])
 	{
 		ent->client->newweapon = &gI_weapon_machine;
@@ -314,6 +413,22 @@ void NoAmmoWeaponChange (edict_t *ent)
 		ent->client->newweapon = &gI_weapon_shotgun;
 	}
 
+	// Super blaster
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_superblaster.ammo)]
+		>= gI_weapon_superblaster.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_superblaster)])
+	{
+		ent->client->newweapon = &gI_weapon_superblaster;
+	}
+
+	// Bazooka
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_bazooka.ammo)]
+		>= ent->client->dM_ammoCost
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_bazooka)])
+	{
+		ent->client->newweapon = &gI_weapon_bazooka;
+	}
+
 	// Sniper gun
 	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_sniper.ammo)]
 		>= gI_weapon_sniper.quantity
@@ -322,28 +437,12 @@ void NoAmmoWeaponChange (edict_t *ent)
 		ent->client->newweapon = &gI_weapon_sniper;
 	}
 
-	// Plasma rifle
-	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_plasma.ammo)]
-		>= gI_weapon_plasma.quantity
-	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)])
+	// Grenade launcher
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_grenadelauncher.ammo)]
+		>= ent->client->dM_ammoCost
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)])
 	{
-		ent->client->newweapon = &gI_weapon_plasma;
-	}
-
-	// Homing rocketlauncher
-	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_homing.ammo)]
-		>= gI_weapon_homing.quantity
-	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)])
-	{
-		ent->client->newweapon = &gI_weapon_homing;
-	}
-
-	// Flame rocketlauncher
-	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_rocketlauncher.ammo)]
-		>= gI_weapon_rocketlauncher.quantity
-	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)])
-	{
-		ent->client->newweapon = &gI_weapon_rocketlauncher;
+		ent->client->newweapon = &gI_weapon_grenadelauncher;
 	}
 
 	// Flamethrower
@@ -354,12 +453,12 @@ void NoAmmoWeaponChange (edict_t *ent)
 		ent->client->newweapon = &gI_weapon_railgun;
 	}
 
-	// Grenade launcher
-	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_grenadelauncher.ammo)]
-		>= ent->client->dM_ammoCost
-	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)])
+	// Railgun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_railgun2.ammo)]
+		>= gI_weapon_railgun2.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun2)])
 	{
-		ent->client->newweapon = &gI_weapon_grenadelauncher;
+		ent->client->newweapon = &gI_weapon_railgun2;
 	}
 
 	// No other choice...give them the blaster.
@@ -377,7 +476,7 @@ Called by ClientBeginServerFrame and ClientThink
 void Think_Weapon (edict_t *ent)
 {
 	// if just died, put the weapon away
-	if (ent->health < 1)
+	if (ent->health <= 0)
 	{
 		ent->client->newweapon = NULL;
 		ChangeWeapon (ent);
@@ -443,91 +542,70 @@ Drop_Weapon
 */
 void Drop_Weapon (edict_t *ent, gitem_t *item)
 {
-	int		index;
+	gitem_t *altitem;
+	int index, altindex;
 
 	if ((int)(dmflags->value) & DF_WEAPONS_STAY)
 		return;
 
-	index = ITEM_INDEX(item);
-
-	// see if we're already using it
-	if ((item == ent->client->pers.weapon || item == ent->client->newweapon)
-	&& ent->client->pers.inventory[index] == 1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Can't drop current weapon\n");
-		return;
-	}
-
-#if 0
-	// Don't let them drop the special variants -- make it a normal one.
-	if (item == &gI_weapon_machine)
-		item = &gI_weapon_machinegun;
-	else if (item == &gI_weapon_plasma)
-		item = &gI_weapon_hyperblaster;
+	// Find the counterpart to this weapon.
+	if (item == &gI_weapon_shotgun)
+		altitem = &gI_weapon_sniper;
 	else if (item == &gI_weapon_sniper)
-		item = &gI_weapon_shotgun;
-	else if (item == &gI_weapon_streetsweeper)
-		item = &gI_weapon_chaingun;
-	else if (item == &gI_weapon_bazooka)
-		item = &gI_weapon_grenadelauncher;
-	else if (item == &gI_weapon_homing)
-		item = &gI_weapon_rocketlauncher;
-	else if (item == &gI_weapon_railgun2)
-		item = &gI_weapon_railgun;
+		altitem = &gI_weapon_shotgun;
+	else if (item == &gI_weapon_supershotgun)
+		altitem = &gI_weapon_freezer;
 	else if (item == &gI_weapon_freezer)
-		item = &gI_weapon_supershotgun;
-	index = ITEM_INDEX(item);		// just in case
-#endif
+		altitem = &gI_weapon_supershotgun;
+	else if (item == &gI_weapon_machinegun)
+		altitem = &gI_weapon_machine;
+	else if (item == &gI_weapon_machine)
+		altitem = &gI_weapon_machinegun;
+	else if (item == &gI_weapon_chaingun)
+		altitem = &gI_weapon_streetsweeper;
+	else if (item == &gI_weapon_streetsweeper)
+		altitem = &gI_weapon_chaingun;
+	else if (item == &gI_weapon_grenadelauncher)
+		altitem = &gI_weapon_bazooka;
+	else if (item == &gI_weapon_bazooka)
+		altitem = &gI_weapon_grenadelauncher;
+	else if (item == &gI_weapon_rocketlauncher)
+		altitem = &gI_weapon_homing;
+	else if (item == &gI_weapon_homing)
+		altitem = &gI_weapon_rocketlauncher;
+	else if (item == &gI_weapon_hyperblaster)
+		altitem = &gI_weapon_plasma;
+	else if (item == &gI_weapon_plasma)
+		altitem = &gI_weapon_hyperblaster;
+	else if (item == &gI_weapon_railgun)
+		altitem = &gI_weapon_railgun2;
+	else if (item == &gI_weapon_railgun2)
+		altitem = &gI_weapon_railgun;
 
-	// see if we're already using it
-	if ((item == ent->client->pers.weapon || item == ent->client->newweapon)
-	&& ent->client->pers.inventory[index] == 1)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Can't drop current weapon\n");
-		return;
-	}
+	// Get their indexes.
+	index = ITEM_INDEX (item);
+	altindex = ITEM_INDEX (altitem);
 
-	// Drop it.
-	Drop_Item (ent, item);
+	// Decrease their inventory of the dropped weapon.  If they have an equal
+	// number of the counterpart weapon, decrease that too.
+	if (ent->client->pers.inventory[index]
+	== ent->client->pers.inventory[altindex])
+		ent->client->pers.inventory[altindex]--;
 	ent->client->pers.inventory[index]--;
 
-#if 0
-	// Decrease their inventory of the counterpart to this weapon.
-	// (I'd do a switch statement, but link-time values aren't "constant"
-	// enough for switch statements.  Lame.)
-	if (item == &gI_weapon_shotgun)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_sniper)]--;
-	else if (item == &gI_weapon_sniper)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_shotgun)]--;
-	else if (item == &gI_weapon_supershotgun)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_freezer)]--;
-	else if (item == &gI_weapon_freezer)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_supershotgun)]--;
-	else if (item == &gI_weapon_machinegun)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)]--;
-	else if (item == &gI_weapon_machine)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machinegun)]--;
-	else if (item == &gI_weapon_chaingun)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)]--;
-	else if (item == &gI_weapon_streetsweeper)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)]--;
-	else if (item == &gI_weapon_grenadelauncher)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_bazooka)]--;
-	else if (item == &gI_weapon_bazooka)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)]--;
-	else if (item == &gI_weapon_rocketlauncher)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)]--;
-	else if (item == &gI_weapon_homing)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)]--;
-	else if (item == &gI_weapon_hyperblaster)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)]--;
-	else if (item == &gI_weapon_plasma)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_hyperblaster)]--;
-	else if (item == &gI_weapon_railgun)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun2)]--;
-	else if (item == &gI_weapon_railgun2)
-		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun)]--;
-#endif
+	// Finally, drop the weapon.  Don't drop an alternate weapon -- make it a
+	// normal weapon.
+	if (item->flags & IT_ALTWEAPON)
+		Drop_Item (ent, altitem);
+	else
+		Drop_Item (ent, item);
+
+	// If they dropped the current weapon, switch.
+	if ((item == ent->client->pers.weapon && !ent->client->pers.inventory[index])
+	|| (altitem == ent->client->pers.weapon && !ent->client->pers.inventory[altindex]))
+	{
+		NoAmmoWeaponChange (ent);
+	}
 }
 
 
@@ -882,13 +960,6 @@ void Weapon_Grenade (edict_t *ent)
 
 void Use_GrenadeWeapon (edict_t *ent, gitem_t *item)
 {
-	// Don't let them use the cataclysm grenade if they're not allowed.
-	if (!(allow_cataclysm->value) && item == &gI_weapon_cataclysm)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Cataclysm grenades have been turned off.\n");
-		return;
-	}
-
 	// First, see if we can use this special grenade type.
 	Use_Weapon (ent, item);
 
@@ -1394,6 +1465,7 @@ void Machine_Fire (edict_t *ent)
 	int			damage = 8;
 	int			kick = 2;
 	vec3_t		offset;
+	int			mod;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK) &&
 	((ent->client->burstfire_count > 2) ||
@@ -1457,10 +1529,16 @@ void Machine_Fire (edict_t *ent)
 	{ 
 		// Fire burst
 		case 1:
+			// Set up the means of death.
+			mod = MOD_MACHINE;
+			if ((int)fragban->value & WB_BURSTMACHINEGUN)
+				mod |= MOD_NOFRAG;
+
 			ent->client->burstfire_count++;
 			if (ent->client->burstfire_count < 4)
 			{
-				fire_bullet (ent, start, forward, damage*4, kick/2, DEFAULT_BULLET_HSPREAD/2, DEFAULT_BULLET_VSPREAD/2, MOD_MACHINE);
+				fire_bullet (ent, start, forward, damage*4, kick/2,
+					DEFAULT_BULLET_HSPREAD/2, DEFAULT_BULLET_VSPREAD/2, mod);
 				gi.WriteByte (svc_muzzleflash);
 				gi.WriteShort (ent-g_edicts);
 				gi.WriteByte (MZ_MACHINEGUN | is_silenced);
@@ -1472,10 +1550,17 @@ void Machine_Fire (edict_t *ent)
 			else if (ent->client->burstfire_count > 6) 
 				ent->client->burstfire_count=0;
 			break;
+
 		// Fire Fully Automatic
 		case 0:
 		default:
-			fire_bullet (ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINE);
+			// Set up the means of death.
+			mod = MOD_MACHINE;
+			if ((int)fragban->value & WB_MACHINEGUN)
+				mod |= MOD_NOFRAG;
+
+			fire_bullet (ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD,
+				DEFAULT_BULLET_VSPREAD, mod);
 			gi.WriteByte (svc_muzzleflash);
 			gi.WriteShort (ent-g_edicts);
 			gi.WriteByte (MZ_MACHINEGUN | is_silenced);
@@ -1606,6 +1691,7 @@ void Chaingun_Fire (edict_t *ent)
 	vec3_t		offset;
 	int			damage;
 	int			kick = 2;
+	int			mod;
 
 	if (deathmatch->value)
 		damage = 6;
@@ -1698,6 +1784,11 @@ void Chaingun_Fire (edict_t *ent)
 		ent->client->kick_angles[i] = crandom() * 0.7;
 	}
 
+	// Set up the means of death.
+	mod = MOD_CHAINGUN;
+	if ((int)fragban->value & WB_CHAINGUN)
+		mod |= MOD_NOFRAG;
+
 	for (i=0 ; i<shots ; i++)
 	{
 		// get start / end positions
@@ -1707,7 +1798,8 @@ void Chaingun_Fire (edict_t *ent)
 		VectorSet(offset, 0, r, u + ent->viewheight-8);
 		P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
 
-		fire_bullet (ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
+		fire_bullet (ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD,
+			DEFAULT_BULLET_VSPREAD, mod);
 	}
 
 	// send muzzle flash
@@ -1758,6 +1850,7 @@ void weapon_streetsweeper_fire (edict_t *ent)
 	vec3_t		offset;
 	int			damage = 4;
 	int			kick = 8;
+	int			mod;
 
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
 
@@ -1846,10 +1939,17 @@ void weapon_streetsweeper_fire (edict_t *ent)
 		// ### Hentai ### END
 	}
 
+	// Set up the means of death.
+	mod = MOD_STREETSWEEP;
+	if ((int)fragban->value & WB_STREETSWEEPER)
+		mod |= MOD_NOFRAG;
+
 	if (deathmatch->value)
-		fire_shotgun (ent, start, forward, damage, kick, 500, 500, DEFAULT_DEATHMATCH_SHOTGUN_COUNT, MOD_STREETSWEEP);
+		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
+			DEFAULT_DEATHMATCH_SHOTGUN_COUNT, mod);
 	else
-		fire_shotgun (ent, start, forward, damage, kick, 500, 500, DEFAULT_SHOTGUN_COUNT, MOD_STREETSWEEP);
+		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
+			DEFAULT_SHOTGUN_COUNT, mod);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -1909,6 +2009,7 @@ void weapon_shotgun_fire (edict_t *ent)
 	vec3_t		offset;
 	int			damage = 4;
 	int			kick = 8;
+	int			mod;
 
 	if (ent->client->ps.gunframe == 9)
 	{
@@ -1930,10 +2031,17 @@ void weapon_shotgun_fire (edict_t *ent)
 		kick *= 4;
 	}
 
+	// Set up the means of death.
+	mod = MOD_SHOTGUN;
+	if ((int)fragban->value & WB_SHOTGUN)
+		mod |= MOD_NOFRAG;
+
 	if (deathmatch->value)
-		fire_shotgun (ent, start, forward, damage, kick, 500, 500, DEFAULT_DEATHMATCH_SHOTGUN_COUNT, MOD_SHOTGUN);
+		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
+			DEFAULT_DEATHMATCH_SHOTGUN_COUNT, mod);
 	else
-		fire_shotgun (ent, start, forward, damage, kick, 500, 500, DEFAULT_SHOTGUN_COUNT, MOD_SHOTGUN);
+		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
+			DEFAULT_SHOTGUN_COUNT, mod);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -1966,6 +2074,7 @@ void weapon_supershotgun_fire (edict_t *ent)
 	vec3_t		v;
 	int			damage = 6;
 	int			kick = 100;
+	int			mod;
 
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
 
@@ -1981,14 +2090,21 @@ void weapon_supershotgun_fire (edict_t *ent)
 		kick *= 4;
 	}
 
+	// Set up the means of death.
+	mod = MOD_SSHOTGUN;
+	if ((int)fragban->value & WB_SUPERSHOTGUN)
+		mod |= MOD_NOFRAG;
+
 	v[PITCH] = ent->client->v_angle[PITCH];
 	v[YAW]   = ent->client->v_angle[YAW] - 5;
 	v[ROLL]  = ent->client->v_angle[ROLL];
 	AngleVectors (v, forward, NULL, NULL);
-	fire_shotgun (ent, start, forward, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT/2, MOD_SSHOTGUN);
+	fire_shotgun (ent, start, forward, damage, kick, DEFAULT_SHOTGUN_HSPREAD,
+		DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT/2, mod);
 	v[YAW]   = ent->client->v_angle[YAW] + 5;
 	AngleVectors (v, forward, NULL, NULL);
-	fire_shotgun (ent, start, forward, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT/2, MOD_SSHOTGUN);
+	fire_shotgun (ent, start, forward, damage, kick, DEFAULT_SHOTGUN_HSPREAD,
+		DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT/2, mod);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -2282,16 +2398,9 @@ void weapon_railgun2_fire (edict_t *ent)
 	int			damage;
 	int			kick;
 
-	if (deathmatch->value)
-	{	// normal damage is too extreme in dm
-		damage = 100;
-		kick = 200;
-	}
-	else
-	{
-		damage = 150;
-		kick = 250;
-	}
+	// Same "extreme" damage in SP game *and* deathmatch :)
+	damage = 150;
+	kick = 250;
 
 	if (is_quad)
 	{
@@ -2433,7 +2542,7 @@ void Freezer_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 	ent->client->kick_angles[0] = -1;
 
 	// tell it to fire the freezer instead
-	fire_freezer (ent, start, forward, damage, 1000, effect);
+	fire_freezer (ent, start, forward, damage, 2000, effect);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -2452,9 +2561,9 @@ void Weapon_Freezer_Fire (edict_t *ent)
 	int		damage;
 
 	if (deathmatch->value)
-		damage = 30;
+		damage = 40;
 	else
-		damage = 20;
+		damage = 25;
 	Freezer_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
 	ent->client->ps.gunframe++;
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
@@ -2462,10 +2571,17 @@ void Weapon_Freezer_Fire (edict_t *ent)
 			-= ent->client->pers.weapon->quantity;
 }
 
-void Weapon_Freezer (edict_t *ent)
+/* void Weapon_Freezer (edict_t *ent)
 {
 	static int	pause_frames[]	= {19, 32, 0};
 	static int	fire_frames[]	= {5, 0};
 
 	Weapon_Generic (ent, 3, 18, 56, 61, pause_frames, fire_frames, Weapon_Freezer_Fire);
+} */
+void Weapon_Freezer (edict_t *ent)
+{
+	static int	pause_frames[]	= {29, 42, 57, 0};
+	static int	fire_frames[]	= {7, 0};
+
+	Weapon_Generic (ent, 6, 17, 57, 61, pause_frames, fire_frames, Weapon_Freezer_Fire);
 }

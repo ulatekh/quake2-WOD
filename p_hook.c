@@ -55,7 +55,8 @@ void MaintainLinks (edict_t *ent)
 //	float chainlen;			// length of chain
 
 	// predicts hook's future position since chain links fall behind
-	multiplier = VectorLength(ent->velocity) / 22; 
+	VectorClear (norm_hookvel);
+	multiplier = VectorLength(ent->velocity) / 22;
 	VectorNormalize2 (ent->velocity, norm_hookvel); 
 	VectorMA (ent->s.origin, multiplier, norm_hookvel, pred_hookpos);
 
@@ -73,10 +74,19 @@ void MaintainLinks (edict_t *ent)
 
 	// create temp entity chain
 	gi.WriteByte (svc_temp_entity);
+#if 0
 	gi.WriteByte (TE_MEDIC_CABLE_ATTACK);
 	gi.WriteShort (ent - g_edicts);
 	gi.WritePosition (pred_hookpos);
 	gi.WritePosition (start);
+#else
+	gi.WriteByte (TE_GRAPPLE_CABLE);
+	gi.WriteShort (ent->owner - g_edicts);
+	gi.WritePosition (ent->owner->s.origin);
+	gi.WritePosition (pred_hookpos);
+	VectorSubtract (start, ent->owner->s.origin, offset);
+	gi.WritePosition (offset);
+#endif
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 }
 
@@ -209,13 +219,23 @@ void HookTouch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 	// don't attach hook to sky
 	if (surf && (surf->flags & SURF_SKY))
 	{
-		DropHook(ent);
+		DropHook (ent);
 		return;
 	}
 
 	// inflict damage on damageable items
 	if (other->takedamage)
-		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 100, 0, MOD_GRAPPLE);
+	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_GRAPPLE;
+		if ((int)fragban->value & WFB_HOOK)
+			mod |= MOD_NOFRAG;
+
+		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
+			plane->normal, ent->dmg, 100, 0, mod);
+	}
 
 	if (other->solid == SOLID_BBOX)
 	{
@@ -310,7 +330,10 @@ void FireHook (edict_t *ent)
 	newhook->solid = SOLID_BBOX;
 	VectorClear (newhook->mins);
 	VectorClear (newhook->maxs);
-	newhook->s.modelindex = gi.modelindex ("models/objects/debris2/tris.md2");
+	if (ctf->value)
+		newhook->s.modelindex = gi.modelindex ("models/weapons/grapple/hook/tris.md2");
+	else
+		newhook->s.modelindex = gi.modelindex ("models/objects/debris2/tris.md2");
 	newhook->owner = ent;
 	newhook->dmg = damage;
 
@@ -337,7 +360,20 @@ void Cmd_Hook_f (edict_t *ent)
 	char *s;
 	int *hookstate;
 
+	// No grappling hook when you're dead.
 	if (ent->deadflag)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+		return;
+	
+	// Or when you're frozen.
+	if (ent->frozen)
+		return;
+
+	// Or if the grappling hook has been banned.
+	if ((int)featureban->value & FB_HOOK)
 		return;
 
 	// get the first hook argument

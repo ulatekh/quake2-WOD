@@ -59,7 +59,6 @@ void MoveClientToIntermission (edict_t *ent)
 		DeathmatchScoreboardMessage (ent, NULL);
 		gi.unicast (ent, true);
 	}
-
 }
 
 void BeginIntermission (edict_t *targ)
@@ -69,6 +68,11 @@ void BeginIntermission (edict_t *targ)
 
 	if (level.intermissiontime)
 		return;		// already activated
+
+//ZOID
+	if (deathmatch->value && ctf->value)
+		CTFCalcScores();
+//ZOID
 
 	game.autosaved = false;
 
@@ -170,13 +174,21 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 	edict_t		*cl_ent;
 	char	*tag;
 
-	if (ent -> client -> showscores || ent -> client -> showinventory)
+	if (ent->client->showscores || ent->client->showinventory)
 		if (ent->client->pers.scanner_active)
 			ent->client->pers.scanner_active = 2;
 
-	if (ent -> client -> showscores) 
+//ZOID
+	if (ctf->value && ent->client->showscores)
 	{
+		CTFScoreboardMessage (ent, killer, string);
+		//return;
+	}
+	else
+//ZOID
 
+	if (ent->client->showscores) 
+	{
 		// sort the clients by score
 		total = 0;
 		for (i=0 ; i<game.maxclients ; i++)
@@ -296,12 +308,18 @@ void Cmd_Score_f (edict_t *ent)
 	ent->client->showinventory = false;
 	ent->client->showhelp = false;
 
+//ZOID
+	if (ent->client->menu)
+		PMenu_Close(ent);
+//ZOID
+
 	if (!deathmatch->value && !coop->value)
 		return;
 
 	if (ent->client->showscores)
 	{
 		ent->client->showscores = false;
+		ent->client->update_chase = true;
 		return;
 	}
 
@@ -470,23 +488,22 @@ void G_SetStats (edict_t *ent)
 	// timers
 	//
 /*ATTILA begin*/
- if ( Jet_Active(ent) )
- {
- ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("p_quad");
- ent->client->ps.stats[STAT_TIMER] = ent->client->Jet_remaining/10;
- }
- else 
-	if (ent->client->quad_framenum > level.framenum)
+	if ( Jet_Active(ent) )
+	{
+		ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("i_pack");
+		ent->client->ps.stats[STAT_TIMER] = ent->client->Jet_remaining/10;
+	}
+	else if (ent->client->quad_framenum > level.framenum)
 	{
 		ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("p_quad");
 		ent->client->ps.stats[STAT_TIMER] = (ent->client->quad_framenum - level.framenum)/10;
 	}
 /* WonderSlug Kamikaze */ 
-else if (ent->client->kamikaze_framenum > level.framenum) 
-{
- ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("p_quad");
- ent->client->ps.stats[STAT_TIMER] = ent->client->kamikaze_timeleft/10;
- }
+	else if (ent->client->kamikaze_framenum > level.framenum) 
+	{
+		ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex ("k_comhead");
+		ent->client->ps.stats[STAT_TIMER] = ent->client->kamikaze_timeleft/10;
+	}
  /* WonderSlug End */
 
 	else if (ent->client->invincible_framenum > level.framenum)
@@ -558,21 +575,8 @@ else if (ent->client->kamikaze_framenum > level.framenum)
 	else
 		ent->client->ps.stats[STAT_HELPICON] = 0;
 
- //
- // CCH: rangefinder
- //
-/* removed for wod dm
- VectorCopy(ent->s.origin, start);
- start[2] += ent->viewheight;
- AngleVectors(ent->client->v_angle, forward, NULL, NULL);
- VectorMA(start, 8192, forward, end);
- tr = gi.trace(start, NULL, NULL, end, ent, MASK_SHOT|CONTENTS_SLIME|CONTENTS_LAVA);
- // check for sky and max the range if found
- if ( tr.surface && (tr.surface->flags & SURF_SKY) )
- ent->client->ps.stats[STAT_RANGEFINDER] = 9999;
- else
- ent->client->ps.stats[STAT_RANGEFINDER] = (int)(tr.fraction * 8192);
-*/
-
+//ZOID
+	SetCTFStats(ent);
+//ZOID
 }
 

@@ -1,52 +1,63 @@
 #include "g_local.h"
 
-void Start_Kamikaze_Mode(edict_t *the_doomed_one)
+void Start_Kamikaze_Mode(edict_t *self)
 {
 	/* see if we are already in  kamikaze mode*/
 
-	if (the_doomed_one->client->kamikaze_mode & 1)
+	if (self->client->kamikaze_mode & 1)
 		return;             
 
 	/* not in kamikaze mode yet */
-	the_doomed_one->client->kamikaze_mode = 1;
+	self->client->kamikaze_mode = 1;
 
 	/*  Give us only so long */
-	the_doomed_one->client->kamikaze_timeleft = KAMIKAZE_BLOW_TIME;
-	the_doomed_one->client->kamikaze_framenum = level.framenum
-		+ the_doomed_one->client->kamikaze_timeleft;
+	self->client->kamikaze_timeleft = KAMIKAZE_BLOW_TIME;
+	self->client->kamikaze_framenum = level.framenum
+		+ self->client->kamikaze_timeleft;
 
 	/* Warn the world. */
 	gi.bprintf (PRINT_MEDIUM, "%s is a kamikaze - BANZAI!!\n",
-		the_doomed_one->client->pers.netname);
-	gi.sound (the_doomed_one, CHAN_WEAPON, gi.soundindex("makron/rail_up.wav"),
+		self->client->pers.netname);
+	gi.sound (self, CHAN_WEAPON, gi.soundindex("makron/rail_up.wav"),
 		1, ATTN_NONE, 0 );
 
 	return;
 }
 
-qboolean Kamikaze_Active (edict_t *the_doomed_one)
+qboolean Kamikaze_Active (edict_t *self)
 {
-	return (the_doomed_one->client->kamikaze_mode);
+	return (self->client->kamikaze_mode);
 }
 
-void Kamikaze_Cancel (edict_t *the_spared_one)
+void Kamikaze_Cancel (edict_t *self)
 {
 	/* Cancel what we started. */
-	the_spared_one->client->kamikaze_mode = 0;
-	the_spared_one->client->kamikaze_timeleft = 0;
-	the_spared_one->client->kamikaze_framenum = 0;
+	self->client->kamikaze_mode = 0;
+	self->client->kamikaze_timeleft = 0;
+	self->client->kamikaze_framenum = 0;
 
 	return;
 }
 
-void Kamikaze_Explode(edict_t *the_doomed_one)
+void Kamikaze_Explode (edict_t *self)
 {
-	T_RadiusDamage (the_doomed_one, the_doomed_one, KAMIKAZE_DAMAGE, NULL,
-		KAMIKAZE_DAMAGE_RADIUS, MOD_KAMIKAZE);
+	int mod;
+
+	// Set up the means of death.
+	mod = MOD_KAMIKAZE;
+	if ((int)fragban->value & WFB_KAMIKAZE)
+		mod |= MOD_NOFRAG;
+
+	// Go out with a bang!
+	T_RadiusDamage (self, self, KAMIKAZE_DAMAGE, NULL,
+		KAMIKAZE_DAMAGE_RADIUS, mod);
 	gi.WriteByte (svc_temp_entity);
 	gi.WriteByte (TE_EXPLOSION1);
-	gi.WritePosition(the_doomed_one -> s.origin);
-	gi.multicast (the_doomed_one->s.origin, MULTICAST_PVS);
+	gi.WritePosition (self->s.origin);
+	gi.multicast (self->s.origin, MULTICAST_PVS);
+
+	// If that didn't kill them, die anyway.  (This takes care of any reason
+	// they wouldn't die, like an invulnerability powerup, or god mode.)
+	if (!self->deadflag)
+		player_die (self, self, self, KAMIKAZE_DAMAGE, self->s.origin);
 }
-/* eof
-*/

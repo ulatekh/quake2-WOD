@@ -252,8 +252,9 @@ int SV_FlyMove (edict_t *ent, float time, int mask)
 		for (i=0 ; i<numplanes ; i++)
 		{
 			ClipVelocity (original_velocity, planes[i], new_velocity, 1);
+
 			for (j=0 ; j<numplanes ; j++)
-				if (j != i)
+				if (j != i && !VectorCompare (planes[i], planes[j]))
 				{
 					if (DotProduct (new_velocity, planes[j]) < 0)
 						break;	// not ok
@@ -919,6 +920,8 @@ void SV_Physics_Step (edict_t *ent)
 
 		gi.linkentity (ent);
 		G_TouchTriggers (ent);
+		if (!ent->inuse)
+			return;
 
 		if (ent->groundentity)
 			if (!wasonground)
@@ -962,10 +965,10 @@ void G_RunEntity (edict_t *ent)
 	case MOVETYPE_FLY:
 	case MOVETYPE_FLYMISSILE:
 	case MOVETYPE_FLYRICOCHET: 
-
 		SV_Physics_Toss (ent);
 		break;
 	default:
-		gi.error ("SV_Physics: bad movetype %i", (int)ent->movetype);			
+		gi.error ("SV_Physics: entity #%i, bad movetype %i",
+			(int)(ent - g_edicts), (int)ent->movetype);			
 	}
 }

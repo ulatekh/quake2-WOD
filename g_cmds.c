@@ -1,8 +1,6 @@
 #include "g_local.h"
 #include "m_player.h"
 
-void Cmd_UseGrenades_f (edict_t *ent, gitem_t *it);
-
 char *ClientTeam (edict_t *ent)
 {
 	char		*p;
@@ -34,7 +32,14 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 	char	ent2Team [512];
 
 	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
-		return false;
+	{
+		if (ctf->value
+		&& ent1->client && ent2->client
+		&& ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
+			return true;
+		else
+			return false;
+	}
 
 	strcpy (ent1Team, ClientTeam (ent1));
 	strcpy (ent2Team, ClientTeam (ent2));
@@ -52,6 +57,19 @@ void SelectNextItem (edict_t *ent, int itflags)
 	gitem_t		*it;
 
 	cl = ent->client;
+
+//ZOID
+	if (cl->menu)
+	{
+		PMenu_Next(ent);
+		return;
+	}
+	else if (cl->chase_target)
+	{
+		ChaseNext(ent);
+		return;
+	}
+//ZOID
 
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
@@ -80,6 +98,19 @@ void SelectPrevItem (edict_t *ent, int itflags)
 	gitem_t		*it;
 
 	cl = ent->client;
+
+//ZOID
+	if (cl->menu)
+	{
+		PMenu_Prev(ent);
+		return;
+	}
+	else if (cl->chase_target)
+	{
+		ChasePrev(ent);
+		return;
+	}
+//ZOID
 
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
@@ -239,14 +270,14 @@ void Cmd_Give_f (edict_t *ent)
 		it = FindItem (name);
 		if (!it)
 		{
-			gi.dprintf ("unknown item\n");
+			gi.cprintf (ent, PRINT_HIGH, "unknown item\n");
 			return;
 		}
 	}
 
 	if (!it->pickup)
 	{
-		gi.dprintf ("non-pickup item\n");
+		gi.cprintf (ent, PRINT_HIGH, "non-pickup item\n");
 		return;
 	}
 
@@ -370,7 +401,20 @@ added so player cannot kamikaze when dead
 
 void Cmd_Kamikaze_f (edict_t *ent)
 {
+	// No kamikazes when you're dead.
 	if (ent->deadflag)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+		return;
+	
+	// Or if you're frozen.
+	if (ent->frozen)
+		return;
+
+	// Or if kamikazes have been banned.
+	if ((int)featureban->value & FB_KAMIKAZE)
 		return;
 	
 	Start_Kamikaze_Mode (ent);
@@ -465,69 +509,122 @@ void Cmd_Use_f (edict_t *ent)
 		return;
 	}
 
-	// test if they have item
-	index = ITEM_INDEX(it);
-	if (!ent->client->pers.inventory[index])
+	// Handle weapon selection specially, to account for alternate weapons as
+	// well as weapon banning.  Basically, if they're already holding the normal
+	// weapon and they have the alternate in their inventory, or if they don't
+	// have the normal weapon, select the alternate.
+	if (it == &gI_weapon_blaster)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Out of item: %s\n", s);
-		return;
-	}
-
-	// to allow multiple weapons from one keypress
-	// also tries to select alt. weapon if main weapon is out of ammo
-	else if (it == ent->client->pers.weapon
-	|| (!(it->flags & IT_ALTWEAPON)
-		&& it->ammo
-		&& ent->client->pers.inventory[ITEM_INDEX(it->ammo)] == 0
-		&& !g_select_empty->value))
-	{
-		// They're switching to one of the alternate weapons.
-      if (it == &gI_weapon_blaster)    
-		{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_superblaster)])
+		|| (it != ent->client->pers.weapon
+		&& !ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_blaster)]))
 			it = &gI_weapon_superblaster;
-		}
-      else if (it == &gI_weapon_rocketlauncher)    
-		{
-			it = &gI_weapon_homing;
-		}
-      else if (it == &gI_weapon_hyperblaster)    
-		{
-			it = &gI_weapon_plasma;
-		}
-      else if (it == &gI_weapon_supershotgun)
-		{
-			it = &gI_weapon_freezer;
-		}
-      else if (it == &gI_weapon_machinegun)
-		{
-			it = &gI_weapon_machine;
-		}
-      else if (it == &gI_weapon_chaingun)   
-		{
-			it = &gI_weapon_streetsweeper;
-		}
-      else if (it == &gI_weapon_grenadelauncher)   
-		{
-			it = &gI_weapon_bazooka;
-		}
-      else if (it == &gI_weapon_railgun)   
-		{
-			it = &gI_weapon_railgun2;
-		}
-		else if (it == &gI_weapon_shotgun)    
-		{
+	}
+	else if (it == &gI_weapon_shotgun)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_sniper)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_shotgun)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_shotgun.ammo)]
+				< gI_weapon_shotgun.quantity
+					&& !g_select_empty->value))))
 			it = &gI_weapon_sniper;
-		}
-		else if (it == &gI_ammo_grenades)
+	}
+	else if (it == &gI_weapon_supershotgun)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_freezer)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_supershotgun)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_supershotgun.ammo)]
+				< gI_weapon_supershotgun.quantity
+					&& !g_select_empty->value))))
+			it = &gI_weapon_freezer;
+	}
+	else if (it == &gI_weapon_machinegun)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machinegun)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_machinegun.ammo)]
+				< gI_weapon_machinegun.quantity
+					&& !g_select_empty->value))))
+			it = &gI_weapon_machine;
+	}
+	else if (it == &gI_weapon_chaingun)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_chaingun.ammo)]
+				< gI_weapon_chaingun.quantity
+					&& !g_select_empty->value))))
+			it = &gI_weapon_streetsweeper;
+	}
+	else if (it == &gI_weapon_grenadelauncher)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_bazooka)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_grenadelauncher.ammo)]
+				< gI_weapon_grenadelauncher.quantity
+					&& !g_select_empty->value))))
+			it = &gI_weapon_bazooka;
+	}
+	else if (it == &gI_weapon_rocketlauncher)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_rocketlauncher.ammo)]
+				< gI_weapon_rocketlauncher.quantity
+					&& !g_select_empty->value))))
+			it = &gI_weapon_homing;
+	}
+	else if (it == &gI_weapon_hyperblaster)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_hyperblaster)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_hyperblaster.ammo)]
+				< gI_weapon_hyperblaster.quantity
+					&& !g_select_empty->value))))
+			it = &gI_weapon_plasma;
+	}
+	else if (it == &gI_weapon_railgun)
+	{
+		if ((it == ent->client->pers.weapon
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun2)])
+		|| (it != ent->client->pers.weapon
+		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun)]
+			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_railgun.ammo)]
+				< gI_weapon_railgun.quantity
+					&& !g_select_empty->value))))
+			it = &gI_weapon_railgun2;
+	}
+	else if (it == &gI_ammo_grenades)
+	{
+		// If grenades are already selected, move to the next type.
+		if (it == ent->client->pers.weapon)
 		{
-			// Move to the next grenade type.
-			ent->client->dM_grenade += 1;
-			it = itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade];
-			if (!(allow_cataclysm->value) && it == &gI_weapon_cataclysm)
+			// Move to the next grenade type, skipping the ones that are not in
+			// our inventory.
+			do
 			{
-				ent->client->dM_grenade = 0;
-				it = &gI_ammo_grenades;
-			}
+				ent->client->dM_grenade += 1;
+				it = itemlist[ITEM_INDEX(&gI_ammo_grenades)
+					+ ent->client->dM_grenade];
+			} while (it != &gI_weapon_grenadelauncher
+				&& !ent->client->pers.inventory[ITEM_INDEX(it)]);
+			
+			// If we've gone past the last type, wrap around to the beginning.
 			if (it == &gI_weapon_grenadelauncher)
 			{
 				ent->client->dM_grenade = 0;
@@ -535,65 +632,69 @@ void Cmd_Use_f (edict_t *ent)
 			}
 		}
 
-		// False alarm, no alt weapon switching.
+		// If grenades were not already selected, restore their old choice.
 		else
-			return;
+			it = itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade];
 	}
 
-	// If they're selecting grenades, restore their old choice.
-	else if (it == &gI_ammo_grenades)
-		it = itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade];
+	// test if they have item
+	index = ITEM_INDEX (it);
+	if (!ent->client->pers.inventory[index])
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Out of item: %s\n", s);
+		return;
+	}
 
 	// Print what they selected.  Some of the normal weapons have been replaced
 	// by the alternates, and all the alternates need to be printed.  Also, we
 	// already printed the message for the grenades.
 	if (it == &gI_weapon_machinegun)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Machine Rocket Gun\n");
+		gi.cprintf (ent, PRINT_MEDIUM, "Machine Rocket Gun\n");
 	}
 	else if (it == &gI_weapon_grenadelauncher)
 	{
 		if (ent->client->dM_grenade == 0)
-			gi.cprintf (ent, PRINT_HIGH, "Fire Grenade Launcher\n");
+			gi.cprintf (ent, PRINT_MEDIUM, "Fire Grenade Launcher\n");
 		else
-			gi.cprintf (ent, PRINT_HIGH, "%s Launcher\n",
+			gi.cprintf (ent, PRINT_MEDIUM, "%s Launcher\n",
 				itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade]
 					->pickup_name);
 	}
 	else if (it == &gI_weapon_bazooka)
 	{
 		if (ent->client->dM_grenade == 0)
-			gi.cprintf (ent, PRINT_HIGH, "Bazooka\n");
+			gi.cprintf (ent, PRINT_MEDIUM, "Bazooka\n");
 		else
-			gi.cprintf (ent, PRINT_HIGH, "%s Bazooka\n",
+			gi.cprintf (ent, PRINT_MEDIUM, "%s Bazooka\n",
 				itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade]
 					->pickup_name);
 	}
 	else if (it == &gI_weapon_rocketlauncher)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Flame Rocket Launcher\n");
+		gi.cprintf (ent, PRINT_MEDIUM, "Flame Rocket Launcher\n");
 	}
 	else if (it == &gI_weapon_railgun)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Flamethrower\n");
+		gi.cprintf (ent, PRINT_MEDIUM, "Flamethrower\n");
 	}
 	else if (it == &gI_weapon_railgun2)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Railgun\n");
+		gi.cprintf (ent, PRINT_MEDIUM, "Railgun\n");
 	}
 	else if (it == &gI_ammo_grenades)
 	{
 		if (ent->client->dM_grenade == 0)
-			gi.cprintf (ent, PRINT_HIGH, "Standard Grenade\n");
+			gi.cprintf (ent, PRINT_MEDIUM, "Standard Grenade\n");
 		else
-			gi.cprintf (ent, PRINT_HIGH, "%s\n",
+			gi.cprintf (ent, PRINT_MEDIUM, "%s\n",
 				itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade]
 					->pickup_name);
 	}
 	else if (it->pickup_name)
 	{
 		// Show them the pickup name.
-		gi.cprintf (ent, PRINT_HIGH, "%s\n", it->pickup_name);
+		gi.cprintf (ent, PRINT_MEDIUM, "%s\n", it->pickup_name);
 	}
 
 	// Try to use it.
@@ -651,11 +752,28 @@ void Cmd_Inven_f (edict_t *ent)
 	cl->showscores = false;
 	cl->showhelp = false;
 
+//ZOID
+	if (ent->client->menu)
+	{
+		PMenu_Close(ent);
+		ent->client->update_chase = true;
+		return;
+	}
+//ZOID
+
 	if (cl->showinventory)
 	{
 		cl->showinventory = false;
 		return;
 	}
+
+//ZOID
+	if (ctf->value && cl->resp.ctf_team == CTF_NOTEAM)
+	{
+		CTFOpenJoinMenu(ent);
+		return;
+	}
+//ZOID
 
 	cl->showinventory = true;
 
@@ -665,9 +783,9 @@ void Cmd_Inven_f (edict_t *ent)
 		gi.WriteShort (cl->pers.inventory[i]);
 	}
 	gi.unicast (ent, true);
-if (cl->pers.scanner_active & 1)
- cl->pers.scanner_active = 2;
 
+	if (cl->pers.scanner_active & 1)
+		cl->pers.scanner_active = 2;
 }
 
 /*
@@ -678,6 +796,13 @@ Cmd_InvUse_f
 void Cmd_InvUse_f (edict_t *ent)
 {
 	gitem_t		*it;
+
+//ZOID
+	if (ent->client->menu) {
+		PMenu_Select(ent);
+		return;
+	}
+//ZOID
 
 	ValidateSelectedItem (ent);
 
@@ -695,6 +820,25 @@ void Cmd_InvUse_f (edict_t *ent)
 	}
 	it->use (ent, it);
 }
+
+//ZOID
+/*
+=================
+Cmd_LastWeap_f
+=================
+*/
+void Cmd_LastWeap_f (edict_t *ent)
+{
+	gclient_t	*cl;
+
+	cl = ent->client;
+
+	if (!cl->pers.weapon || !cl->pers.lastweapon)
+		return;
+
+	cl->pers.lastweapon->use (ent, cl->pers.lastweapon);
+}
+//ZOID
 
 /*
 =================
@@ -830,17 +974,26 @@ Cmd_Kill_f
 */
 void Cmd_Kill_f (edict_t *ent)
 {
-	if((level.time - ent->client->respawn_time) < 5)
+//ZOID
+	if (ent->solid == SOLID_NOT)
 		return;
+//ZOID
+
+	// Don't allow frozen people to kill themselves -- people use this to cheat
+	// inflictors out of a frag.
+	if (ent->frozen)
+		return;
+
+	// Don't let them kill themselves more often than every 5 seconds.
+	if ((level.time - ent->client->respawn_time) < 5)
+		return;
+
 	ent->flags &= ~FL_GODMODE;
 	ent->health = 0;
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 	meansOfDeath = MOD_SUICIDE;
 	player_die (ent, ent, ent, 100000, vec3_origin);
-	// don't even bother waiting for death frames
-	ent->deadflag = DEAD_DEAD;
-	respawn (ent);
 }
 
 /*
@@ -853,6 +1006,11 @@ void Cmd_PutAway_f (edict_t *ent)
 	ent->client->showscores = false;
 	ent->client->showhelp = false;
 	ent->client->showinventory = false;
+//ZOID
+	if (ent->client->menu)
+		PMenu_Close(ent);
+	ent->client->update_chase = true;
+//ZOID
 }
 
 
@@ -928,8 +1086,24 @@ void Cmd_Push_f (edict_t *ent)
 	vec3_t	end;
 	trace_t	tr;
 
+	// No pushing when you're dead.
+	if (ent->deadflag)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+		return;
+
+	// Or if you're frozen.
+	if (ent->frozen)
+		return;
+
+	// Or if push/pull has been banned.
+	if ((int)featureban->value & FB_PUSHPULL)
+		return;
+
 	VectorCopy (ent->s.origin, start);
-	start[2] += ent->viewheight;
+	start[2] += ent->viewheight - 8;
 	AngleVectors (ent->client->v_angle, forward, NULL, NULL);
 	VectorMA (start, 8192, forward, end);
 	tr = gi.trace (start, NULL, NULL, end, ent, MASK_SHOT);
@@ -938,6 +1112,23 @@ void Cmd_Push_f (edict_t *ent)
 		/* || (tr.ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)) */
 		|| (tr.ent->client)))
 	{
+		// Show a trail from the pusher to the pushee.
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_BUBBLETRAIL);
+		gi.WritePosition (start);
+		gi.WritePosition (tr.endpos);
+		gi.multicast (ent->s.origin, MULTICAST_PHS);
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_BFG_LASER);
+		gi.WritePosition (start);
+		gi.WritePosition (tr.endpos);
+		gi.multicast (ent->s.origin, MULTICAST_PHS);
+
+		// Have the pusher emit a sound.
+		gi.sound (ent, CHAN_WEAPON, gi.soundindex ("items/damage3.wav"), 1,
+			ATTN_NORM, 0);
+
+		// Now push them.
 		VectorScale (forward, 2500, forward);
 		VectorAdd(forward, tr.ent->velocity, tr.ent->velocity);
 	}
@@ -955,8 +1146,24 @@ void Cmd_Pull_f (edict_t *ent)
 	vec3_t	end;
 	trace_t	tr;
 
+	// No pulling when you're dead.
+	if (ent->deadflag)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
+		return;
+
+	// Or if you're frozen.
+	if (ent->frozen)
+		return;
+
+	// Or if push/pull has been banned.
+	if ((int)featureban->value & FB_PUSHPULL)
+		return;
+
 	VectorCopy(ent->s.origin, start);
-	start[2] += ent->viewheight;
+	start[2] += ent->viewheight - 8;
 	AngleVectors(ent->client->v_angle, forward, NULL, NULL);
 	VectorMA(start, 8192, forward, end);
 	tr = gi.trace(start, NULL, NULL, end, ent, MASK_SHOT);
@@ -965,6 +1172,23 @@ void Cmd_Pull_f (edict_t *ent)
 		/* || (tr.ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)) */
 		|| (tr.ent->client)))
 	{
+		// Show a trail from the puller to the pullee.
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_BUBBLETRAIL);
+		gi.WritePosition (start);
+		gi.WritePosition (tr.endpos);
+		gi.multicast (ent->s.origin, MULTICAST_PHS);
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_BFG_LASER);
+		gi.WritePosition (start);
+		gi.WritePosition (tr.endpos);
+		gi.multicast (ent->s.origin, MULTICAST_PHS);
+
+		// Have the puller emit a sound.
+		gi.sound (ent, CHAN_WEAPON, gi.soundindex ("items/damage3.wav"), 1,
+			ATTN_NORM, 0);
+
+		// Now pull them.
 		VectorScale (forward, -2500, forward);
 		VectorAdd (forward, tr.ent->velocity, tr.ent->velocity);
 	}
@@ -984,6 +1208,10 @@ void Cmd_Wave_f (edict_t *ent)
 
 	// can't wave when ducked
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		return;
+
+	// Or when you're a ghost.
+	if (ctf->value && ent->movetype == MOVETYPE_NOCLIP && ent->solid == SOLID_NOT)
 		return;
 
 	if (ent->client->anim_priority > ANIM_WAVE)
@@ -1030,23 +1258,28 @@ MUCE: new function for adjusting firing mode
 =================
 */
 void Cmd_FireMode_f (edict_t *ent)
- {
- int i;
- i=ent->client->pers.fire_mode;
- switch (i)
- {
- case 0:
- ent->client->pers.fire_mode=1;
- gi.cprintf(ent,PRINT_HIGH,"Standard Machinegun Burst Fire Mode\n");
- break;
- case 1:
- default:
- ent->client->burstfire_count=0;
- ent->client->pers.fire_mode=0;
- gi.cprintf(ent,PRINT_HIGH,"Standard Machinegun Fully Automatic Mode\n");
- break;
- }
- }
+{
+	// Don't allow if the burst machinegun has been banned.
+	if ((int)weaponban->value & WB_BURSTMACHINEGUN)
+		return;
+
+	switch (ent->client->pers.fire_mode)
+	{
+		case 0:
+			ent->client->pers.fire_mode = 1;
+			gi.cprintf (ent, PRINT_HIGH,
+				"Standard Machinegun Burst Fire Mode\n");
+			break;
+
+		case 1:
+			default:
+			ent->client->burstfire_count = 0;
+			ent->client->pers.fire_mode = 0;
+			gi.cprintf (ent, PRINT_HIGH,
+				"Standard Machinegun Fully Automatic Mode\n");
+			break;
+	}
+}
 
 /*
 ==================
@@ -1055,15 +1288,25 @@ Cmd_Say_f
 */
 void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 {
-	int		j;
+	int		i,j;
 	edict_t	*other;
 	char	*p;
 	char	text[2048];
+	gclient_t *cl;
 
 	if (gi.argc () < 2 && !arg0)
 		return;
 
-	if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
+	// If there's no teamplay, don't do team chat.
+	if (!ctf->value
+	&& !((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
+		team = false;
+
+	// If this player is dead or a ghost, don't allow team chat.
+	if (ctf->value
+	&& (ent->deadflag
+		|| (ent->solid == SOLID_NOT && ent->movetype == MOVETYPE_NOCLIP))
+	&& !TeamplayCheckCountdown())
 		team = false;
 
 	if (team)
@@ -1095,6 +1338,29 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 
 	strcat(text, "\n");
 
+	if (flood_msgs->value) {
+		cl = ent->client;
+
+        if (level.time < cl->flood_locktill) {
+			gi.cprintf(ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
+				(int)(cl->flood_locktill - level.time));
+            return;
+        }
+        i = cl->flood_whenhead - flood_msgs->value + 1;
+        if (i < 0)
+            i = (sizeof(cl->flood_when)/sizeof(cl->flood_when[0])) + i;
+		if (cl->flood_when[i] && 
+			level.time - cl->flood_when[i] < flood_persecond->value) {
+			cl->flood_locktill = level.time + flood_waitdelay->value;
+			gi.cprintf(ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n",
+				(int)flood_waitdelay->value);
+            return;
+        }
+		cl->flood_whenhead = (cl->flood_whenhead + 1) %
+			(sizeof(cl->flood_when)/sizeof(cl->flood_when[0]));
+		cl->flood_when[cl->flood_whenhead] = level.time;
+	}
+
 	if (dedicated->value)
 		gi.cprintf(NULL, PRINT_CHAT, "%s", text);
 
@@ -1107,10 +1373,10 @@ void Cmd_Say_f (edict_t *ent, qboolean team, qboolean arg0)
 			continue;
 		if (team)
 		{
-			if (!OnSameTeam(ent, other))
+			if (!OnSameTeam (ent, other))
 				continue;
 		}
-		gi.cprintf(other, PRINT_CHAT, "%s", text);
+		gi.cprintf (other, PRINT_CHAT, "%s", text);
 	}
 }
 
@@ -1122,6 +1388,10 @@ JDB: new command for lowlight vision (GL mode ONLY) 4/4/98
 */ 
 void Cmd_Lowlight_f (edict_t *ent) 
 { 
+	// No nightvision if it's been banned.
+	if ((int)featureban->value & FB_NIGHTVISION)
+		return;
+
 	if(ent->client->lowlight ^= 1) 
 	{ 
 		gi.cvar_forceset("gl_saturatelighting","1"); 
@@ -1143,8 +1413,13 @@ Cmd_Zoom_f
 */ 
 void Cmd_Zoom_f (edict_t *ent) 
 {
-	int zoomtype = atoi (gi.argv (1));
+	int zoomtype;
 
+	// No zooming if it's been banned.
+	if ((int)featureban->value & FB_ZOOM)
+		return;
+
+	zoomtype = atoi (gi.argv (1));
 	if (zoomtype == 0)	
 	{	
 		ent->client->ps.fov = 90;		
@@ -1161,6 +1436,37 @@ void Cmd_Zoom_f (edict_t *ent)
 			ent->client->ps.fov = 90;	
 	}	
 }
+
+void Cmd_PlayerList_f(edict_t *ent)
+{
+	int i;
+	char st[80];
+	char text[1400];
+	edict_t *e2;
+
+	// connect time, ping, score, name
+	*text = 0;
+	for (i = 0, e2 = g_edicts + 1; i < maxclients->value; i++, e2++) {
+		if (!e2->inuse)
+			continue;
+
+		Com_sprintf(st, sizeof(st), "%02d:%02d %4d %3d %s%s\n",
+			(level.framenum - e2->client->resp.enterframe) / 600,
+			((level.framenum - e2->client->resp.enterframe) % 600)/10,
+			e2->client->ping,
+			e2->client->resp.score,
+			e2->client->pers.netname,
+			e2->client->resp.spectator ? " (spectator)" : "");
+		if (strlen(text) + strlen(st) > sizeof(text) - 50) {
+			sprintf(text+strlen(text), "And more...\n");
+			gi.cprintf(ent, PRINT_HIGH, "%s", text);
+			return;
+		}
+		strcat(text, st);
+	}
+	gi.cprintf(ent, PRINT_HIGH, "%s", text);
+}
+
 
 /*
 =================
@@ -1183,8 +1489,11 @@ void ClientCommand (edict_t *ent)
 			Cmd_Players_f (ent);
 		else if (Q_stricmp (cmd, "say") == 0)
 			Cmd_Say_f (ent, false, false);
-		else if (Q_stricmp (cmd, "say_team") == 0)
+		else if (Q_stricmp (cmd, "say_team") == 0
+		|| Q_stricmp (cmd, "steam") == 0)
+		{
 			Cmd_Say_f (ent, true, false);
+		}
 		else if (Q_stricmp (cmd, "score") == 0)
 			Cmd_Score_f (ent);
 		else if (Q_stricmp (cmd, "help") == 0)
@@ -1226,7 +1535,9 @@ void ClientCommand (edict_t *ent)
 			break;
 
 		case 'i':
-			if (Q_stricmp (cmd, "inven") == 0)
+			if (Q_stricmp (cmd, "id") == 0)
+				CTFID_f (ent);
+			else if (Q_stricmp (cmd, "inven") == 0)
 				Cmd_Inven_f (ent);
 			else if (Q_stricmp (cmd, "invnext") == 0)
 				SelectNextItem (ent, -1);
@@ -1286,6 +1597,8 @@ void ClientCommand (edict_t *ent)
 				Cmd_PutAway_f (ent);
 			else if (Q_stricmp (cmd, "players") == 0)
 				Cmd_Players_f (ent);
+			else if (Q_stricmp(cmd, "playerlist") == 0)
+				Cmd_PlayerList_f (ent);
 			else
 				goto notrecognized;
 			break;
@@ -1293,7 +1606,8 @@ void ClientCommand (edict_t *ent)
 		case 's':
 			if (Q_stricmp (cmd, "say") == 0)
 				Cmd_Say_f (ent, false, false);
-			else if (Q_stricmp (cmd, "say_team") == 0)
+			else if (Q_stricmp (cmd, "say_team") == 0
+			|| Q_stricmp (cmd, "steam") == 0)
 				Cmd_Say_f (ent, true, false);
 			else if (Q_stricmp (cmd, "scanner") == 0)
 				Toggle_Scanner (ent);
@@ -1308,6 +1622,8 @@ void ClientCommand (edict_t *ent)
 				Cmd_ThirdX_f (ent);
 			else if (Q_stricmp (cmd, "thirdz") == 0)
 				Cmd_ThirdZ_f (ent);
+			else if (Q_stricmp (cmd, "team") == 0)
+				CTFTeam_f (ent);
 			else
 				goto notrecognized;
 			break;

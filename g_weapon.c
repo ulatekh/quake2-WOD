@@ -299,7 +299,17 @@ void blaster_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage)
-		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
+	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_BLASTER;
+		if ((int)fragban->value & WFB_BLASTER)
+			mod |= MOD_NOFRAG;
+
+		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
+			plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
+	}
 	else
 	{
 		// return;
@@ -320,58 +330,68 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 {
 	edict_t *bolt;
 	trace_t tr;
-			int laser_colour[] = {
-				0xf2f2f0f0,	     // red
-				0xf3f3f1f1,	     // blue
-			};
+	int laser_colour[] = {
+		0xf2f2f0f0,	     // red
+		0xf3f3f1f1,	     // blue
+	};
 
-			VectorNormalize (dir);
+	VectorNormalize (dir);
 
-			// Only change hand blaster effect
-			if (effect & EF_BLASTER)
-			{
-				bolt = G_Spawn();
-				VectorCopy (start, bolt->s.origin);
-				vectoangles (dir, bolt->s.angles);
-				VectorScale (dir, speed, bolt->velocity);
-				VectorAdd (start, bolt->velocity, bolt->s.old_origin);
-				bolt->clipmask = MASK_SHOT;
+	// Only change hand blaster effect
+	if (effect & EF_BLASTER)
+	{
+		bolt = G_Spawn();
+		bolt->svflags = SVF_DEADMONSTER;
+		VectorCopy (start, bolt->s.origin);
+		vectoangles (dir, bolt->s.angles);
+		VectorScale (dir, speed, bolt->velocity);
+		VectorAdd (start, bolt->velocity, bolt->s.old_origin);
+		bolt->clipmask = MASK_SHOT;
 
-				bolt->movetype = MOVETYPE_FLYMISSILE;
-				bolt->solid = SOLID_BBOX;
-				bolt->s.renderfx |= RF_BEAM|RF_TRANSLUCENT;
-				bolt->s.modelindex = 1;       
-				bolt->owner = self;
+		bolt->movetype = MOVETYPE_FLYMISSILE;
+		bolt->solid = SOLID_BBOX;
+		bolt->s.renderfx |= RF_BEAM|RF_TRANSLUCENT;
+		bolt->s.modelindex = 1;       
+		bolt->owner = self;
 
-				bolt->s.frame = 3;
+		bolt->s.frame = 3;
 
-				bolt->s.skinnum = laser_colour[((int) (random() * 1500)) % 2];
+		if (ctf->value && self->client)
+		{
+			// Team colors for blaster lasers.
+			if (self->client->resp.ctf_team == CTF_TEAM1)
+				bolt->s.skinnum = laser_colour[0];
+			else
+				bolt->s.skinnum = laser_colour[1];
+		}
+		else
+			bolt->s.skinnum = laser_colour[((int) (random() * 1500)) % 2];
 
+		VectorClear (bolt->mins);
+		VectorClear (bolt->maxs);
 
-				VectorSet (bolt->mins, -8, -8, -8);
-				VectorSet (bolt->maxs, 8, 8, 8);
+		bolt->touch = blaster_touch;
+		bolt->nextthink = level.time + 4;
+		bolt->think = G_FreeEdict;
+		bolt->dmg = damage;
 
-				bolt->touch = blaster_touch;
-				bolt->nextthink = level.time + 4;
-				bolt->think = G_FreeEdict;
-				bolt->dmg = damage;
+		gi.linkentity (bolt);
 
-				gi.linkentity (bolt);
+		if (self->client)
+		check_dodge (self, bolt->s.origin, dir, speed);
 
-				if (self->client)
-				check_dodge (self, bolt->s.origin, dir, speed);
+		tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+		if (tr.fraction < 1.0)
+		{
+			VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
+			bolt->touch (bolt, tr.ent, NULL, NULL);
+		}
 
-				tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
-				if (tr.fraction < 1.0)
-				{
-					VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
-					bolt->touch (bolt, tr.ent, NULL, NULL);
-				}
-
-				return;
-			}
+		return;
+	}
 
 	bolt = G_Spawn();
+	bolt->svflags = SVF_DEADMONSTER;
 	VectorCopy (start, bolt->s.origin);
 	VectorCopy (start, bolt->s.old_origin);
 	vectoangles (dir, bolt->s.angles);
@@ -417,7 +437,17 @@ void sniper_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage)
-		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_SNIPER);
+	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_SNIPER;
+		if ((int)fragban->value & WB_SNIPERGUN)
+			mod |= MOD_NOFRAG;
+
+		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
+			plane->normal, self->dmg, 1, 0, mod);
+	}
 	else
 	{
 		// return;
@@ -490,8 +520,15 @@ void plasma_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
 
 	if (other->takedamage)
 	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_PLASMAGUN;
+		if ((int)fragban->value & WB_PLASMARIFLE)
+			mod |= MOD_NOFRAG;
+
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
-			plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_PLASMAGUN);
+			plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 	}
 	else
 	{
@@ -567,8 +604,17 @@ void fire_bolt (edict_t *self, vec3_t start, vec3_t aimdir, int damage)
 	tr = gi.trace (from, NULL, NULL, end, self, MASK_SHOT|MASK_WATER);
 
 	if ((tr.ent != self) && (tr.ent->takedamage))
+	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_PLASMAGUN;
+		if ((int)fragban->value & WB_PLASMARIFLE)
+			mod |= MOD_NOFRAG;
+
 		T_Damage (tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal,
-			damage, 0, 0, MOD_PLASMAGUN);
+			damage, 0, DAMAGE_ENERGY, mod);
+	}
 
 	VectorCopy (tr.endpos, from);
 
@@ -641,7 +687,15 @@ void Flame_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *sur
 
 	if (other->takedamage)
 	{
-		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 0, 0, MOD_NAPALM);
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_NAPALM;
+		if ((int)fragban->value & WB_NAPALMGRENADE)
+			mod |= MOD_NOFRAG;
+
+		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
+			plane->normal, ent->dmg, 0, 0, mod);
 		G_FreeEdict (ent);
 	}
 }
@@ -653,12 +707,21 @@ void Flame_Burn (edict_t *ent)
 	gi.WritePosition (ent->s.origin);
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
-	T_RadiusDamage(ent, ent->owner, 120, NULL, 120, MOD_NAPALM);
+	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_NAPALM;
+		if ((int)fragban->value & WB_NAPALMGRENADE)
+			mod |= MOD_NOFRAG;
+
+		T_RadiusDamage (ent, ent->owner, 120, NULL, 120, mod);
+	}
 
 	ent->nextthink = level.time + 0.8 + random();
 	ent->delay = ent->delay - 1;
 	if(ent->delay <= 0)
-		G_FreeEdict(ent);
+		G_FreeEdict (ent);
 }
 
 void Cata_Explode (edict_t *ent)
@@ -685,7 +748,16 @@ void Cata_Explode_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface
 		return;
 	}
 
-	T_RadiusDamage(ent, ent->owner, 250, NULL, 400, MOD_CATA);
+	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_CATA;
+		if ((int)fragban->value & WB_CATACLYSMDEVICE)
+			mod |= MOD_NOFRAG;
+
+		T_RadiusDamage (ent, ent->owner, 250, NULL, 400, mod);
+	}
 
 	// Work out screen shakes:
 	while ((head = findradius(head, ent->s.origin, 1024)) != NULL)
@@ -732,7 +804,16 @@ void Shrap_Explode_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurfac
 		return;
 	}
 
-	T_RadiusDamage(ent, ent->owner, 50, NULL, 50, MOD_SHRAPG);
+	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_SHRAPG;
+		if ((int)fragban->value & WB_SHRAPNELGRENADE)
+			mod |= MOD_NOFRAG;
+
+		T_RadiusDamage (ent, ent->owner, 50, NULL, 50, mod);
+	}
 
 	// Work out screen shakes:
 	while ((head = findradius(head, ent->s.origin, 1024)) != NULL)
@@ -762,19 +843,34 @@ void Grenade_Explode_dM (edict_t *ent)
 	vec3_t		forward, right, up;
 	int			n;
 	edict_t		*flame, *head = NULL;
+	int mod;
 
+	// If we somehow don't have an owner any more, just die.
+	// (Why wouldn't we have an owner?)
+	if (!(ent->owner))
+	{
+		gi.dprintf ("WTF: dM grenade without an owner\n");
+		G_FreeEdict (ent);
+		return;
+	}
 
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
 	VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 	
-	if(ent->dmg == 0)
+	if (ent->dmg == 0)
 	{
 		// ///------>> Standard:
 		// dmg_radius is really the damage:
 
-		T_RadiusDamage(ent, ent->owner, ent->dmg_radius, NULL, ent->dmg_radius + 40, MOD_HANDGRENADE);
+		// Set up the means of death.
+		mod = MOD_HANDGRENADE;
+		if ((int)fragban->value & WB_GRENADE)
+			mod |= MOD_NOFRAG;
+
+		T_RadiusDamage (ent, ent->owner, ent->dmg_radius, NULL,
+			ent->dmg_radius + 40, mod);
 
 		gi.WriteByte (svc_temp_entity);
 		if (ent->waterlevel)
@@ -795,10 +891,16 @@ void Grenade_Explode_dM (edict_t *ent)
 		gi.WritePosition (origin);
 		gi.multicast (ent->s.origin, MULTICAST_PVS);
 	}
-	else if(ent->dmg == 1)
+	else if (ent->dmg == 1)
 	{
 		// ///------>> Cluster:
-		T_RadiusDamage(ent, ent->owner, 120, NULL, 120, MOD_CLUSTER);
+
+		// Set up the means of death.
+		mod = MOD_CLUSTER;
+		if ((int)fragban->value & WB_CLUSTERGRENADE)
+			mod |= MOD_NOFRAG;
+
+		T_RadiusDamage (ent, ent->owner, 120, NULL, 120, mod);
 		
 		VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 		gi.WriteByte (svc_temp_entity);
@@ -826,13 +928,20 @@ void Grenade_Explode_dM (edict_t *ent)
 			grenade_angs[1] = n * 30;
 			grenade_angs[2] = 0;
 			AngleVectors (grenade_angs, forward, right, up);
-			fire_grenade (ent->owner, origin, forward, 60, 600, 1.5, 120);
+			fire_grenade (ent->owner, origin, forward, 60, 600, 2.0, 120);
 		}
 	}
 	else if(ent->dmg == 2)
 	{
 		// ///------>> RailBomb:
-		T_RadiusDamage(ent, ent->owner, ent->dmg_radius - 50, NULL, ent->dmg_radius - 40, MOD_RAILBOMB);
+
+		// Set up the means of death.
+		mod = MOD_RAILBOMB;
+		if ((int)fragban->value & WB_RAILBOMB)
+			mod |= MOD_NOFRAG;
+
+		T_RadiusDamage(ent, ent->owner, ent->dmg_radius - 50, NULL,
+			ent->dmg_radius - 40, mod);
 		
 		VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 		gi.WriteByte (svc_temp_entity);
@@ -862,11 +971,17 @@ void Grenade_Explode_dM (edict_t *ent)
 			fire_rail (ent->owner, origin, forward, 60, 120);
 		}
 	}
-	else if(ent->dmg == 3)
+	else if (ent->dmg == 3)
 	{
 		// ///------>> Plasma:
+
+		// Set up the means of death.
+		mod = MOD_PLASMAG;
+		if ((int)fragban->value & WB_PLASMAGRENADE)
+			mod |= MOD_NOFRAG;
+
 		ent->classname = "plasma explosion";
-		T_RadiusDamage(ent, ent->owner, 300, NULL, 300, MOD_PLASMAG);
+		T_RadiusDamage(ent, ent->owner, 300, NULL, 300, mod);
 
 		// Kludge to get louder sound, since vol can't exceed 1.0
 		gi.sound (ent, CHAN_WEAPON, gi.soundindex("weapons/bfg__x1b.wav"), 1, ATTN_NORM, 0);
@@ -887,7 +1002,13 @@ void Grenade_Explode_dM (edict_t *ent)
 	else if(ent->dmg == 4)
 	{
 		// ///------>> Napalm:
-		T_RadiusDamage(ent, ent->owner, 50, NULL, 80, MOD_NAPALM);
+
+		// Set up the means of death.
+		mod = MOD_NAPALM;
+		if ((int)fragban->value & WB_NAPALMGRENADE)
+			mod |= MOD_NOFRAG;
+
+		T_RadiusDamage(ent, ent->owner, 50, NULL, 80, mod);
 		
 		VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 		gi.WriteByte (svc_temp_entity);
@@ -1101,7 +1222,8 @@ static void Grenade_Touch_dM (edict_t *ent, edict_t *other, cplane_t *plane, csu
 //	     ///----------------------------------------------------->>
 
 
-void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius)
+void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
+						 int speed, float timer, float damage_radius)
 {
 	edict_t	*grenade;
 	vec3_t	dir;
@@ -1334,7 +1456,8 @@ Machine Gun Rockets
 */
 void mr_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
-	vec3_t		origin;
+	vec3_t	origin;
+	int		mod;
 
 	if (other == ent->owner)
 		return;
@@ -1351,12 +1474,18 @@ void mr_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 	// calculate position for the explosion entity
 	VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 
+	// Set up the means of death.
+	mod = MOD_MACHINEGUN;
+	if ((int)fragban->value & WB_MACHINEROCKETGUN)
+		mod |= MOD_NOFRAG;
+
 	if (other->takedamage)
 	{
-		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 20, 20, MOD_MACHINEGUN);
+		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
+			plane->normal, ent->dmg, 20, 20, mod);
 	}
 
-	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, MOD_MACHINEGUN);
+	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, mod);
 
 	gi.WriteByte (svc_temp_entity);
 	if (ent->waterlevel)
@@ -1414,12 +1543,18 @@ void bfg_explode (edict_t *self)
 	float	points;
 	vec3_t	v;
 	float	dist;
+	int mod;
+
+	// Set up the means of death.
+	mod = MOD_BFG_EFFECT;
+	if ((int)fragban->value & WB_BFG10K)
+		mod |= MOD_NOFRAG;
 
 	if (self->s.frame == 0)
 	{
 		// the BFG effect
 		ent = NULL;
-		while ((ent = findradius(ent, self->s.origin, self->dmg_radius)) != NULL)
+		while ((ent = findradius (ent, self->s.origin, self->dmg_radius)) != NULL)
 		{
 			if (!ent->takedamage)
 				continue;
@@ -1442,7 +1577,8 @@ void bfg_explode (edict_t *self)
 			gi.WriteByte (TE_BFG_EXPLOSION);
 			gi.WritePosition (ent->s.origin);
 			gi.multicast (ent->s.origin, MULTICAST_PHS);
-			T_Damage (ent, self, self->owner, self->velocity, ent->s.origin, vec3_origin, (int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
+			T_Damage (ent, self, self->owner, self->velocity, ent->s.origin,
+				vec3_origin, (int)points, 0, DAMAGE_ENERGY, mod);
 		}
 	}
 
@@ -1454,6 +1590,8 @@ void bfg_explode (edict_t *self)
 
 void bfg_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
+	int mod;
+
 	if (other == self->owner)
 		return;
 
@@ -1466,10 +1604,16 @@ void bfg_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
+	// Set up the means of death.
+	mod = MOD_BFG_BLAST;
+	if ((int)fragban->value & WB_BFG10K)
+		mod |= MOD_NOFRAG;
+
 	// core explosion - prevents firing it into the wall/floor
 	if (other->takedamage)
-		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, 200, 0, 0, MOD_BFG_BLAST);
-	T_RadiusDamage(self, self->owner, 200, other, 100, MOD_BFG_BLAST);
+		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
+			plane->normal, 200, 0, 0, mod);
+	T_RadiusDamage (self, self->owner, 200, other, 100, mod);
 
 	gi.sound (self, CHAN_VOICE, gi.soundindex ("weapons/bfg__x1b.wav"), 1, ATTN_NORM, 0);
 	self->solid = SOLID_NOT;
@@ -1501,6 +1645,12 @@ void bfg_think (edict_t *self)
 	vec3_t	end;
 	int		dmg;
 	trace_t	tr;
+	int mod;
+
+	// Set up the means of death.
+	mod = MOD_BFG_LASER;
+	if ((int)fragban->value & WB_BFG10K)
+		mod |= MOD_NOFRAG;
 
 	if (deathmatch->value)
 		dmg = 5;
@@ -1522,6 +1672,14 @@ void bfg_think (edict_t *self)
 		if (!(ent->svflags & SVF_MONSTER) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
 			continue;
 
+//ZOID
+		//don't target teammates in CTF
+		if (ctf->value && ent->client &&
+			self->owner->client &&
+			ent->client->resp.ctf_team == self->owner->client->resp.ctf_team)
+			continue;
+//ZOID
+
 		VectorMA (ent->absmin, 0.5, ent->size, point);
 
 		VectorSubtract (point, self->s.origin, dir);
@@ -1539,7 +1697,8 @@ void bfg_think (edict_t *self)
 
 			// hurt it if we can
 			if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && (tr.ent != self->owner))
-				T_Damage (tr.ent, self, self->owner, dir, tr.endpos, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+				T_Damage (tr.ent, self, self->owner, dir, tr.endpos, vec3_origin,
+					dmg, 1, DAMAGE_ENERGY, mod);
 
 			// if we hit something that's not a monster or player we're done
 			if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
@@ -1634,7 +1793,10 @@ void super_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 			mod = MOD_HYPERBLASTER;
 		else
 			mod = MOD_SB;
-		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
+		if ((int)fragban->value & WB_SUPERBLASTER)
+			mod |= MOD_NOFRAG;
+		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
+			plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 	}
 	else
 	{
@@ -1746,6 +1908,12 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 	edict_t		*ignore;
 	int			mask;
 	qboolean	water;
+	int mod;
+
+	// Set up the means of death.
+	mod = MOD_RAILGUN2;
+	if ((int)fragban->value & WB_RAILGUN)
+		mod |= MOD_NOFRAG;
 
 	VectorMA (start, 8192, aimdir, end);
 	VectorCopy (start, from);
@@ -1769,7 +1937,8 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 				ignore = NULL;
 
 			if ((tr.ent != self) && (tr.ent->takedamage))
-				T_Damage (tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, 0, MOD_RAILGUN2);
+				T_Damage (tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal,
+					damage, kick, 0, mod);
 		}
 
 		VectorCopy (tr.endpos, from);
@@ -1800,63 +1969,36 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 void
 homing_think (edict_t *ent) 
 {
-	edict_t *target = NULL;
-	edict_t *blip = NULL;
-	vec3_t targetdir, blipdir;
 	vec_t speed;
+	vec3_t targetdir;
 
-	while ((blip = findradius(blip, ent->s.origin, 1000)) != NULL)
-	{
-		if (!(blip->svflags & SVF_MONSTER) && !blip->client)
-			continue;
-		if (blip == ent->owner)
-			continue;
-		if (!blip->takedamage)
-			continue;
-		if (blip->health <= 0)
-			continue; 
-		if (!visible (ent, blip))
-			continue;
-		if (!infront (ent, blip))
-			continue;
-
-		VectorSubtract (blip->s.origin, ent->s.origin, blipdir);
-		blipdir[2] += 16;
-		if ((target == NULL) || (VectorLength(blipdir) < VectorLength(targetdir)))
-		{
-			target = blip;
-			VectorCopy(blipdir, targetdir);
-		}
-	}
-
-	if (target != NULL)
-	{
-		// target acquired, nudge our direction toward it
-		VectorNormalize(targetdir);
-		VectorScale(targetdir, 0.2, targetdir);
-		VectorAdd(targetdir, ent->movedir, targetdir); 
-		VectorNormalize(targetdir);
-		VectorCopy(targetdir, ent->movedir); 
-		vectoangles(targetdir, ent->s.angles);
-		speed = VectorLength(ent->velocity);
-		VectorScale(targetdir, speed, ent->velocity);
-
-		//is this the first time we locked in? sound warning for the target
-		if (ent->homing_lock == 0)
-		{
-			gi.sound (target, CHAN_AUTO, gi.soundindex ("misc/keytry.wav"), 1, ATTN_NORM, 0);
-			ent->homing_lock = 1;
-		}
-	}
+	// Nudge our direction toward our target.
+	VectorSubtract (ent->enemy->s.origin, ent->s.origin, targetdir);
+	targetdir[2] += 16;
+	VectorNormalize (targetdir);
+	VectorScale (targetdir, 0.2, targetdir);
+	VectorAdd (targetdir, ent->movedir, targetdir); 
+	VectorNormalize (targetdir);
+	VectorCopy (targetdir, ent->movedir); 
+	vectoangles (targetdir, ent->s.angles);
+	speed = VectorLength(ent->velocity);
+	VectorScale (targetdir, speed, ent->velocity);
 
 	ent->nextthink = level.time + FRAMETIME;
-	// gi.linkentity (ent);
+
+	gi.linkentity (ent);
 }
 
 void
 homing_explode (edict_t *ent)
 {
 	vec3_t		origin;
+	int mod;
+
+	// Set up the means of death.
+	mod = MOD_H_SPLASH;
+	if ((int)fragban->value & WB_HOMINGROCKETLAUNCHER)
+		mod |= MOD_NOFRAG;
 
 	if (ent->owner->client)
 		PlayerNoise (ent->owner, ent->s.origin, PNOISE_IMPACT);
@@ -1865,8 +2007,8 @@ homing_explode (edict_t *ent)
 	VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
 
 	ent->takedamage = DAMAGE_NO;
-	T_RadiusDamage (ent, ent->owner, ent->radius_dmg, ent->enemy, ent->dmg_radius,
-		MOD_H_SPLASH);
+	T_RadiusDamage (ent, ent->owner, ent->radius_dmg, ent->enemy,
+		ent->dmg_radius, mod);
 
 	gi.WriteByte (svc_temp_entity);
 	if (ent->waterlevel)
@@ -1910,11 +2052,18 @@ homing_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 
 	if (other->takedamage)
 	{
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_HOMING;
+		if ((int)fragban->value & WB_HOMINGROCKETLAUNCHER)
+			mod |= MOD_NOFRAG;
+
 		// How much damage we've received affects how much we dish out.
 		ent->dmg = ent->health;
 
 		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
-			plane->normal, ent->dmg, 120, 120, MOD_HOMING);
+			plane->normal, ent->dmg, 120, 0, mod);
 	}
 	else
 	{
@@ -1958,8 +2107,8 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 	rocket->model = "models/objects/rocket/tris.md2";
 	rocket->s.modelindex = gi.modelindex (rocket->model);
 	rocket->owner = self;
-	rocket->touch = rocket_touch;
-	rocket->homing_lock = 0;
+	rocket->touch = homing_touch;
+	rocket->enemy = NULL;
 
 	// Make homing rocket shootable.
 	rocket->movetype = MOVETYPE_FLYMISSILE;
@@ -1974,13 +2123,72 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 	rocket->die = homing_die;
 	//rocket->monsterinfo.aiflags = AI_NOSTEP;
 
-	rocket->nextthink = level.time + FRAMETIME;
-	rocket->think = homing_think;
 	rocket->dmg = damage;
 	rocket->radius_dmg = 120;
 	rocket->dmg_radius = 120;
 	rocket->s.sound = gi.soundindex ("weapons/rockfly.wav");
 	rocket->classname = "rocket";
+
+	// Find a target to home in on.
+	{
+		edict_t *blip = NULL;
+		vec3_t blipdir;
+		float blipDot, targetDot;
+
+		blip = NULL;
+		while ((blip = findradius (blip, rocket->s.origin, 1024)) != NULL)
+		{
+			// See if this is the kind of blip we can home in on.
+			if (!(blip->svflags & SVF_MONSTER) && !blip->client)
+				continue;
+			if (blip == rocket->owner)
+				continue;
+			if (!blip->takedamage)
+				continue;
+			if (blip->health <= 0)
+				continue;
+			if (ctf->value
+			&& blip->client
+			&& self->client->resp.ctf_team == blip->client->resp.ctf_team)
+				continue;
+			if (!visible (rocket, blip))
+				continue;
+			if (!infront (rocket, blip))
+				continue;
+
+			// Determine where the blip is in relation to us.
+			VectorSubtract (blip->s.origin, rocket->s.origin, blipdir);
+			blipdir[2] += 16;
+
+			// Determine how "good" of a target it is.  (Currently, that's the
+			// enemy that's most being aimed at, regardless of distance.)
+			VectorNormalize (blipdir);
+			blipDot = DotProduct (dir, blipdir);
+
+			// Remember the "best" target so far.
+			if (rocket->enemy == NULL || targetDot < blipDot)
+			{
+				rocket->enemy = blip;
+				targetDot = blipDot;
+			}
+		}
+	}
+
+	// Did we find a target?
+	if (rocket->enemy)
+	{
+		// Sound a warning for the targeted one.
+		gi.sound (rocket->enemy, CHAN_AUTO, gi.soundindex ("misc/keytry.wav"), 1, ATTN_NORM, 0);
+		
+		// Keep tracking them.
+		rocket->nextthink = level.time + FRAMETIME;
+		rocket->think = homing_think;
+	}
+	else
+	{
+		// Let the inflictor know the rocket isn't going to home in on anyone.
+		gi.sound (self, CHAN_AUTO, gi.soundindex ("misc/talk1.wav"), 1, ATTN_NORM, 0);
+	}
 
 	if (self->client)
 		check_dodge (self, rocket->s.origin, dir, speed);
@@ -1989,20 +2197,8 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 }
 
 
-// ***************************
-// same as blaster_touch with some freezing info added
 void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
-	if (other->svflags & SVF_MONSTER || other->client)
-	{
-		other->frozen = 1;
-		// Info_SetValueForKey( userinfo, "skin", "male/frozen" );
-		other->frozentime = level.time + 70*FRAMETIME;
-      other->s.effects |= EF_COLOR_SHELL;
-      other->s.renderfx |= RF_SHELL_BLUE;
-		other->s.effects |= EF_FLAG2;
-	}
-
 	if (other == self->owner)
 		return;
 
@@ -2017,16 +2213,37 @@ void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 
 	if (other->takedamage)
 	{
+		int damage;
+		int mod;
+
+		// Set up the means of death.
+		mod = MOD_FREEZE;
+		if ((int)fragban->value & WB_FREEZEGUN)
+			mod |= MOD_NOFRAG;
+
+		// Hurt them, keep track of whether we could.
+		damage = other->health;
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
-			plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_FREEZE);
+			plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
+		damage -= other->health;
 		gi.sound (self, CHAN_VOICE, gi.soundindex ("weapons/frozen.wav"), 1,
 			ATTN_NORM, 0);
-		if (self->client)
-			gi.cprintf (self, PRINT_MEDIUM, "You've been frozen!\n");
+
+		// If we could hurt them, freeze them.
+		if (damage > 0)
+		{
+			// Freeze them for this long.
+			if (other->frozen)
+				other->frozentime += 4.0;
+			else
+				other->frozentime = level.time + 4.0;
+
+			// Freeze them.
+			other->frozen = 1;
+		}
 	}
 	else
 	{
-
 		gi.WriteByte (svc_temp_entity);
 		gi.WriteByte (TE_BLASTER);
 		gi.WritePosition (self->s.origin);
@@ -2040,8 +2257,6 @@ void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 	G_FreeEdict (self);
 }
 
-// *************************************
-// Same as fire_blaster, but setup with freezer touch
 void fire_freezer (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect)
 {
 	edict_t	*bolt;
@@ -2058,15 +2273,15 @@ void fire_freezer (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	bolt->clipmask = MASK_SHOT;
 	bolt->solid = SOLID_BBOX;
 	bolt->s.effects |= EF_FLAG2;
-      bolt->s.effects |= EF_COLOR_SHELL;
-      bolt->s.renderfx |= RF_SHELL_BLUE;
+   bolt->s.effects |= EF_COLOR_SHELL;
+   bolt->s.renderfx |= RF_SHELL_BLUE;
 	VectorClear (bolt->mins);
 	VectorClear (bolt->maxs);
 	bolt->s.modelindex = gi.modelindex ("models/objects/laser/tris.md2");
 	bolt->s.sound = gi.soundindex ("misc/lasfly.wav");
 	bolt->owner = self;
 	bolt->touch = freezer_touch;
-	bolt->nextthink = level.time + 2;
+	bolt->nextthink = level.time + 8000/speed;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
 	gi.linkentity (bolt);

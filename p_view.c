@@ -1,13 +1,12 @@
 
 #include "g_local.h"
 #include "m_player.h"
+
 // JDB: Define variables for lowlight vision effect 4/4/98
  #define LLV_R 0.0
 #define LLV_G 0.7
 #define LLV_B 0.0
 #define LLV_A 0.7
-
-
 
 static	edict_t		*current_player;
 static	gclient_t	*current_client;
@@ -472,34 +471,51 @@ void SV_CalcBlend (edict_t *ent)
 		SV_AddBlend (0.0, 0.1, 0.05, 0.6, ent->client->ps.blend);
 	else if (contents & CONTENTS_WATER)
 		SV_AddBlend (0.5, 0.3, 0.2, 0.4, ent->client->ps.blend);
-if (ent->client->lowlight)
- SV_AddBlend (LLV_R, LLV_G, LLV_B, LLV_A, ent->client->ps.blend);
+	
+	// add for lowlight
+	if (ent->client->lowlight)
+		SV_AddBlend (LLV_R, LLV_G, LLV_B, LLV_A, ent->client->ps.blend);
 
+	// add for frozen
+	if (ent->frozen)
+	{
+		// Strong blue color, but it fades in the last second.
+		float b = ent->frozentime - level.time;
+		if (b > 1.0)
+			b = 1.0;
+		SV_AddBlend (0.0, 0.0, b, 0.5, ent->client->ps.blend);
+	}
 
 	// add for powerups
 
-  /*ATTILA begin*/
-  if ( Jet_Active(ent) )  
-{    
-/*GOD -> dont burn out*/
-    if ( ent->flags & FL_GODMODE )
-      if ( (ent->client->Jet_framenum - level.framenum) <= 100 )
-        ent->client->Jet_framenum = level.framenum + 700;
-    /*update the fuel time*/
-    ent->client->Jet_remaining = ent->client->Jet_framenum - level.framenum;
-    /*if no fuel remaining, remove jetpack from inventory*/ 
-    if ( ent->client->Jet_remaining == 0 )
-      ent->client->pers.inventory[ITEM_INDEX(&gI_item_jetpack)] = 0;
-    /*Play jetting sound every 0.6 secs (sound of monster icarus)*/
-    if ( ((int)ent->client->Jet_remaining % 6) == 0 )
-      gi.sound (ent, CHAN_AUTO, gi.soundindex("hover/hovidle1.wav"), 0.9, ATTN_NORM, 0);
-    /*beginning to fade if 4 secs or less*/
-    if (ent->client->Jet_remaining <= 40)      
-/*play on/off sound every sec*/
-      if ( ((int)ent->client->Jet_remaining % 10) == 0 )
-        gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
-    if (ent->client->Jet_remaining > 40 || ( (int)ent->client->Jet_remaining & 4) )
-      SV_AddBlend (0, 0, 1, 0.08, ent->client->ps.blend);  }  else
+	/*ATTILA begin*/
+	if ( Jet_Active(ent) )  
+	{    
+	/*GOD -> dont burn out*/
+	if ( ent->flags & FL_GODMODE )
+		if ( (ent->client->Jet_framenum - level.framenum) <= 100 )
+			ent->client->Jet_framenum = level.framenum + 700;
+
+	/*update the fuel time*/
+	ent->client->Jet_remaining = ent->client->Jet_framenum - level.framenum;
+
+	/*if no fuel remaining, remove jetpack from inventory*/ 
+	if ( ent->client->Jet_remaining == 0 )
+		ent->client->pers.inventory[ITEM_INDEX(&gI_item_jetpack)] = 0;
+
+	/*Play jetting sound every 0.6 secs (sound of monster icarus)*/
+	if ( ((int)ent->client->Jet_remaining % 6) == 0 )
+		gi.sound (ent, CHAN_AUTO, gi.soundindex("hover/hovidle1.wav"), 0.9, ATTN_NORM, 0);
+	
+	/*beginning to fade if 4 secs or less*/
+	if (ent->client->Jet_remaining <= 40)      
+	/*play on/off sound every sec*/
+		if ( ((int)ent->client->Jet_remaining % 10) == 0 )
+			gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
+	if (ent->client->Jet_remaining > 40 || ( (int)ent->client->Jet_remaining & 4) )
+		SV_AddBlend (0, 0, 1, 0.08, ent->client->ps.blend);
+	}
+	else
   /*ATTILA end*/
 
 	if (ent->client->quad_framenum > level.framenum)
@@ -510,17 +526,18 @@ if (ent->client->lowlight)
 		if (remaining > 30 || (remaining & 4) )
 			SV_AddBlend (0, 0, 1, 0.08, ent->client->ps.blend);
 	}
-/* Wonderslug make screen go colored */ 
-else if (ent->client->kamikaze_framenum > level.framenum)
-{
- remaining = ent->client->kamikaze_framenum - level.framenum;
- ent->client->kamikaze_timeleft = remaining;
- if (remaining == 30)
- gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect2.wav"), 1, ATTN_NORM, 0);
- if (remaining > 30 || (remaining & 4))
- SV_AddBlend (0, 0, 1, 0.08, ent->client->ps.blend);
- }
- /* Wonderslug End */
+
+	/* Wonderslug make screen go colored */ 
+	else if (ent->client->kamikaze_framenum > level.framenum)
+	{
+		remaining = ent->client->kamikaze_framenum - level.framenum;
+		ent->client->kamikaze_timeleft = remaining;
+		if (remaining == 30)
+		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect2.wav"), 1, ATTN_NORM, 0);
+		if (remaining > 30 || (remaining & 4))
+		SV_AddBlend (0, 0, 1, 0.08, ent->client->ps.blend);
+	}
+	/* Wonderslug End */
 
 	else if (ent->client->invincible_framenum > level.framenum)
 	{
@@ -841,31 +858,42 @@ void G_SetClientEffects (edict_t *ent)
 		}
 	}
 
-	if (ent->client->quad_framenum > level.framenum)
+	if (ent->client->quad_framenum > level.framenum
+//ZOID
+		&& (level.framenum & 8)
+//ZOID
+		)
 	{
 		remaining = ent->client->quad_framenum - level.framenum;
 		if (remaining > 30 || (remaining & 4) )
 			ent->s.effects |= EF_QUAD;
 	}
 
-	if (ent->client->invincible_framenum > level.framenum)
+	if (ent->client->invincible_framenum > level.framenum
+//ZOID
+		&& (level.framenum & 8)
+//ZOID
+	)
 	{
 		remaining = ent->client->invincible_framenum - level.framenum;
 		if (remaining > 30 || (remaining & 4) )
 			ent->s.effects |= EF_PENT;
 	}
 
-      // show cheaters!!! and Kamikazes!!!
+	// show cheaters!!! and Kamikazes!!!
+	if ((ent->flags & FL_GODMODE) || (ent->client->kamikaze_mode & 1))
+	{
+		ent->s.effects |= EF_COLOR_SHELL;
+		ent->s.renderfx |= (RF_SHELL_RED|RF_SHELL_GREEN|RF_SHELL_BLUE);
+	}
 
-        if ((ent->flags & FL_GODMODE) || (ent->client->kamikaze_mode & 1))
-
-          {
-
-              ent->s.effects |= EF_COLOR_SHELL;
-
-                  ent->s.renderfx |= (RF_SHELL_RED|RF_SHELL_GREEN|RF_SHELL_BLUE);
-
-                    }
+	// show frozen people
+	else if (ent->frozen)
+	{
+      ent->s.effects |= EF_COLOR_SHELL;
+      ent->s.renderfx |= RF_SHELL_BLUE;
+		ent->s.effects |= EF_FLAG2;
+	}
 }
 
 
@@ -1142,7 +1170,25 @@ void ClientEndServerFrame (edict_t *ent)
 	// should be determined by the client
 	SV_CalcBlend (ent);
 
-	G_SetStats (ent);
+//ZOID
+	if (!ent->client->chase_target)
+//ZOID
+		G_SetStats (ent);
+
+//ZOID
+	//update chasecam follower stats
+	for (i = 1; i <= maxclients->value; i++)
+	{
+		edict_t *e = g_edicts + i;
+		if (!ent->inuse
+		|| e->client->chase_target != ent)
+			continue;
+		memcpy (e->client->ps.stats, 
+			ent->client->ps.stats, 
+			sizeof(ent->client->ps.stats));
+		e->client->ps.stats[STAT_LAYOUTS] = 1;
+	}
+//ZOID
 
 	G_SetClientEvent (ent);
 
@@ -1162,14 +1208,19 @@ void ClientEndServerFrame (edict_t *ent)
 	// if the scoreboard is up, update it
 	if (deathmatch->value)
 	{
-		if ((ent->client->showscores && !(level.framenum & 31))
+		if (ent->client->showscores && ent->client->menu
+		&& !(level.framenum & 31))
+		{
+			PMenu_Update (ent);
+			gi.unicast (ent, false);
+		}
+		else if ((ent->client->showscores && !(level.framenum & 31))
 		|| (ent->client->pers.scanner_active && !(level.framenum & SCANNER_UPDATE_FREQ))
 		|| (ent->client->pers.scanner_active & 2))
 		{ 
 			DeathmatchScoreboardMessage (ent, ent->enemy);
-			gi.unicast (ent, false);
-			// added ... 
 			ent->client->pers.scanner_active &= ~2;
+			gi.unicast (ent, false);
 		}
 	}
 

@@ -1,6 +1,11 @@
-This server is running:
-Weapons of Destruction 5.4a
-----
+This server is running
+Weapons of Destruction v6.03.
+
+There are lots of new weapons. Once you
+pick up a weapon, press its number again
+to see (in most cases) a new one. Keep
+pressing G to see all the new grenade
+types.  Also see your inventory.
+
+Official WoD home page:
 http://www.telefragged.com/weapons/
-go to www.telefragged.com/weapons/ to see
-a list of commands

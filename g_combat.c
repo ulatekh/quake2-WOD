@@ -15,9 +15,6 @@ qboolean CanDamage (edict_t *targ, edict_t *inflictor)
 	vec3_t	dest;
 	trace_t	trace;
 
-	if( targ->frozen )
-		return false;
-
 	// bmodels need special checking because their origin is 0,0,0
 	if (targ->movetype == MOVETYPE_PUSH)
 	{
@@ -213,7 +210,7 @@ static int CheckPowerArmor (edict_t *ent, vec3_t point, vec3_t normal, int damag
 	}
 	else
 	{
-		damagePerCell = 2;
+		damagePerCell = 1; // power armor is weaker in CTF
 		pa_te_type = TE_SHIELD_SPARKS;
 		damage = (2 * damage) / 3;
 	}
@@ -297,6 +294,8 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker)
 	// if attacker is a client, get mad at them because he's good and we're not
 	if (attacker->client)
 	{
+		targ->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
+
 		// this can only happen in coop (both new and old enemies are clients)
 		// only switch if can't see the current enemy
 		if (targ->enemy && targ->enemy->client)
@@ -323,19 +322,26 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker)
 		 (strcmp(attacker->classname, "monster_makron") != 0) &&
 		 (strcmp(attacker->classname, "monster_jorg") != 0) )
 	{
-		if (targ->enemy)
-			if (targ->enemy->client)
-				targ->oldenemy = targ->enemy;
+		if (targ->enemy && targ->enemy->client)
+			targ->oldenemy = targ->enemy;
 		targ->enemy = attacker;
 		if (!(targ->monsterinfo.aiflags & AI_DUCKED))
 			FoundTarget (targ);
 	}
-	else
-	// otherwise get mad at whoever they are mad at (help our buddy)
+	// if they *meant* to shoot us, then shoot back
+	else if (attacker->enemy == targ)
 	{
-		if (targ->enemy)
-			if (targ->enemy->client)
-				targ->oldenemy = targ->enemy;
+		if (targ->enemy && targ->enemy->client)
+			targ->oldenemy = targ->enemy;
+		targ->enemy = attacker;
+		if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+			FoundTarget (targ);
+	}
+	// otherwise get mad at whoever they are mad at (help our buddy) unless it is us!
+	else if (attacker->enemy && attacker->enemy != targ)
+	{
+		if (targ->enemy && targ->enemy->client)
+			targ->oldenemy = targ->enemy;
 		targ->enemy = attacker->enemy;
 		if (!(targ->monsterinfo.aiflags & AI_DUCKED))
 			FoundTarget (targ);
@@ -344,8 +350,13 @@ void M_ReactToDamage (edict_t *targ, edict_t *attacker)
 
 qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker)
 {
-		//FIXME make the next line real and uncomment this block
-		// if ((ability to damage a teammate == OFF) && (targ's team == attacker's team))
+//ZOID
+	if (ctf->value && targ->client && attacker->client)
+		if (targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
+			targ != attacker)
+			return true;
+//ZOID
+
 	return false;
 }
 
@@ -366,14 +377,20 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	// friendly fire avoidance
 	// if enabled you can't hurt teammates (but you can hurt yourself)
 	// knockback still occurs
-	if ((targ != attacker) && ((deathmatch->value && ((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))) || coop->value))
+	if (targ != attacker)
 	{
-		if (OnSameTeam (targ, attacker))
+		if (coop->value
+			|| (deathmatch->value
+				&& (((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))
+					|| ctf->value)))
 		{
-			if ((int)(dmflags->value) & DF_NO_FRIENDLY_FIRE)
-				damage = 0;
-			else
-				mod |= MOD_FRIENDLY_FIRE;
+			if (OnSameTeam (targ, attacker))
+			{
+				if ((int)(dmflags->value) & DF_NO_FRIENDLY_FIRE)
+					damage = 0;
+				else
+					mod |= MOD_FRIENDLY_FIRE;
+			}
 		}
 	}
 	meansOfDeath = mod;
@@ -447,11 +464,21 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 		save = damage;
 	}
 
-	psave = CheckPowerArmor (targ, point, normal, take, dflags);
-	take -= psave;
+	//team armor protect
+	if (ctf->value && targ->client && attacker->client &&
+		targ->client->resp.ctf_team == attacker->client->resp.ctf_team &&
+		targ != attacker && ((int)dmflags->value & DF_ARMOR_PROTECT))
+	{
+		psave = asave = 0;
+	}
+	else
+	{
+		psave = CheckPowerArmor (targ, point, normal, take, dflags);
+		take -= psave;
 
-	asave = CheckArmor (targ, point, normal, take, te_sparks, dflags);
-	take -= asave;
+		asave = CheckArmor (targ, point, normal, take, te_sparks, dflags);
+		take -= asave;
+	}
 
 	//treat cheat/powerup savings the same as armor
 	asave += save;

@@ -312,13 +312,20 @@ void M_droptofloor (edict_t *ent)
 
 void M_SetEffects (edict_t *ent)
 {
-	ent->s.effects &= ~(EF_COLOR_SHELL|EF_POWERSCREEN);
+	ent->s.effects &= ~(EF_COLOR_SHELL|EF_POWERSCREEN|EF_FLAG2);
 	ent->s.renderfx &= ~(RF_SHELL_RED|RF_SHELL_GREEN|RF_SHELL_BLUE);
 
 	if (ent->monsterinfo.aiflags & AI_RESURRECTING)
 	{
 		ent->s.effects |= EF_COLOR_SHELL;
 		ent->s.renderfx |= RF_SHELL_RED;
+	}
+
+	if (ent->frozen)
+	{
+      ent->s.effects |= EF_COLOR_SHELL;
+      ent->s.renderfx |= RF_SHELL_BLUE;
+		ent->s.effects |= EF_FLAG2;
 	}
 
 	if (ent->health <= 0)
@@ -345,16 +352,6 @@ void M_MoveFrame (edict_t *self)
 	int		index;
 
 	move = self->monsterinfo.currentmove;
-
-	// frozen code begin	
-	if (self->frozen)
-	{
-		self->nextthink = level.time + 70*FRAMETIME;
-		self->frozen = 0;
-	}
-	else
- 	      self->nextthink = level.time + FRAMETIME;
-	// frozen code end
 
 	if ((self->monsterinfo.nextframe) && (self->monsterinfo.nextframe >= move->firstframe) && (self->monsterinfo.nextframe <= move->lastframe))
 	{
@@ -408,7 +405,12 @@ void M_MoveFrame (edict_t *self)
 
 void monster_think (edict_t *self)
 {
-	M_MoveFrame (self);
+	if (self->frozen && level.time >= self->frozentime)
+		self->frozen = 0;
+
+	if (!self->frozen)
+		M_MoveFrame (self);
+
 	if (self->linkcount != self->monsterinfo.linkcount)
 	{
 		self->monsterinfo.linkcount = self->linkcount;
@@ -417,6 +419,8 @@ void monster_think (edict_t *self)
 	M_CatagorizePosition (self);
 	M_WorldEffects (self);
 	M_SetEffects (self);
+
+	self->nextthink = level.time + FRAMETIME;
 }
 
 

@@ -168,21 +168,7 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, struct cplane_s *plane);
 float	anglemod(float a);
 float LerpAngle (float a1, float a2, float frac);
 
-#define BOX_ON_PLANE_SIDE(emins, emaxs, p)	\
-	(((p)->type < 3)?						\
-	(										\
-		((p)->dist <= (emins)[(p)->type])?	\
-			1								\
-		:									\
-		(									\
-			((p)->dist >= (emaxs)[(p)->type])?\
-				2							\
-			:								\
-				3							\
-		)									\
-	)										\
-	:										\
-		BoxOnPlaneSide( (emins), (emaxs), (p)))
+#define BOX_ON_PLANE_SIDE(emins, emaxs, p) (((p)->type < 3)?(((p)->dist <= (emins)[(p)->type])?1:(((p)->dist >= (emaxs)[(p)->type])?2:3)):BoxOnPlaneSide( (emins), (emaxs), (p)))
 
 void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal );
 void PerpendicularVector( vec3_t dst, const vec3_t src );
@@ -840,22 +826,22 @@ typedef enum
 
 
 // dmflags->value flags
-#define	DF_NO_HEALTH		1
-#define	DF_NO_ITEMS			2
-#define	DF_WEAPONS_STAY		4
-#define	DF_NO_FALLING		8
-#define	DF_INSTANT_ITEMS	16
-#define	DF_SAME_LEVEL		32
-#define DF_SKINTEAMS		64
-#define DF_MODELTEAMS		128
+#define DF_NO_HEALTH				1
+#define DF_NO_ITEMS				2
+#define DF_WEAPONS_STAY			4
+#define DF_NO_FALLING			8
+#define DF_INSTANT_ITEMS		16
+#define DF_SAME_LEVEL			32
+#define DF_SKINTEAMS				64
+#define DF_MODELTEAMS			128
 #define DF_NO_FRIENDLY_FIRE	256
-#define	DF_SPAWN_FARTHEST	512
-#define DF_FORCE_RESPAWN	1024
-#define DF_NO_ARMOR			2048
-#define DF_ALLOW_EXIT		4096
-#define DF_INFINITE_AMMO	8192
-#define DF_QUAD_DROP		16384
-#define DF_FIXED_FOV		32768
+#define DF_SPAWN_FARTHEST		512
+#define DF_FORCE_RESPAWN		1024
+#define DF_NO_ARMOR				2048
+#define DF_ALLOW_EXIT			4096
+#define DF_INFINITE_AMMO		8192
+#define DF_QUAD_DROP				16384
+#define DF_FIXED_FOV				32768
 
 /*
 ==========================================================
@@ -908,7 +894,8 @@ typedef enum
 	EV_FALLSHORT,
 	EV_FALL,
 	EV_FALLFAR,
-	EV_PLAYER_TELEPORT
+	EV_PLAYER_TELEPORT,
+	EV_OTHER_TELEPORT
 } entity_event_t;
 
 
