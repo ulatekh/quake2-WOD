@@ -183,6 +183,7 @@ void ShowGun(edict_t *ent)
 
 	if(!ent->client->pers.weapon)
 	{
+		ent->client->ps.gunindex = 0;		// WI: seems to be missing...?
 		ent->s.modelindex2 = 0;
 		return;
 	}
@@ -279,20 +280,20 @@ void NoAmmoWeaponChange (edict_t *ent)
 		ent->client->newweapon = &gI_weapon_machinegun;
 	}
 
-	// Standard machinegun
-	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_machine.ammo)]
-		>= gI_weapon_machine.quantity
-	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)])
-	{
-		ent->client->newweapon = &gI_weapon_machine;
-	}
-
 	// Chaingun
 	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_chaingun.ammo)]
-		>= gI_weapon_chaingun.quantity * 5
+		>= gI_weapon_chaingun.quantity * 20
 	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)])
 	{
 		ent->client->newweapon = &gI_weapon_chaingun;
+	}
+
+	// Standard machinegun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_machine.ammo)]
+		>= gI_weapon_machine.quantity * 5
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)])
+	{
+		ent->client->newweapon = &gI_weapon_machine;
 	}
 
 	// Super shotgun
@@ -719,7 +720,9 @@ void Cmd_UseGrenades_f (edict_t *ent, gitem_t *it)
 
 		// First, switch.
 		ent->client->dM_grenade += 1;
-		if(ent->client->dM_grenade > 6)
+		if (ent->client->dM_grenade > 6)
+			ent->client->dM_grenade = 0;
+		if (!(allow_cataclysm->value) && ent->client->dM_grenade > 5)
 			ent->client->dM_grenade = 0;
 
 		// Find out what kind of grenade we're at.
@@ -961,6 +964,13 @@ void Weapon_Grenade (edict_t *ent)
 
 void Use_GrenadeWeapon (edict_t *ent, gitem_t *item)
 {
+	// Don't let them use the cataclysm grenade if they're not allowed.
+	if (!(allow_cataclysm->value) && item == &gI_weapon_cataclysm)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Cataclysm grenades have been turned off.\n");
+		return;
+	}
+
 	// First, see if we can use this special grenade type.
 	Use_Weapon (ent, item);
 
@@ -1032,7 +1042,8 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_GrenadeLauncher (edict_t *ent)
@@ -1088,7 +1099,8 @@ void Weapon_RocketLauncher_Fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_RocketLauncher (edict_t *ent)
@@ -1325,7 +1337,7 @@ void Weapon_HyperBlaster_Fire (edict_t *ent)
 
 			Blaster_Fire (ent, offset, damage, true, effect);
 
-			if (!ent->deadflag)
+			if (!ent->deadflag && ent->s.modelindex == 255)
 			{
 				// ### Hentai ### BEGIN
 
@@ -1472,11 +1484,12 @@ void Machine_Fire (edict_t *ent)
 			gi.multicast (ent->s.origin, MULTICAST_PVS);
 			PlayerNoise(ent, start, PNOISE_WEAPON);
 			if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-				ent->client->pers.inventory[ent->client->ammo_index]--;
+				ent->client->pers.inventory[ent->client->ammo_index]
+					-= ent->client->pers.weapon->quantity;
 			break;
 	}
 
-	if (!ent->deadflag)
+	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
 		// ### Hentai ### BEGIN
 
@@ -1573,7 +1586,8 @@ void Machinegun_Fire (edict_t *ent)
 	}
 
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index] -= 2;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_Machinegun (edict_t *ent)
@@ -1629,7 +1643,7 @@ void Chaingun_Fire (edict_t *ent)
 		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
 	}
 
-	if (!ent->deadflag)
+	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
 		// ### Hentai ### BEGIN
 
@@ -1706,7 +1720,7 @@ void Chaingun_Fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (!ent->deadflag)
+	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
 		// ### Hentai ### BEGIN
 
@@ -1815,7 +1829,7 @@ void weapon_streetsweeper_fire (edict_t *ent)
 		ent->client->ps.gunframe++;
 	}
 
-	if (!ent->deadflag)
+	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
 		// ### Hentai ### BEGIN
 
@@ -1847,7 +1861,7 @@ void weapon_streetsweeper_fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (!ent->deadflag)
+	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
 		// ### Hentai ### BEGIN
 
@@ -1933,7 +1947,8 @@ void weapon_shotgun_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_Shotgun (edict_t *ent)
@@ -1987,7 +2002,8 @@ void weapon_supershotgun_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index] -= 2;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_SuperShotgun (edict_t *ent)
@@ -2049,7 +2065,8 @@ void Weapon_Sniper_Fire (edict_t *ent)
 	Sniper_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
 	ent->client->ps.gunframe++;
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_Sniper (edict_t *ent)
@@ -2086,7 +2103,14 @@ void Plasma_Fire (edict_t *ent, vec3_t g_offset, int damage,
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
 
+#if 1
 	fire_plasma (ent, start, forward, damage, 1200, effect);
+#else
+	{
+		void fire_bolt (edict_t *ent, vec3_t start, vec3_t forward, int damage);
+		fire_bolt (ent, start, forward, damage);
+	}
+#endif
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -2112,7 +2136,8 @@ void Weapon_Plasma_Fire (edict_t *ent)
 	Plasma_Fire (ent, vec3_origin, damage, false, EF_BFG);
 	ent->client->ps.gunframe++;
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_Plasma (edict_t *ent)
@@ -2340,7 +2365,8 @@ void weapon_bfg_fire (edict_t *ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index] -= 50;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_BFG (edict_t *ent)
@@ -2402,7 +2428,8 @@ void Weapon_Freezer_Fire (edict_t *ent)
 	Freezer_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
 	ent->client->ps.gunframe++;
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
-		ent->client->pers.inventory[ent->client->ammo_index] -= 10;
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_Freezer (edict_t *ent)

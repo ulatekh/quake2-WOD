@@ -235,9 +235,18 @@ if (ent -> client -> showscores)
 		}
 
 		// send the layout
+#if 1
 		Com_sprintf (entry, sizeof(entry),
 			"client %i %i %i %i %i %i ",
 			x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe)/600);
+#else
+		// Oh well, this doesn't work as well as I hoped it would.
+		Com_sprintf (entry, sizeof(entry),
+			"client %i %i %i %i %i %03i ",
+			x, y, sorted[i], cl->resp.score, cl->ping,
+				((level.framenum - cl->resp.enterframe) / 600) * 100 +
+				((level.framenum - cl->resp.enterframe) / 10) % 60);
+#endif
 		j = strlen(entry);
 		if (stringlength + j > 1024)
 			break;

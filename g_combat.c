@@ -14,11 +14,11 @@ qboolean CanDamage (edict_t *targ, edict_t *inflictor)
 {
 	vec3_t	dest;
 	trace_t	trace;
+
 	if( targ->frozen )
 		return false;
 
-
-// bmodels need special checking because their origin is 0,0,0
+	// bmodels need special checking because their origin is 0,0,0
 	if (targ->movetype == MOVETYPE_PUSH)
 	{
 		VectorAdd (targ->absmin, targ->absmax, dest);
@@ -532,11 +532,11 @@ void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_
 			continue;
 		if (!ent->takedamage)
 			continue;
-// frozen code begin
-		if (ent->frozen ) 
-			continue;
-// frozen code end
 
+		// frozen code begin
+		if (ent->frozen) 
+			continue;
+		// frozen code end
 
 		VectorAdd (ent->mins, ent->maxs, v);
 		VectorMA (ent->s.origin, 0.5, v, v);

@@ -910,6 +910,9 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex("#w_bfg.md2");
 	gi.modelindex("#w_grapple.md2");
 
+	// Load in the fire.
+	//gi.modelindex ("fire.md2");
+
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
 //

@@ -44,12 +44,21 @@ openmaplist:
 	for (i = 0; i < offset; i++)
 	{
 		res_cp = fgets (buffer, sizeof (buffer), in);
-		if (res_cp == NULL && feof (in))
+		if (res_cp == NULL)
 		{
-			// End of file.  Loop back.
-			offset = 1;
-			fclose (in);
-			goto openmaplist;
+			// End-of-file errors are OK.
+			if (feof (in))
+			{
+				// End of file.  Loop back.
+				offset = 1;
+				fclose (in);
+				goto openmaplist;
+			}
+
+			// Other errors are not.
+			gi.dprintf ("No maplist -- error reading ./%s/maplist.txt\n",
+				gamedir->string);
+			return false;
 		}
 	}
 

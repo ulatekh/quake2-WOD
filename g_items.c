@@ -218,7 +218,9 @@ qboolean Pickup_Powerup (edict_t *ent, edict_t *other)
 	{
 		if (!(ent->spawnflags & DROPPED_ITEM) )
 			SetRespawn (ent, ent->item->quantity);
-		if (((int)dmflags->value & DF_INSTANT_ITEMS) || ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM)))
+		if (((int)dmflags->value & DF_INSTANT_ITEMS)
+		|| ((ent->item->use == Use_Quad)
+			&& (ent->spawnflags & DROPPED_PLAYER_ITEM)))
 		{
 			if ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))
 				quad_drop_timeout_hack = (ent->nextthink - level.time) / FRAMETIME;
@@ -504,7 +506,17 @@ qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count)
 	else if (item->tag == AMMO_ROCKETS)
 		max = ent->client->pers.max_rockets;
 	else if (item->tag == AMMO_GRENADES)
+	{
 		max = ent->client->pers.max_grenades;
+
+		// Make sure they have the "launcher" for all the different types.
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_clustergrenade)] = 1;
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railbomb)] = 1;
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasmagrenade)] = 1;
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_napalmgrenade)] = 1;
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_shrapnelgrenade)] = 1;
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_cataclysm)] = 1;
+	}
 	else if (item->tag == AMMO_CELLS)
 		max = ent->client->pers.max_cells;
 	else if (item->tag == AMMO_SLUGS)
@@ -530,18 +542,6 @@ qboolean Pickup_Ammo (edict_t *ent, edict_t *other)
 	int			oldcount;
 	int			count;
 	qboolean	weapon;
-
-	// If they picked up grenades, make sure they have the "launcher" for all
-	// the different types.
-	if (ent->item == &gI_ammo_grenades)
-	{
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_clustergrenade)] = 1;
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_railbomb)] = 1;
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasmagrenade)] = 1;
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_napalmgrenade)] = 1;
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_shrapnelgrenade)] = 1;
-		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_cataclysm)] = 1;
-	}
 
 	weapon = (ent->item->flags & IT_WEAPON);
 	if ( (weapon) && ( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -1471,7 +1471,7 @@ gitem_t gI_weapon_freezer =
 	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
 	NULL,
 	0,
-/* precache */ "weapons/blastf1a.wav misc/lasfly.wav"
+/* precache */ "weapons/blastf1a.wav misc/lasfly.wav sound/weapons/frozen.wav"
 };
 
 /*QUAKED weapon_chaingun (.3 .3 1) (-16 -16 -16) (16 16 16)
@@ -1884,7 +1884,7 @@ gitem_t gI_weapon_sniper =
 /* icon */		"w_railgun",
 /* pickup */	"Sniper Gun",
 	0,
-	2,
+	5,
 	&gI_ammo_shells,
 	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
 	NULL,

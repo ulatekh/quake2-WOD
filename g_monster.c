@@ -523,7 +523,7 @@ void monster_death_use (edict_t *self)
 
 qboolean monster_start (edict_t *self)
 {
-	if (deathmatch->value)
+	if (deathmatch->value && strcmp (self->classname, "decoy") != 0)
 	{
 		G_FreeEdict (self);
 		return false;

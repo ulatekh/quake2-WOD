@@ -60,6 +60,11 @@ void ReadLevel (char *filename);
 void InitGame (void);
 void G_RunFrame (void);
 
+// HACK
+int HACK_modelindex (char *name);
+int (*oldmodelindex) (char *name);
+void HACK_SpawnEntities (char *mapname, char *entities, char *spawnpoint);
+
 
 //===================================================================
 
@@ -85,10 +90,14 @@ game_export_t *GetGameAPI (game_import_t *import)
 {
 	gi = *import;
 
+	// HACK
+	oldmodelindex = gi.modelindex;
+	gi.modelindex = HACK_modelindex;
+
 	globals.apiversion = GAME_API_VERSION;
 	globals.Init = InitGame;
 	globals.Shutdown = ShutdownGame;
-	globals.SpawnEntities = SpawnEntities;
+	globals.SpawnEntities = HACK_SpawnEntities;
 
 	globals.WriteGame = WriteGame;
 	globals.ReadGame = ReadGame;
@@ -351,3 +360,33 @@ void G_RunFrame (void)
 	ClientEndServerFrames ();
 }
 
+// HACK
+char modelSeen[256];
+int
+HACK_modelindex (char *name)
+{
+	int result;
+
+	// First, get the result of gi.modelindex().
+	result = oldmodelindex (name);
+
+	// If this model hasn't been seen before, report it & its number.
+	if (!modelSeen[result])
+	{
+		modelSeen[result] = true;
+		gi.dprintf ("modelindex %d allocated to %s\n", result, name);
+	}
+
+	// Return the model index.
+	return result;
+}
+
+void
+HACK_SpawnEntities (char *mapname, char *entities, char *spawnpoint)
+{
+	// Clear modelSeen[]
+	memset (modelSeen, 0, sizeof (modelSeen));
+
+	// Proceed.
+	SpawnEntities (mapname, entities, spawnpoint);
+}

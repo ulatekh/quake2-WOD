@@ -383,6 +383,14 @@ Cmd_Third_f
 */
 void Cmd_Third_f (edict_t *ent)
 {
+	if (ent->deadflag)
+		return;
+
+	// The chasecam either needs to be reconciled with VWep, or all the
+	// chasecam code needs to be replaced with something better.
+	gi.cprintf (ent, PRINT_HIGH, "ChaseCam removed for debugging. Sorry.\n");
+	return;
+
    if (ent->movetype == MOVETYPE_NOCLIP)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Can't be in Chasecam Mode and noclip!\n");
@@ -393,16 +401,13 @@ void Cmd_Third_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Can't activate Chasecam Mode when in a solid!\n");
 		return;
 	}
-	else if (ent->deadflag)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "You're dead!\n");
-		return;
-	}
 	else
 	{
 		ent->thirdperson = 1 - ent->thirdperson;
-		if (ent->thirdperson) ThirdBegin(ent);
-		else ThirdEnd(ent);
+		if (ent->thirdperson)
+			ThirdBegin(ent);
+		else
+			ThirdEnd(ent);
 	}
 }
 /*
@@ -886,14 +891,17 @@ void Cmd_Push_f (edict_t *ent)
 	vec3_t	end;
 	trace_t	tr;
 
-	VectorCopy(ent->s.origin, start);
+	VectorCopy (ent->s.origin, start);
 	start[2] += ent->viewheight;
-	AngleVectors(ent->client->v_angle, forward, NULL, NULL);
-	VectorMA(start, 8192, forward, end);
-	tr = gi.trace(start, NULL, NULL, end, ent, MASK_SHOT);
-	if ( tr.ent && ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client)) )
+	AngleVectors (ent->client->v_angle, forward, NULL, NULL);
+	VectorMA (start, 8192, forward, end);
+	tr = gi.trace (start, NULL, NULL, end, ent, MASK_SHOT);
+	if (tr.ent
+	&& ((tr.ent->svflags & SVF_MONSTER)
+		/* || (tr.ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)) */
+		|| (tr.ent->client)))
 	{
-		VectorScale(forward, 5000, forward);
+		VectorScale (forward, 2500, forward);
 		VectorAdd(forward, tr.ent->velocity, tr.ent->velocity);
 	}
 }
@@ -915,10 +923,13 @@ void Cmd_Pull_f (edict_t *ent)
 	AngleVectors(ent->client->v_angle, forward, NULL, NULL);
 	VectorMA(start, 8192, forward, end);
 	tr = gi.trace(start, NULL, NULL, end, ent, MASK_SHOT);
-	if ( tr.ent && ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client)) )
+	if (tr.ent
+	&& ((tr.ent->svflags & SVF_MONSTER)
+		/* || (tr.ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)) */
+		|| (tr.ent->client)))
 	{
-		VectorScale(forward, -5000, forward);
-		VectorAdd(forward, tr.ent->velocity, tr.ent->velocity);
+		VectorScale (forward, -2500, forward);
+		VectorAdd (forward, tr.ent->velocity, tr.ent->velocity);
 	}
 }
 

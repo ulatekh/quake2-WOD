@@ -17,7 +17,7 @@ void ShowScanner(edict_t *ent,char *layout)
 
 	edict_t	*player = g_edicts;
 
-	char	stats[64],
+	char	stats[65],
 			*tag;
 
 	vec3_t	v;

@@ -9,7 +9,7 @@
 #include "game.h"
 
 // the "gameversion" client command will print this plus compile date
-#define	GAMEVERSION	"wod5x"
+#define	GAMEVERSION	"wod6x"
 
 // protocol bytes that can be directly added to messages
 #define	svc_muzzleflash		1
@@ -490,6 +490,7 @@ extern	int	body_armor_index;
 #define MOD_RAILGUN2		52
 #define MOD_FREEZE		53
 #define MOD_STREETSWEEP	54
+#define MOD_BOLTTHROWER	55
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -532,6 +533,8 @@ extern	cvar_t	*bob_roll;
 extern	cvar_t	*sv_cheats;
 extern	cvar_t	*maxclients;
 extern	cvar_t	*gamedir;
+
+extern	cvar_t	*allow_cataclysm;
 
 
 #define world	(&g_edicts[0])

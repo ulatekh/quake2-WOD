@@ -247,6 +247,9 @@ void decoy_sight(edict_t *self, edict_t *other)
 void decoy_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 					 vec3_t point)
 {
+	if (self->deadflag)
+		return;
+
 	// regular death
 	self->deadflag = DEAD_DEAD;
 	self->takedamage = DAMAGE_YES;
@@ -293,7 +296,7 @@ void spawn_decoy (edict_t *owner)
 	self->model = owner->model;
 	self->s.skinnum = owner->s.skinnum;
 	self->s.modelindex = owner->s.modelindex;
-	self->s.modelindex2 = owner->s.modelindex2;
+	self->s.modelindex2 = 0;
 
 	self->s.effects = 0;
 	self->s.frame = 0;
@@ -321,7 +324,8 @@ void spawn_decoy (edict_t *owner)
 	self->monsterinfo.sight = decoy_sight;
 
 	//Dont attack anything to start with
-	self->monsterinfo.aiflags & AI_GOOD_GUY;
+	// (WI: errr, never attack anything?)
+	//self->monsterinfo.aiflags |= AI_GOOD_GUY;
 
 	//Set up sounds
 	sound_idle =    gi.soundindex ("soldier/solidle1.wav");

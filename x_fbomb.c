@@ -239,7 +239,7 @@ void fire_flamerocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int 
 	VectorClear (rocket->maxs);
 	rocket->s.modelindex = gi.modelindex ("models/objects/rocket/tris.md2");
 	rocket->owner = self;
-        rocket->touch = firerocket_touch;
+   rocket->touch = firerocket_touch;
 	rocket->nextthink = level.time + 8000/speed;
 	rocket->think = G_FreeEdict;
 	rocket->dmg = damage;

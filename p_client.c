@@ -236,6 +236,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		case MOD_TRIGGER_HURT:
 			message = "was in the wrong place";
 			break;
+		case MOD_CATA:
+			message = "got nuked";
+			break;
 		}
 		if (attacker == self)
 		{
@@ -278,7 +281,6 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				else
 					message = "detonated himself";
 				break;
-
 			case MOD_PLASMAG:
 				if (IsFemale(self))
 					message = "blew her face off with the plasma grenade";
@@ -311,9 +313,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				break;			
 			case MOD_HOMING:
 				if (IsFemale(self))
-					message = "blew herself up with a homing rocket";
+					message = "was betrayed by her homing rocket";
 				else
-					message = "blew himself up with a homing rocket";
+					message = "was betrayed by his homing rocket";
 				break;
 			case MOD_FGRENADE:
 				if (IsFemale(self))
@@ -344,7 +346,8 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 		}
 		if (message)
 		{
-			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
+			gi.bprintf (PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname,
+				message);
 			if (deathmatch->value)
 				self->client->resp.score--;
 			self->enemy = NULL;
@@ -360,8 +363,12 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message = "was frozen to death by";
 				break;
 			case MOD_PLASMAGUN:
-				message = "was transformed into pure energy by";
+				message = "was atomized by";
 				message2 = "'s plasma rifle";
+				break;
+			case MOD_BOLTTHROWER:
+				message = "was electrocuted by";
+				message2 = "'s bolt thrower";
 				break;
 			case MOD_SNIPER:
 				message = "was sniped by";
@@ -395,14 +402,14 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message2 = "'s super shotgun";
 				break;
 			case MOD_MACHINEGUN:
-				message = "was pounded into a fine mist by";
+				message = "was pounded by";
 				message2 = "'s machine rockets";
 				break;
 			case MOD_MACHINE:
 				message = "was gunned down by";
 				break;
 			case MOD_KAMIKAZE:
-				message = "detonated with";
+				message = "couldn't get away from";
 				break;
 			case MOD_CHAINGUN:
 				message = "was cut in half by";
@@ -446,7 +453,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message = "was railed by";
 				break;
 			case MOD_STREETSWEEP:
-				message = "was turned into dog food by";
+				message = "was creamed by";
 				message2 = "'s streetsweeper";
 				break;
 			case MOD_BFG_LASER:
@@ -468,10 +475,6 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			case MOD_PROXIMITY:
 				message = "was detonated by";
 				message2 = "'s grenades";
-				break;
-			case MOD_CATA:
-				message = "was demolecularized by";
-				message2 = "'s cataclysm grenade";
 				break;
 			case MOD_CLUSTER:
 				message = "was surrounded by";
@@ -622,7 +625,7 @@ void TossClientWeapon (edict_t *self)
 	if (quad)
 	{
 		self->client->v_angle[YAW] += spread;
-		drop = Drop_Item (self, &gI_item_jetpack);	// or &gI_item_quad
+		drop = Drop_Item (self, &gI_item_quad);
 		self->client->v_angle[YAW] -= spread;
 		drop->spawnflags |= DROPPED_PLAYER_ITEM;
 
@@ -672,10 +675,16 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	ClearScanner(self->client);
 
 	Kamikaze_Cancel(self); /* No Kamikaze Now!!*/
-	if (self->thirdperson) ThirdEnd (self);
+
+	if (self->thirdperson)
+		ThirdEnd (self);
 
 	// No grappling hook when you're dead.
 	self->client->hookstate = 0;
+
+	// Remove the lasersight.
+	if (self->lasersight)
+		SP_LaserSight (self);
 
 	VectorClear (self->avelocity);
 

@@ -4,6 +4,8 @@
 
 #include "g_local.h"
 
+cvar_t	*allow_cataclysm;
+
 void BecomeNewExplosion (edict_t *ent);
 
 /*
@@ -78,7 +80,7 @@ void rocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
 	}
 	
 	make_debris (ent);
-	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, MOD_SHRAPNEL);
+	T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, MOD_H_SPLASH);
 	T_ShockItems(ent);
 	T_ShockWave(ent, 255, 1024);
 	BecomeNewExplosion (ent);
@@ -176,7 +178,8 @@ void T_ShockItems (edict_t *inflictor)
 
 	while ((ent = findradius(ent, inflictor->s.origin, radius)) != NULL)
 	{
-		if (ent->item)
+		if (ent->item
+		&& strcmp (ent->classname, "info_player_deathmatch") != 0)
 		{
 			VectorAdd (ent->mins, ent->maxs, v);
 			VectorMA (ent->s.origin, 0.5, v, v);
@@ -191,13 +194,16 @@ void T_ShockItems (edict_t *inflictor)
 			{
 				VectorSubtract (ent->s.origin, inflictor->s.origin, dir);
 				ent->movetype = MOVETYPE_BOUNCE;
+
 				// any problem w/leaving this changed?
 				VectorScale (dir, 3.0 * (float)points / mass, kvel);
 				VectorAdd (ent->velocity, kvel, ent->velocity);
 				VectorAdd (ent->avelocity, 1.5*kvel, ent->avelocity);
+
 				//TODO: check groundentity & lower s.origin to keep objects from sticking to floor?
-				// ERRR... should we be calling linkentity here?
 				ent->velocity[2]+=10;
+
+				gi.linkentity (ent);
 			}
 		}
 	}
@@ -327,10 +333,6 @@ void ThrowShrapnel (edict_t *self, char *modelname, float speed, vec3_t origin)
 
 	chunk->s.effects |= EF_GRENADE;
 
-	// Credit damage done by the shrapnel to the attacker.
-	if (self->owner && self->owner->client)
-		chunk->owner = self->owner;
-
 	gi.linkentity (chunk);
 }
 
@@ -367,10 +369,6 @@ void ThrowShrapnel2 (edict_t *self, char *modelname, float speed, vec3_t origin)
 	chunk->die = misc_die;
 
 	chunk->s.effects |= EF_GRENADE;
-
-	// Credit damage done by the shrapnel to the attacker.
-	if (self->owner && self->owner->client)
-		chunk->owner = self->owner;
 
 	gi.linkentity (chunk);
 }
@@ -409,10 +407,6 @@ void ThrowShrapnel3 (edict_t *self, char *modelname, float speed, vec3_t origin)
 
 	chunk->s.effects |= EF_GRENADE;
 
-	// Credit damage done by the shrapnel to the attacker.
-	if (self->owner && self->owner->client)
-		chunk->owner = self->owner;
-
 	gi.linkentity (chunk);
 }
 
@@ -449,10 +443,6 @@ void ThrowShrapnel4 (edict_t *self, char *modelname, float speed, vec3_t origin)
 	chunk->die = misc_die;
 
 	chunk->s.effects |= EF_GRENADE | EF_ROCKET;
-
-	// Credit damage done by the shrapnel to the attacker.
-	if (self->owner && self->owner->client)
-		chunk->owner = self->owner;
 
 	gi.linkentity (chunk);
 }

@@ -553,6 +553,36 @@ void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 		bolt->touch (bolt, tr.ent, NULL, NULL);
 	}
 }
+
+void fire_bolt (edict_t *self, vec3_t start, vec3_t aimdir, int damage)
+{
+	vec3_t		from;
+	vec3_t		end;
+	trace_t		tr;
+
+	VectorNormalize (aimdir);        
+
+	VectorMA (start, 8192, aimdir, end);
+	VectorCopy (start, from);
+	tr = gi.trace (from, NULL, NULL, end, self, MASK_SHOT|MASK_WATER);
+
+	if ((tr.ent != self) && (tr.ent->takedamage))
+		T_Damage (tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal,
+			damage, 0, 0, MOD_BOLTTHROWER);
+
+	VectorCopy (tr.endpos, from);
+
+	// draw bolt
+	gi.WriteByte (svc_temp_entity);
+	gi.WriteByte (TE_BFG_LASER);
+	gi.WritePosition (start);
+	gi.WritePosition (tr.endpos);
+	gi.multicast (self->s.origin, MULTICAST_PVS);
+
+	if (self->client)
+		PlayerNoise (self, tr.endpos, PNOISE_IMPACT);
+}
+
 //end plasma
 
 /*
@@ -1859,10 +1889,10 @@ void fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 	rocket->touch = rocket_touch;
 //	rocket->nextthink = level.time + 8000/speed;
 //	rocket->think = G_FreeEdict;
-          rocket->homing_lock = 0;
+	rocket->homing_lock = 0;
 
-            rocket->nextthink = level.time + .1;
-            rocket->think = homing_think;
+	rocket->nextthink = level.time + .1;
+	rocket->think = homing_think;
 	rocket->dmg = damage;
 	rocket->radius_dmg = 120;
 	rocket->dmg_radius = 120;
@@ -1879,14 +1909,10 @@ void fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 // same as blaster_touch with some freezing info added
 void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
-//	int playernum;
-
-	char userinfo[MAX_INFO_STRING];
-
-	if (other->svflags & SVF_MONSTER || other->client) {
-
+	if (other->svflags & SVF_MONSTER || other->client)
+	{
 		other->frozen = 1;
-		Info_SetValueForKey( userinfo, "skin", "male/frozen" );
+		// Info_SetValueForKey( userinfo, "skin", "male/frozen" );
 		other->frozentime = level.time + 70*FRAMETIME;
       other->s.effects |= EF_COLOR_SHELL;
       other->s.renderfx |= RF_SHELL_BLUE;
@@ -1903,12 +1929,14 @@ void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 	}
 
 	if (self->owner->client)
-		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
+		PlayerNoise (self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage)
 	{
-		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_ROCKET);
-		gi.sound (self, CHAN_VOICE, gi.soundindex ("weapons/frozen.wav"), 1, ATTN_NORM, 0);
+		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
+			plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_FREEZE);
+		gi.sound (self, CHAN_VOICE, gi.soundindex ("weapons/frozen.wav"), 1,
+			ATTN_NORM, 0);
 		if (self->client)
 			gi.cprintf (self, PRINT_MEDIUM, "You've been frozen!\n");
 	}
