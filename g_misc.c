@@ -108,7 +108,7 @@ void gib_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
 	}
 }
 
-void gib_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+void misc_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
 	G_FreeEdict (self);
 }
@@ -134,7 +134,7 @@ void ThrowGib (edict_t *self, char *gibname, int damage, int type)
 	gib->s.effects |= EF_GIB;
 	gib->flags |= FL_NO_KNOCKBACK;
 	gib->takedamage = DAMAGE_YES;
-	gib->die = gib_die;
+	gib->die = misc_die;
 
 	if (type == GIB_ORGANIC)
 	{
@@ -180,7 +180,7 @@ void ThrowHead (edict_t *self, char *gibname, int damage, int type)
 	self->flags |= FL_NO_KNOCKBACK;
 	self->svflags &= ~SVF_MONSTER;
 	self->takedamage = DAMAGE_YES;
-	self->die = gib_die;
+	self->die = misc_die;
 
 	if (type == GIB_ORGANIC)
 	{
@@ -225,6 +225,7 @@ void ThrowClientHead (edict_t *self, int damage)
 
 	self->s.origin[2] += 32;
 	self->s.frame = 0;
+	self->s.modelindex2 = 0;
 	gi.setmodel (self, gibname);
 	VectorSet (self->mins, -16, -16, 0);
 	VectorSet (self->maxs, 16, 16, 16);
@@ -244,6 +245,9 @@ void ThrowClientHead (edict_t *self, int damage)
 		self->client->anim_priority = ANIM_DEATH;
 		self->client->anim_end = self->s.frame;
 	}
+
+	self->think = G_FreeEdict;
+	self->nextthink = level.time + 60 + random()*60;
 
 	gi.linkentity (self);
 }
@@ -1395,7 +1399,7 @@ void SP_misc_gib_arm (edict_t *ent)
 	ent->solid = SOLID_NOT;
 	ent->s.effects |= EF_GIB;
 	ent->takedamage = DAMAGE_YES;
-	ent->die = gib_die;
+	ent->die = misc_die;
 	ent->movetype = MOVETYPE_TOSS;
 	ent->svflags |= SVF_MONSTER;
 	ent->deadflag = DEAD_DEAD;
@@ -1416,7 +1420,7 @@ void SP_misc_gib_leg (edict_t *ent)
 	ent->solid = SOLID_NOT;
 	ent->s.effects |= EF_GIB;
 	ent->takedamage = DAMAGE_YES;
-	ent->die = gib_die;
+	ent->die = misc_die;
 	ent->movetype = MOVETYPE_TOSS;
 	ent->svflags |= SVF_MONSTER;
 	ent->deadflag = DEAD_DEAD;
@@ -1437,7 +1441,7 @@ void SP_misc_gib_head (edict_t *ent)
 	ent->solid = SOLID_NOT;
 	ent->s.effects |= EF_GIB;
 	ent->takedamage = DAMAGE_YES;
-	ent->die = gib_die;
+	ent->die = misc_die;
 	ent->movetype = MOVETYPE_TOSS;
 	ent->svflags |= SVF_MONSTER;
 	ent->deadflag = DEAD_DEAD;

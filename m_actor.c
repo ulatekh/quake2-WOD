@@ -407,8 +407,6 @@ void SP_misc_actor (edict_t *self)
 {
 	if (deathmatch->value)
 	{
-	if (self->classname == "bot")
-	return;
 		G_FreeEdict (self);
 		return;
 	}

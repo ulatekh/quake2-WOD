@@ -73,9 +73,9 @@ mmove_t decoy_move_stand1 = {FRAME_stand01, FRAME_stand40, decoy_frames_stand1, 
 
 
 void decoy_stand (edict_t *self)
-	{
-    self->monsterinfo.currentmove = &decoy_move_stand1;
-	}
+{
+	self->monsterinfo.currentmove = &decoy_move_stand1;
+}
 
 
 // TAUNT frames
@@ -126,15 +126,12 @@ mframe_t decoy_frames_run [] =
 };
 mmove_t decoy_move_run = {FRAME_run1, FRAME_run6, decoy_frames_run, decoy_run};
 void decoy_run (edict_t *self)
-	{
+{
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-		{
-        self->monsterinfo.currentmove = &decoy_move_stand1;
-		return;
-		}
-
-    self->monsterinfo.currentmove = &decoy_move_run;
-	}
+		self->monsterinfo.currentmove = &decoy_move_stand1;
+	else
+		self->monsterinfo.currentmove = &decoy_move_run;
+}
 
 
 //
@@ -247,13 +244,9 @@ void decoy_sight(edict_t *self, edict_t *other)
 // DEATH sequence
 //
 
-void decoy_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
-	{
-	//	int		n;
-
-	if (self->deadflag == DEAD_DEAD)
-		return;
-
+void decoy_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
+					 vec3_t point)
+{
 	// regular death
 	self->deadflag = DEAD_DEAD;
 	self->takedamage = DAMAGE_YES;
@@ -271,8 +264,7 @@ void decoy_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 	//Remove entity instead of playing death sequence
 	G_FreeEdict (self);
-
-	}
+}
 
 
 //
@@ -280,31 +272,35 @@ void decoy_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 //
 void spawn_decoy (edict_t *owner)
 {
-    edict_t *self;
+	edict_t *self;
 	vec3_t forward;
+
+	// No decoys when you're dead.
+	if (owner->deadflag)
+		return;
 
 	self = G_Spawn();
 
 	// Place decoy 100 units forward of our position
-    AngleVectors(owner->client->v_angle, forward, NULL, NULL);
-    VectorMA(owner->s.origin, 100, forward, self->s.origin);
- 
+	AngleVectors(owner->client->v_angle, forward, NULL, NULL);
+	VectorMA(owner->s.origin, 100, forward, self->s.origin);
+
 	//Link two entities together
-	owner->decoy = self;	//for the owner, this is a pointer to the decoy
+	owner->decoy = self;		//for the owner, this is a pointer to the decoy
 	self->creator = owner;	//for the decoy, this is a pointer to the owner
 
 	//Use same model and skin as the person creating decoy
 	self->model = owner->model;
 	self->s.skinnum = owner->s.skinnum;
 	self->s.modelindex = owner->s.modelindex;
-	self->s.modelindex2 = owner->s.modelindex;
+	self->s.modelindex2 = owner->s.modelindex2;
 
 	self->s.effects = 0;
 	self->s.frame = 0;
 	self->classname = "decoy";
 	self->health = 20;
 	self->max_health = 20;
-	
+
 	self->monsterinfo.scale = MODEL_SCALE;
 	VectorSet (self->mins, -16, -16, -24);
 	VectorSet (self->maxs, 16, 16, 32);
@@ -314,26 +310,26 @@ void spawn_decoy (edict_t *owner)
 	self->takedamage = DAMAGE_AIM;
 
 	self->mass = 100;
-    self->pain = decoy_pain;
-    self->die = decoy_die;
-    self->monsterinfo.stand = decoy_stand;
-    self->monsterinfo.walk = NULL;
-    self->monsterinfo.run = decoy_run;
-    self->monsterinfo.dodge = NULL;
-    self->monsterinfo.attack = decoy_attack;
+	self->pain = decoy_pain;
+	self->die = decoy_die;
+	self->monsterinfo.stand = decoy_stand;
+	self->monsterinfo.walk = NULL;
+	self->monsterinfo.run = decoy_run;
+	self->monsterinfo.dodge = NULL;
+	self->monsterinfo.attack = decoy_attack;
 	self->monsterinfo.melee = NULL;
-    self->monsterinfo.sight = decoy_sight;
+	self->monsterinfo.sight = decoy_sight;
 
 	//Dont attack anything to start with
 	self->monsterinfo.aiflags & AI_GOOD_GUY;
 
 	//Set up sounds
 	sound_idle =    gi.soundindex ("soldier/solidle1.wav");
-    sound_sight1 =  gi.soundindex ("soldier/solsght1.wav");
-    sound_sight2 =  gi.soundindex ("soldier/solsrch1.wav");
-    sound_pain = gi.soundindex ("soldier/solpain1.wav");
-    sound_death = gi.soundindex ("misc/keyuse.wav");
-    gi.soundindex ("soldier/solatck1.wav");
+	sound_sight1 =  gi.soundindex ("soldier/solsght1.wav");
+	sound_sight2 =  gi.soundindex ("soldier/solsrch1.wav");
+	sound_pain = gi.soundindex ("soldier/solpain1.wav");
+	sound_death = gi.soundindex ("misc/keyuse.wav");
+	gi.soundindex ("soldier/solatck1.wav");
 
 	self->health = 30;
 	self->gib_health = -30;
@@ -350,27 +346,31 @@ void spawn_decoy (edict_t *owner)
 
 	//Let monster code control this decoy
 	walkmonster_start (self);
+
+	gi.cprintf (owner, PRINT_HIGH, "Decoy created.\n");
 }
 
 
 // SP_Decoy - Handle DECOY command
-void SP_Decoy(edict_t *self) {
+void SP_Decoy (edict_t *self)
+{
+	// See if we should decoy turn it on or off
+	char *string;
+	int turnon;
 
-	//See if we should decoy turn it on or off
-	char    *string;
-	int  turnon;
-
-	string=gi.args();
+	string = gi.args();
 
 	if (Q_stricmp ( string, "on") == 0) 
 		turnon = true;
 	else if (Q_stricmp ( string, "off") == 0) 
 		turnon = false;
-	else {  //toggle status
-		if (self->decoy) turnon = false;
-		else turnon = true;
+	else
+	{  //toggle status
+		if (self->decoy)
+			turnon = false;
+		else
+			turnon = true;
 	}
-
 
 	//If they want to turn it on and it's already on, return
 	if ( (turnon == true) && (self->decoy) ) return;
@@ -379,15 +379,14 @@ void SP_Decoy(edict_t *self) {
 	if ( (turnon == false) && !(self->decoy) ) return;
 
 	//Remove decoy if it exists
-	if ( self->decoy ) {
+	if ( self->decoy )
+	{
 		G_FreeEdict(self->decoy);
 		self->decoy = NULL;
 		gi.cprintf (self, PRINT_HIGH, "Decoy destroyed.\n");
 		return;
-		}
+	}
 
 	//Create decoy
 	spawn_decoy(self);
-
-	gi.cprintf (self, PRINT_HIGH, "Decoy created.\n");
-	}
+}

@@ -320,58 +320,56 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 {
         edict_t *bolt;
         trace_t tr;
-        int             laser_colour[] = {
-                                                                     0xf2f2f0f0,             // red
-                                                                     0xf3f3f1f1,             // blue
-                                                             };
+			int laser_colour[] = {
+				0xf2f2f0f0,             // red
+				0xf3f3f1f1,             // blue
+			};
+
+			VectorNormalize (dir);
+
+			// Only change hand blaster effect
+			if (effect & EF_BLASTER)
+			{
+				bolt = G_Spawn();
+				VectorCopy (start, bolt->s.origin);
+				vectoangles (dir, bolt->s.angles);
+				VectorScale (dir, speed, bolt->velocity);
+				VectorAdd (start, bolt->velocity, bolt->s.old_origin);
+				bolt->clipmask = MASK_SHOT;
+
+				bolt->movetype = MOVETYPE_FLYMISSILE;
+				bolt->solid = SOLID_BBOX;
+				bolt->s.renderfx |= RF_BEAM|RF_TRANSLUCENT;
+				bolt->s.modelindex = 1;       
+				bolt->owner = self;
+
+				bolt->s.frame = 3;
+
+				bolt->s.skinnum = laser_colour[((int) (random() * 1500)) % 2];
 
 
-        VectorNormalize (dir);
+				VectorSet (bolt->mins, -8, -8, -8);
+				VectorSet (bolt->maxs, 8, 8, 8);
 
-        
-        // Only change hand blaster effect
-        if (effect & EF_BLASTER)
-        {
-                bolt = G_Spawn();
-                VectorCopy (start, bolt->s.origin);
-                vectoangles (dir, bolt->s.angles);
-                VectorScale (dir, speed, bolt->velocity);
-                VectorAdd (start, bolt->velocity, bolt->s.old_origin);
-                bolt->clipmask = MASK_SHOT;
+				bolt->touch = blaster_touch;
+				bolt->nextthink = level.time + 4;
+				bolt->think = G_FreeEdict;
+				bolt->dmg = damage;
 
-                bolt->movetype = MOVETYPE_FLYMISSILE;
-                bolt->solid = SOLID_BBOX;
-                bolt->s.renderfx |= RF_BEAM|RF_TRANSLUCENT;
-                bolt->s.modelindex = 1;       
-                bolt->owner = self;
+				gi.linkentity (bolt);
 
-                bolt->s.frame = 3;
+				if (self->client)
+				check_dodge (self, bolt->s.origin, dir, speed);
 
-                        bolt->s.skinnum = laser_colour[((int) (random() * 1500)) % 2];
+				tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+				if (tr.fraction < 1.0)
+				{
+					VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
+					bolt->touch (bolt, tr.ent, NULL, NULL);
+				}
 
-
-                VectorSet (bolt->mins, -8, -8, -8);
-                VectorSet (bolt->maxs, 8, 8, 8);
-
-                bolt->touch = blaster_touch;
-                bolt->nextthink = level.time + 4;
-                bolt->think = G_FreeEdict;
-                bolt->dmg = damage;
-                
-                gi.linkentity (bolt);
-
-                if (self->client)
-                        check_dodge (self, bolt->s.origin, dir, speed);
-
-                tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
-                if (tr.fraction < 1.0)
-                {
-                        VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
-                        bolt->touch (bolt, tr.ent, NULL, NULL);
-                }
-
-                return;
-        }
+				return;
+			}
 
         bolt = G_Spawn();
         VectorCopy (start, bolt->s.origin);
@@ -404,13 +402,6 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
         }
 }
 
-/*
-=================
-fire_blaster
-
-Fires a single blaster bolt.  Used by the blaster and hyper blaster.
-=================
-*/
 void sniper_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
 	if (other == self->owner)
@@ -499,20 +490,19 @@ void plasma_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
 
 	if (other->takedamage)
 	{
-                T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 200, DAMAGE_ENERGY, MOD_PLASMAGUN);
-	gi.WriteByte (svc_temp_entity);
-	gi.WriteByte (TE_BFG_EXPLOSION);
-	gi.WritePosition (self->s.origin);
-	gi.multicast (self->s.origin, MULTICAST_PVS);
+		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
+			plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_PLASMAGUN);
 	}
 	else
 	{
-		// return;
-	gi.WriteByte (svc_temp_entity);
-	gi.WriteByte (TE_BFG_BIGEXPLOSION);
-	gi.WritePosition (self->s.origin);
-	gi.multicast (self->s.origin, MULTICAST_PVS);
-
+		gi.WriteByte (svc_temp_entity);
+		gi.WriteByte (TE_BLASTER);
+		gi.WritePosition (self->s.origin);
+		if (!plane)
+			gi.WriteDir (vec3_origin);
+		else
+			gi.WriteDir (plane->normal);
+		gi.multicast (self->s.origin, MULTICAST_PVS);
 	}
 
 	G_FreeEdict (self);
@@ -520,43 +510,48 @@ void plasma_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
 
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect)
 {
-        edict_t *bolt;
-        trace_t tr;
+	edict_t *bolt;
+	trace_t tr;
 
 
-        VectorNormalize (dir);        
+	VectorNormalize (dir);        
 
-        bolt = G_Spawn();
-        VectorCopy (start, bolt->s.origin);
-        VectorCopy (start, bolt->s.old_origin);
-        vectoangles (dir, bolt->s.angles);
-        VectorScale (dir, speed, bolt->velocity);
-        bolt->movetype = MOVETYPE_FLYMISSILE;
-        bolt->clipmask = MASK_SHOT;
-        bolt->solid = SOLID_BBOX;
-        bolt->s.effects |= EF_BFG;
-        VectorClear (bolt->mins);
-        VectorClear (bolt->maxs);
-        bolt->s.modelindex = gi.modelindex ("sprites/s_bfg2.sp2");
-	  bolt->s.frame = 2;
-        bolt->s.sound = gi.soundindex ("weapons/bfg__l1a.wav");
-	  bolt->s.renderfx |= RF_TRANSLUCENT;
-        bolt->owner = self;
-        bolt->touch = plasma_touch;
-        bolt->nextthink = level.time + 2;
-        bolt->think = G_FreeEdict;
-        bolt->dmg = damage;
-        gi.linkentity (bolt);
+	bolt = G_Spawn();
+	VectorCopy (start, bolt->s.origin);
+	VectorCopy (start, bolt->s.old_origin);
+	vectoangles (dir, bolt->s.angles);
+	VectorScale (dir, speed, bolt->velocity);
 
-        if (self->client)
-                check_dodge (self, bolt->s.origin, dir, speed);
+	bolt->movetype = MOVETYPE_FLYMISSILE;
+	bolt->clipmask = MASK_SHOT;
+	bolt->solid = SOLID_BBOX;
+	//bolt->s.effects |= EF_COLOR_SHELL;
+	VectorClear (bolt->mins);
+	VectorClear (bolt->maxs);
+	// bolt->s.modelindex = gi.modelindex ("sprites/s_bfg2.sp2");
+	// bolt->s.frame = 2;
+	bolt->s.modelindex = gi.modelindex ("models/objects/laser/tris.md2");
+	bolt->s.frame = 0;
+	// bolt->s.sound = gi.soundindex ("weapons/bfg__l1a.wav");
+	bolt->s.sound = gi.soundindex ("misc/lasfly.wav");
+	bolt->s.renderfx |= RF_SHELL_GREEN;
 
-        tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
-        if (tr.fraction < 1.0)
-        {
-                VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
-                bolt->touch (bolt, tr.ent, NULL, NULL);
-        }
+	bolt->owner = self;
+	bolt->touch = plasma_touch;
+	bolt->nextthink = level.time + 2;
+	bolt->think = G_FreeEdict;
+	bolt->dmg = damage;
+	gi.linkentity (bolt);
+
+	if (self->client)
+		check_dodge (self, bolt->s.origin, dir, speed);
+
+	tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+	if (tr.fraction < 1.0)
+	{
+		VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
+		bolt->touch (bolt, tr.ent, NULL, NULL);
+	}
 }
 //end plasma
 
@@ -737,9 +732,6 @@ static void Grenade_Explode_dM (edict_t *ent)
         vec3_t          forward, right, up;
         int             n;
         edict_t         *flame, *head = NULL;
-	int		i;
-	vec3_t	org;
-	float		spd;
 
 
 	if (ent->owner->client)
@@ -1268,6 +1260,7 @@ void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 
 	gi.linkentity (rocket);
 }
+
 // machine rockets
 /*
 =================
@@ -1277,7 +1270,6 @@ Machine Gun Rockets
 void mr_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
 	vec3_t		origin;
-	int			n;
 
 	if (other == ent->owner)
 		return;
@@ -1307,7 +1299,8 @@ void mr_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 	else
 		gi.WriteByte (TE_ROCKET_EXPLOSION);
 	gi.WritePosition (origin);
-	gi.multicast (ent->s.origin, MULTICAST_PHS);
+	// gi.multicast (ent->s.origin, MULTICAST_PHS);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);		// WI -- cut down mr impact on game
 
 	G_FreeEdict (ent);
 }
@@ -1549,9 +1542,9 @@ void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, f
 
 /*
 =================
-fire_blaster
+fire_super
 
-Fires a single blaster bolt.  Used by the blaster and hyper blaster.
+Fires a super blaster bolt.
 =================
 */
 void super_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
@@ -1595,84 +1588,85 @@ void super_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 
 void fire_super (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect)
 {
-        edict_t *bolt;
-        trace_t tr;
+	edict_t *bolt;
+	trace_t tr;
 
-        VectorNormalize (dir);
+	VectorNormalize (dir);
 
-        
-        // Only change hand blaster effect
-        if (effect & EF_BLASTER)
-        {
-                bolt = G_Spawn();
-                VectorCopy (start, bolt->s.origin);
-                vectoangles (dir, bolt->s.angles);
-                VectorScale (dir, speed, bolt->velocity);
-                VectorAdd (start, bolt->velocity, bolt->s.old_origin);
-                bolt->clipmask = MASK_SHOT;
 
-                bolt->movetype = MOVETYPE_FLYMISSILE;
-                bolt->solid = SOLID_BBOX;
-                bolt->s.renderfx |= RF_SHELL_RED;
-                bolt->s.effects |= EF_COLOR_SHELL;
-                bolt->s.effects |= EF_FLAG1;
-                bolt->s.modelindex = gi.modelindex ("models/objects/laser/tris.md2");
-                bolt->owner = self;
+	// Only change hand blaster effect
+	if (effect & EF_BLASTER)
+	{
+		bolt = G_Spawn();
+		VectorCopy (start, bolt->s.origin);
+		vectoangles (dir, bolt->s.angles);
+		VectorScale (dir, speed, bolt->velocity);
+		VectorAdd (start, bolt->velocity, bolt->s.old_origin);
+		bolt->clipmask = MASK_SHOT;
 
-                bolt->s.frame = 0;
+		bolt->movetype = MOVETYPE_FLYMISSILE;
+		bolt->solid = SOLID_BBOX;
+		bolt->s.renderfx |= RF_SHELL_RED;
+		bolt->s.effects |= EF_COLOR_SHELL;
+		bolt->s.effects |= EF_FLAG1;
+		bolt->s.modelindex = gi.modelindex ("models/objects/laser/tris.md2");
+		bolt->owner = self;
 
-                VectorSet (bolt->mins, -8, -8, -8);
-                VectorSet (bolt->maxs, 8, 8, 8);
+		bolt->s.frame = 0;
 
-                bolt->touch = super_touch;
-                bolt->nextthink = level.time + 4;
-                bolt->think = G_FreeEdict;
-                bolt->dmg = damage;
-                
-                gi.linkentity (bolt);
+		VectorSet (bolt->mins, -8, -8, -8);
+		VectorSet (bolt->maxs, 8, 8, 8);
 
-                if (self->client)
-                        check_dodge (self, bolt->s.origin, dir, speed);
+		bolt->touch = super_touch;
+		bolt->nextthink = level.time + 4;
+		bolt->think = G_FreeEdict;
+		bolt->dmg = damage;
 
-                tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
-                if (tr.fraction < 1.0)
-                {
-                        VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
-                        bolt->touch (bolt, tr.ent, NULL, NULL);
-                }
+		gi.linkentity (bolt);
 
-                return;
-        }
+		if (self->client)
+			check_dodge (self, bolt->s.origin, dir, speed);
 
-        bolt = G_Spawn();
-        VectorCopy (start, bolt->s.origin);
-        VectorCopy (start, bolt->s.old_origin);
-        vectoangles (dir, bolt->s.angles);
-        VectorScale (dir, speed, bolt->velocity);
-        bolt->movetype = MOVETYPE_FLYMISSILE;
-        bolt->clipmask = MASK_SHOT;
-        bolt->solid = SOLID_BBOX;
-        bolt->s.effects |= effect;
-        VectorClear (bolt->mins);
-        VectorClear (bolt->maxs);
-        bolt->s.modelindex = gi.modelindex ("models/objects/laser/tris.md2");
-        bolt->s.sound = gi.soundindex ("misc/lasfly.wav");
-        bolt->owner = self;
-        bolt->touch = blaster_touch;
-        bolt->nextthink = level.time + 2;
-        bolt->think = G_FreeEdict;
-        bolt->dmg = damage;
-        gi.linkentity (bolt);
+		tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt,
+			MASK_SHOT);
+		if (tr.fraction < 1.0)
+		{
+			VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
+			bolt->touch (bolt, tr.ent, NULL, NULL);
+		}
 
-        if (self->client)
-                check_dodge (self, bolt->s.origin, dir, speed);
+		return;
+	}
 
-        tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
-        if (tr.fraction < 1.0)
-        {
-                VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
-                bolt->touch (bolt, tr.ent, NULL, NULL);
-        }
+	bolt = G_Spawn();
+	VectorCopy (start, bolt->s.origin);
+	VectorCopy (start, bolt->s.old_origin);
+	vectoangles (dir, bolt->s.angles);
+	VectorScale (dir, speed, bolt->velocity);
+	bolt->movetype = MOVETYPE_FLYMISSILE;
+	bolt->clipmask = MASK_SHOT;
+	bolt->solid = SOLID_BBOX;
+	bolt->s.effects |= effect;
+	VectorClear (bolt->mins);
+	VectorClear (bolt->maxs);
+	bolt->s.modelindex = gi.modelindex ("models/objects/laser/tris.md2");
+	bolt->s.sound = gi.soundindex ("misc/lasfly.wav");
+	bolt->owner = self;
+	bolt->touch = blaster_touch;
+	bolt->nextthink = level.time + 2;
+	bolt->think = G_FreeEdict;
+	bolt->dmg = damage;
+	gi.linkentity (bolt);
+
+	if (self->client)
+		check_dodge (self, bolt->s.origin, dir, speed);
+
+	tr = gi.trace (self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+	if (tr.fraction < 1.0)
+	{
+		VectorMA (bolt->s.origin, -10, dir, bolt->s.origin);
+		bolt->touch (bolt, tr.ent, NULL, NULL);
+	}
 }
 /*
 =================
@@ -1894,8 +1888,8 @@ void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 		other->frozen = 1;
 		Info_SetValueForKey( userinfo, "skin", "male/frozen" );
 		other->frozentime = level.time + 70*FRAMETIME;
-            other->s.effects |= EF_COLOR_SHELL;
-            other->s.renderfx |= RF_SHELL_BLUE;
+      other->s.effects |= EF_COLOR_SHELL;
+      other->s.renderfx |= RF_SHELL_BLUE;
 		other->s.effects |= EF_FLAG2;
 	}
 
@@ -1911,9 +1905,12 @@ void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
-	if (other->takedamage) {
+	if (other->takedamage)
+	{
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, MOD_ROCKET);
 		gi.sound (self, CHAN_VOICE, gi.soundindex ("weapons/frozen.wav"), 1, ATTN_NORM, 0);
+		if (self->client)
+			gi.cprintf (self, PRINT_MEDIUM, "You've been frozen!\n");
 	}
 	else
 	{

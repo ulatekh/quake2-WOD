@@ -214,7 +214,7 @@ void SV_CalcViewOffset (edict_t *ent)
 	float		zcheck;
 	float		xycheck;
 	float		xyzratio;
-	vec3_t		v, tempv, tempv2, offset, origin;
+	vec3_t		v, tempv;
 
 
 
@@ -489,7 +489,7 @@ if (ent->client->lowlight)
     ent->client->Jet_remaining = ent->client->Jet_framenum - level.framenum;
     /*if no fuel remaining, remove jetpack from inventory*/ 
     if ( ent->client->Jet_remaining == 0 )
-      ent->client->pers.inventory[ITEM_INDEX(FindItem("Jetpack"))] = 0;
+      ent->client->pers.inventory[ITEM_INDEX(&gI_item_jetpack)] = 0;
     /*Play jetting sound every 0.6 secs (sound of monster icarus)*/
     if ( ((int)ent->client->Jet_remaining % 6) == 0 )
       gi.sound (ent, CHAN_AUTO, gi.soundindex("hover/hovidle1.wav"), 0.9, ATTN_NORM, 0);
@@ -956,7 +956,7 @@ void G_SetClientFrame (edict_t *ent)
 		run = false;
 
 	// check for stand/duck and stop/go transitions
-	if (duck != client->anim_duck && client->anim_priority < ANIM_DEATH)
+	if (duck != client->anim_duck && client->anim_priority != ANIM_DEATH)
 		goto newanim;
 	if (run != client->anim_run && client->anim_priority == ANIM_BASIC)
 		goto newanim;
@@ -1160,14 +1160,19 @@ void ClientEndServerFrame (edict_t *ent)
 	VectorClear (ent->client->kick_angles);
 
 	// if the scoreboard is up, update it
-if (((ent->client->showscores || ent->client->pers.scanner_active) && deathmatch->value &&
- !(level.framenum & SCANNER_UPDATE_FREQ)) || (ent->client->pers.scanner_active & 2)) 
-{ 
-DeathmatchScoreboardMessage (ent, ent->enemy);
- gi.unicast (ent, false);
- // added ... 
-ent->client->pers.scanner_active &= ~2;
- }
+	if (deathmatch->value)
+	{
+		if ((ent->client->showscores && !(level.framenum & 31))
+		|| (ent->client->pers.scanner_active && !(level.framenum & SCANNER_UPDATE_FREQ))
+		|| (ent->client->pers.scanner_active & 2))
+		{ 
+			DeathmatchScoreboardMessage (ent, ent->enemy);
+			gi.unicast (ent, false);
+			// added ... 
+			ent->client->pers.scanner_active &= ~2;
+		}
+	}
+
 	if (ent->thirdperson)
 	{
 		gi.unlinkentity (ent->clone);
@@ -1177,9 +1182,8 @@ ent->client->pers.scanner_active &= ~2;
 		gi.linkentity (ent->clone);
 	}
 
-if (ent->client->chasetoggle == 1)
- CheckChasecam_Viewent(ent);
-
+	if (ent->client->chasetoggle == 1)
+	 CheckChasecam_Viewent(ent);
 }
 
 /*

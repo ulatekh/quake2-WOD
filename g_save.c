@@ -141,6 +141,7 @@ void InitGame (void)
 
 	// noset vars
 	dedicated = gi.cvar ("dedicated", "0", CVAR_NOSET);
+	gamedir = gi.cvar ("gamedir", "", CVAR_NOSET);
 
 	// latched vars
 	sv_cheats = gi.cvar ("cheats", "0", CVAR_SERVERINFO|CVAR_LATCH);
@@ -152,6 +153,7 @@ void InitGame (void)
 	coop = gi.cvar ("coop", "0", CVAR_LATCH);
 	skill = gi.cvar ("skill", "1", CVAR_LATCH);
 	maxentities = gi.cvar ("maxentities", "1024", CVAR_LATCH);
+	maplist = gi.cvar ("maplist", "0", CVAR_SERVERINFO);
 
 	// change anytime vars
 	dmflags = gi.cvar ("dmflags", "0", CVAR_SERVERINFO);
@@ -167,13 +169,8 @@ void InitGame (void)
 	bob_pitch = gi.cvar ("bob_pitch", "0.002", 0);
 	bob_roll = gi.cvar ("bob_roll", "0.002", 0);
 
-	gotten = gi.cvar ("gotten", "10", CVAR_ARCHIVE);
-	sex = gi.cvar ("sex", "0", CVAR_ARCHIVE);
-	bottalk = gi.cvar ("bottalk", "0", CVAR_SERVERINFO|CVAR_LATCH);
-	gi.AddCommandString ("alias hondo \"cmd hondo\"\n");
-	gi.AddCommandString ("alias addbot \"cmd addbot\"\n");
-	gi.AddCommandString ("alias addbotf \"cmd addbotf\"\n");
-
+	//gi.AddCommandString ("alias +hook \"hook action; wait; hook shrink\"\n");
+	//gi.AddCommandString ("alias -hook \"hook stop\"\n");
 
 	// items
 	InitItems ();
@@ -238,7 +235,7 @@ void WriteField1 (FILE *f, field_t *field, byte *base)
 		if ( *(edict_t **)p == NULL)
 			index = -1;
 		else
-			index = *(gitem_t **)p - itemlist;
+			index = ITEM_INDEX (*(gitem_t **)p);
 		*(int *)p = index;
 		break;
 
@@ -321,7 +318,7 @@ void ReadField (FILE *f, field_t *field, byte *base)
 		if ( index == -1 )
 			*(gitem_t **)p = NULL;
 		else
-			*(gitem_t **)p = &itemlist[index];
+			*(gitem_t **)p = itemlist[index];
 		break;
 
 	default:

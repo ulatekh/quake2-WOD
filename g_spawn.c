@@ -261,7 +261,6 @@ void ED_CallSpawn (edict_t *ent)
 {
 	spawn_t	*s;
 	gitem_t	*item;
-	int		i;
 
 	if (!ent->classname)
 	{
@@ -270,15 +269,11 @@ void ED_CallSpawn (edict_t *ent)
 	}
 
 	// check item spawn functions
-	for (i=0,item=itemlist ; i<game.num_items ; i++,item++)
-	{
-		if (!item->classname)
-			continue;
-		if (!strcmp(item->classname, ent->classname))
-		{	// found it
-			SpawnItem (ent, item);
-			return;
-		}
+	item = FindItemByClassname (ent->classname);
+	if (item != NULL)
+	{	// found it
+		SpawnItem (ent, item);
+		return;
 	}
 
 	// check normal spawn functions
@@ -559,9 +554,6 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 			{
 				if ( ent->spawnflags & SPAWNFLAG_NOT_DEATHMATCH )
 				{
-if (ent->classname == "bot")
-continue;
-
 					G_FreeEdict (ent);	
 					inhibit++;
 					continue;
@@ -841,7 +833,7 @@ void SP_worldspawn (edict_t *ent)
 
 	snd_fry = gi.soundindex ("player/fry.wav");	// standing in lava / slime
 
-	PrecacheItem (FindItem ("Blaster"));
+	PrecacheItem (&gI_weapon_blaster);
 
 	gi.soundindex ("player/lava1.wav");
 	gi.soundindex ("player/lava2.wav");
@@ -905,6 +897,19 @@ void SP_worldspawn (edict_t *ent)
 	gi.modelindex ("models/objects/gibs/skull/tris.md2");
 	gi.modelindex ("models/objects/gibs/head2/tris.md2");
 
+	vwep_index = gi.modelindex("#w_blaster.md2") - 1;
+	gi.modelindex("#w_shotgun.md2");
+	gi.modelindex("#w_sshotgun.md2");
+	gi.modelindex("#w_machinegun.md2");
+	gi.modelindex("#w_chaingun.md2");
+	gi.modelindex("#a_grenades.md2");
+	gi.modelindex("#w_glauncher.md2");
+	gi.modelindex("#w_rlauncher.md2");
+	gi.modelindex("#w_hyperblaster.md2");
+	gi.modelindex("#w_railgun.md2");
+	gi.modelindex("#w_bfg.md2");
+	gi.modelindex("#w_grapple.md2");
+
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
 //
@@ -949,12 +954,11 @@ void SP_worldspawn (edict_t *ent)
 
 	// 63 testing
 	gi.configstring(CS_LIGHTS+63, "a");
-		gi.imageindex (PIC_SCANNER);
-		gi.imageindex (PIC_DOT);
-		gi.imageindex (PIC_INVDOT);
-		gi.imageindex (PIC_QUADDOT);
-		gi.imageindex (PIC_UP);
-		gi.imageindex (PIC_DOWN);
-
+	gi.imageindex (PIC_SCANNER_TAG);
+	gi.imageindex (PIC_DOT_TAG);
+	gi.imageindex (PIC_INVDOT_TAG);
+	gi.imageindex (PIC_QUADDOT_TAG);
+	gi.imageindex (PIC_UP_TAG);
+	gi.imageindex (PIC_DOWN_TAG);
 }
 

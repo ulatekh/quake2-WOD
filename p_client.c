@@ -106,8 +106,6 @@ void SP_info_player_deathmatch(edict_t *self)
 {
 	if (!deathmatch->value)
 	{
-	if (self->classname == "bot")
-	return;
 		G_FreeEdict (self);
 		return;
 	}
@@ -215,7 +213,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			message = "melted";
 			break;
 		case MOD_LAVA:
-			message = "dives into the lava";
+			message = "couldn't take the heat";
 			break;
 		case MOD_EXPLOSIVE:
 		case MOD_BARREL:
@@ -300,18 +298,23 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 					message = "napalmed himself";
 				break;
 			case MOD_KAMIKAZE:
-				message = "went kamikaze and blew up";
+				message = "went out with a bang";
+				break;
 			case MOD_SHRAPG:
-			message = "shredded himself with a Shrapnel Grenade";
-			break;
+				message = "shredded himself with a shrapnel grenade";
+				break;
 			case MOD_ROCKET:
 				if (IsFemale(self))
 					message = "ignited herself with a flamerocket";
 				else
 					message = "ignited himself with a flamerocket";
 				break;			
-				case MOD_HOMING:
-				message = "blew himself up with a homing rocket";
+			case MOD_HOMING:
+				if (IsFemale(self))
+					message = "blew herself up with a homing rocket";
+				else
+					message = "blew himself up with a homing rocket";
+				break;
 			case MOD_FGRENADE:
 				if (IsFemale(self))
 					message = "destroyed herself";
@@ -354,11 +357,11 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			switch (mod)
 			{
 			case MOD_FREEZE:
-				message = "was frozen by";
+				message = "was frozen to death by";
 				break;
 			case MOD_PLASMAGUN:
-				message = "was zapped by";
-				message2 = "'s Plasma Gun";
+				message = "was transformed into pure energy by";
+				message2 = "'s plasma rifle";
 				break;
 			case MOD_SNIPER:
 				message = "was sniped by";
@@ -371,32 +374,32 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message = "was ignited by";
 				message2 = "'s fire grenade";
 				break;
-		case MOD_SHRAPG:
-			message = "was torn apart by";
-			message2 = "'s Shrapnel Grenade";
-			break;
+			case MOD_SHRAPG:
+				message = "was torn apart by";
+				message2 = "'s shrapnel grenade";
+				break;
 			case MOD_HOMING:
 				message = "was chased down by";
 				message2 = "'s homing rocket";
 				break;
 			case MOD_TRIPWIRE:
 				message = "tripped over";
-				message2 = "'s Laser Tripwire";
+				message2 = "'s laser tripwire";
 				break;
 			case MOD_SHOTGUN:
 				message = "ate";
 				message2 = "'s lead";
 				break;
 			case MOD_SSHOTGUN:
-				message = "was blown away by";
+				message = "was perforated by";
 				message2 = "'s super shotgun";
 				break;
 			case MOD_MACHINEGUN:
-				message = "ate";
+				message = "was pounded into a fine mist by";
 				message2 = "'s machine rockets";
 				break;
 			case MOD_MACHINE:
-				message = "was Machine-gunned by";
+				message = "was gunned down by";
 				break;
 			case MOD_KAMIKAZE:
 				message = "detonated with";
@@ -422,7 +425,8 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message2 = "'s flamerocket";
 				break;
 			case MOD_SB:
-				message = "was Super-Blasted by";
+				message = "was punched clear through by";
+				message2 = "'s super blaster";
 				break;
 			case MOD_GRAPPLE:
 				message = "was hooked by";
@@ -441,6 +445,10 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			case MOD_RAILGUN2:
 				message = "was railed by";
 				break;
+			case MOD_STREETSWEEP:
+				message = "was turned into dog food by";
+				message2 = "'s streetsweeper";
+				break;
 			case MOD_BFG_LASER:
 				message = "saw the pretty lights from";
 				message2 = "'s BFG";
@@ -450,32 +458,32 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message2 = "'s BFG blast";
 				break;
 			case MOD_BFG_EFFECT:
-				message = "tryed escaping the power of";
+				message = "tried escaping the power of";
 				message2 = "'s BFG";
 				break;
 			case MOD_NAPALM:
 				message = "tried escaping";
-				message2 = "'s Napalm Gauntlet";
+				message2 = "'s napalm grenade";
 				break;
 			case MOD_PROXIMITY:
 				message = "was detonated by";
 				message2 = "'s grenades";
 				break;
 			case MOD_CATA:
-				message = "was blown to bits by";
-				message2 = "'s Cataclysm grenade";
+				message = "was demolecularized by";
+				message2 = "'s cataclysm grenade";
 				break;
 			case MOD_CLUSTER:
-				message = "was bombed by";
+				message = "was surrounded by";
 				message2 = "'s cluster grenades";
 				break;
 			case MOD_RAILBOMB:
-                        message = "'s legs were blow off by";
-                        message2 = "'s RailBomb";
+            message = "'s legs were blow off by";
+            message2 = "'s rail bomb";
 				break;
 			case MOD_PLASMAG:
 				message = "came face to face with";
-				message2 = "'s green grenade";
+				message2 = "'s plasma grenade";
 				break;
 			case MOD_HANDGRENADE:
 				message = "caught";
@@ -496,7 +504,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 			}
 			if (message)
 			{
-				gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
+				gi.bprintf (PRINT_MEDIUM,"%s %s %s%s\n",
+					self->client->pers.netname, message,
+					attacker->client->pers.netname, message2);
 				if (deathmatch->value)
 				{
 					if (ff)
@@ -527,25 +537,69 @@ void TossClientWeapon (edict_t *self)
 	if (!deathmatch->value)
 		return;
 
+	// Get the client's weapon.
 	item = self->client->pers.weapon;
-	if (! self->client->pers.inventory[self->client->ammo_index] )
+
+	// If they had no ammo left, or if it's the blaster, don't throw it.
+	if (item == &gI_weapon_blaster)
 		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Blaster") == 0))
+	if (!self->client->pers.inventory[self->client->ammo_index])
 		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Super Blaster") == 0))
+
+	// If it's one of our special guns, throw the normal variant if we can.
+	// (We don't check that the normal variant has ammo; it's good enough that
+	// the special one did.)
+	if (item == &gI_weapon_superblaster)
 		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Standard Machinegun") == 0))
-		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Plasma Gun") == 0))
-		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Sniper Gun") == 0))
-		item = NULL;	
-	if (item && (strcmp (item->pickup_name, "Homing Rocket Launcher") == 0))
-		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Railgun2") == 0))
-		item = NULL;
-	if (item && (strcmp (item->pickup_name, "Freezer") == 0))
-		item = NULL;
+	if (item == &gI_weapon_machine)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_machinegun)])
+			item = &gI_weapon_machinegun;
+		else
+			item = NULL;
+	}
+	if (item == &gI_weapon_plasma)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_hyperblaster)])
+			item = &gI_weapon_hyperblaster;
+		else
+			item = NULL;
+	}
+	if (item == &gI_weapon_sniper)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_shotgun)])
+			item = &gI_weapon_shotgun;
+		else
+			item = NULL;
+	}
+	if (item == &gI_weapon_streetsweeper)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)])
+			item = &gI_weapon_chaingun;
+		else
+			item = NULL;
+	}
+	if (item == &gI_weapon_homing)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)])
+			item = &gI_weapon_rocketlauncher;
+		else
+			item = NULL;
+	}
+	if (item == &gI_weapon_railgun2)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun)])
+			item = &gI_weapon_railgun;
+		else
+			item = NULL;
+	}
+	if (item == &gI_weapon_freezer)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_supershotgun)])
+			item = &gI_weapon_supershotgun;
+		else
+			item = NULL;
+	}
 
 	if (!((int)(dmflags->value) & DF_QUAD_DROP))
 		quad = false;
@@ -568,7 +622,7 @@ void TossClientWeapon (edict_t *self)
 	if (quad)
 	{
 		self->client->v_angle[YAW] += spread;
-		drop = Drop_Item (self, FindItemByClassname ("item_quad"));
+		drop = Drop_Item (self, &gI_item_jetpack);	// or &gI_item_quad
 		self->client->v_angle[YAW] -= spread;
 		drop->spawnflags |= DROPPED_PLAYER_ITEM;
 
@@ -614,10 +668,14 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 {
 
 	int		n;
-        ClearScanner(self->client);
+   
+	ClearScanner(self->client);
 
-Kamikaze_Cancel(self); /* No Kamikaze Now!!*/
+	Kamikaze_Cancel(self); /* No Kamikaze Now!!*/
 	if (self->thirdperson) ThirdEnd (self);
+
+	// No grappling hook when you're dead.
+	self->client->hookstate = 0;
 
 	VectorClear (self->avelocity);
 
@@ -626,6 +684,7 @@ Kamikaze_Cancel(self); /* No Kamikaze Now!!*/
 	self->movetype = MOVETYPE_TOSS;
 
 	self->s.modelindex2 = 0;	// remove linked weapon model
+	self->client->ps.gunindex = 0;
 
 	self->s.angles[0] = 0;
 	self->s.angles[2] = 0;
@@ -657,15 +716,17 @@ Kamikaze_Cancel(self); /* No Kamikaze Now!!*/
 
 	// clear inventory
 	memset(self->client->pers.inventory, 0, sizeof(self->client->pers.inventory));
-/*ATTILA begin*/
- if ( Jet_Active(self) )
- { 
-Jet_BecomeExplosion( self, damage );
- /*stop jetting when dead*/
- self->client->Jet_framenum = 0;
- }
- else 
-/*ATTILA end*/
+
+	/*ATTILA begin*/
+	if ( Jet_Active(self) )
+	{ 
+		Jet_BecomeExplosion( self, damage );
+		/*stop jetting when dead*/
+		self->client->Jet_framenum = 0;
+	}
+	else 
+	/*ATTILA end*/
+
 	if (self->health < -40)
 	{	// gib
 		gi.sound (self, CHAN_BODY, gi.soundindex ("misc/udeath.wav"), 1, ATTN_NORM, 0);
@@ -729,11 +790,11 @@ void InitClientPersistant (gclient_t *client)
 
 	memset (&client->pers, 0, sizeof(client->pers));
 
-	item = FindItem("Super Blaster");
+	item = &gI_weapon_superblaster;
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 0;
 
-	item = FindItem("Blaster");
+	item = &gI_weapon_blaster;
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 1;
 
@@ -743,17 +804,27 @@ void InitClientPersistant (gclient_t *client)
 	client->pers.health			= 100;
 	client->pers.max_health		= 100;
 
-	client->pers.max_bullets	= 250;
-	client->pers.max_shells		= 100;
-	client->pers.max_rockets	= 50;
-	client->pers.max_grenades	= 10;
-	client->pers.max_cells		= 200;
-	client->pers.max_slugs		= 200;
- client->pers.fire_mode = 0; // Muce: initialize to FA
+	// Original settings
+	// client->pers.max_bullets	= 250;
+	// client->pers.max_shells		= 100;
+	// client->pers.max_rockets	= 50;
+	// client->pers.max_grenades	= 50;
+	// client->pers.max_cells		= 200;
+	// client->pers.max_slugs		= 200;
+
+	// New, gnarlier settings
+	client->pers.max_bullets	= 400;
+	client->pers.max_shells		= 150;
+	client->pers.max_rockets	= 75;
+	client->pers.max_grenades	= 75;
+	client->pers.max_cells		= 300;
+	client->pers.max_slugs		= 300;
+
+	client->pers.fire_mode = 0; // Muce: initialize to FA
 
 
 	client->pers.connected = true;
-ClearScanner(client);
+	ClearScanner(client);
 }
 
 
@@ -908,11 +979,6 @@ edict_t *SelectRandomDeathmatchSpawnPoint (void)
 	return spot;
 }
 
-edict_t *SelectBotDeathmatchSpawnPoint (void)
-{
-		return SelectRandomDeathmatchSpawnPoint ();
-}
-
 
 /*
 ================
@@ -1014,47 +1080,6 @@ void	SelectSpawnPoint (edict_t *ent, vec3_t origin, vec3_t angles)
 		spot = SelectDeathmatchSpawnPoint ();
 	else if (coop->value)
 		spot = SelectCoopSpawnPoint (ent);
-
-	// find a single player start spot
-	if (!spot)
-	{
-		while ((spot = G_Find (spot, FOFS(classname), "info_player_start")) != NULL)
-		{
-			if (!game.spawnpoint[0] && !spot->targetname)
-				break;
-
-			if (!game.spawnpoint[0] || !spot->targetname)
-				continue;
-
-			if (Q_stricmp(game.spawnpoint, spot->targetname) == 0)
-				break;
-		}
-
-		if (!spot)
-		{
-			if (!game.spawnpoint[0])
-			{	// there wasn't a spawnpoint without a target, so use any
-				spot = G_Find (spot, FOFS(classname), "info_player_start");
-			}
-			if (!spot)
-				gi.error ("Couldn't find spawn point %s\n", game.spawnpoint);
-		}
-	}
-
-	VectorCopy (spot->s.origin, origin);
-	origin[2] += 9;
-	VectorCopy (spot->s.angles, angles);
-}
-void	SelectBotSpawnPoint (vec3_t origin, vec3_t angles)
-{
-	edict_t	*spot = NULL;
-
-	if (deathmatch->value)
-		spot = SelectBotDeathmatchSpawnPoint ();
-#if 0
-	else if (coop->value)
-		spot = SelectCoopSpawnPoint ();
-#endif
 
 	// find a single player start spot
 	if (!spot)
@@ -1230,7 +1255,7 @@ void PutClientInServer (edict_t *ent)
 		// this is kind of ugly, but it's how we want to handle keys in coop
 		for (n = 0; n < MAX_ITEMS; n++)
 		{
-			if (itemlist[n].flags & IT_KEY)
+			if (itemlist[n]->flags & IT_KEY)
 				resp.coop_respawn.inventory[n] = client->pers.inventory[n];
 		}
 		client->pers = resp.coop_respawn;
@@ -1278,6 +1303,11 @@ void PutClientInServer (edict_t *ent)
 	// start unfrozen
 	ent->frozen = 0;
 	// *********************
+	// start invulnerable for 3 seconds.
+	if (deathmatch->value)
+		ent->client->invincible_framenum = level.framenum + 30;
+	// *********************
+
 
 
 	VectorCopy (mins, ent->mins);
@@ -1310,8 +1340,9 @@ void PutClientInServer (edict_t *ent)
 	ent->s.effects = 0;
 	ent->s.skinnum = ent - g_edicts - 1;
 	ent->s.modelindex = 255;		// will use the skin specified model
-//	ShowGun(ent);					// ### Hentai ### special gun model
-	ent->s.modelindex2 = 255;		// custom gun model
+	
+	ShowGun(ent);					// ### Hentai ### special gun model
+
 	ent->s.frame = 0;
 	VectorCopy (spawn_origin, ent->s.origin);
 	ent->s.origin[2] += 1;	// make sure off ground
@@ -1350,48 +1381,92 @@ gi.cvar_forceset("r_fullbright","0");
 	ChangeWeapon (ent);
 }
 
-/*===================== ClientBeginDeathmatchA client has jus
-t connected to the server in deathmatch mode, 
-so clear everything out before starting them.
+// Store the message of the day in memory.
+char *gMOTD = ((char *)-1);
+cvar_t *gamedir;
+
+/*=====================
+ClientBeginDeathmatch
+
+A client has just connected to the server in deathmatch
+mode, so clear everything out before starting them.
 =====================*/
 void ClientBeginDeathmatch (edict_t *ent)
 { 
-// STEVE added these 3 local variables
- FILE *motd_file;
- char motd[500];
- char line[80];
- G_InitEdict (ent);
- InitClientResp (ent->client);
- // locate ent at a spawn point
- PutClientInServer (ent);
- // send effect
- gi.WriteByte (svc_muzzleflash);
- gi.WriteShort (ent-g_edicts);
- gi.WriteByte (MZ_LOGIN);
- gi.multicast (ent->s.origin, MULTICAST_PVS);
- gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
- // STEVE changed this bit : read the motd from a file
- if (motd_file = fopen("motd.txt", "r"))
- { 
-// we successfully opened the file "motd.txt"
- if ( fgets(motd, 500, motd_file) )
- { 
-// we successfully read a line from "motd.txt" into motd
- // ... read the remaining lines now
-while ( fgets(line, 80, motd_file) )
- { 
-// add each new line to motd, to create a BIG message string. 
-// we are using strcat: STRing conCATenation function here.
- strcat(motd, line);
- }
- // print our message.
- gi.centerprintf (ent, motd);
- }
- // be good now ! ... close the file 
-fclose(motd_file);
- } 
-// make sure all view stuff is valid
- ClientEndServerFrame (ent);
+	G_InitEdict (ent);
+	InitClientResp (ent->client);
+	
+	// locate ent at a spawn point
+	PutClientInServer (ent);
+	
+	// send effect
+	gi.WriteByte (svc_muzzleflash);
+	gi.WriteShort (ent-g_edicts);
+	gi.WriteByte (MZ_LOGIN);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);
+	gi.bprintf (PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
+	
+	// If the MOTD hasn't been loaded, do so.
+	if (gMOTD == ((char *)-1))
+	{
+		FILE *in;
+		char motdPath[MAX_QPATH + 1];
+		int c, motdBytes;
+		char *here;
+
+		// Generate the path to the MOTD file.
+		if (gamedir == NULL)
+		{
+			gMOTD = NULL;
+			goto noMOTD;
+		}
+		sprintf (motdPath, "./%s/motd.txt", gamedir->string);
+
+		// Open the file.
+		in = fopen (motdPath, "rt");
+		if (in == NULL)
+		{
+			gMOTD = NULL;
+			goto noMOTD;
+		}
+
+		// Count the number of bytes in the file.
+		motdBytes = 0;
+		while ((c = fgetc (in)), c != EOF)
+			motdBytes++;
+
+		// Make space for that many bytes.
+		gMOTD = gi.TagMalloc (motdBytes + 1, TAG_GAME);
+
+		// Now read the MOTD in for real.  Null-terminate the string.
+		fclose (in);
+		in = fopen (motdPath, "rt");
+		here = gMOTD;
+		while ((c = fgetc (in)), c != EOF)
+		{
+			*here = c;
+			here++;
+			motdBytes--;
+		}
+		*here = '\0';
+
+		// If anything went wrong, warn the console.
+		if (motdBytes != 0)
+			gi.dprintf ("MOTD error: off by %d bytes", motdBytes);
+
+		// (Couldn't find a MOTD.)
+noMOTD:;
+	}
+
+	// If a MOTD was successfully loaded, print it.
+	if (gMOTD != NULL)
+		gi.centerprintf (ent, "%s", gMOTD);
+
+	if (level.intermissiontime)
+		MoveClientToIntermission (ent);
+
+	// make sure all view stuff is valid
+	ClientEndServerFrame (ent);
 }
 
 
@@ -1521,6 +1596,11 @@ void ClientUserinfoChanged (edict_t *ent, char *userinfo)
 
 	// save off the userinfo in case we want to check something later
 	strncpy (ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo)-1);
+	
+	// ### Hentai ### BEGIN
+	if (!ent->deadflag && ent->s.modelindex == 255)
+		ShowGun(ent);
+	// ### Hentai ### END
 }
 
 
@@ -1651,23 +1731,17 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	int		i, j;
 	pmove_t	pm;
 
-	// *****************
-	// added variables
-	int playernum;
-	char userinfo[MAX_INFO_STRING];
-	// *****************
-
-// frozen code begin
-	// *******************************
 	// If I'm frozen and its time to thaw, do it. 
 	// otherwise, I can't do anything
-	if( ent->frozen ) {
-		if( level.time < ent->frozentime ) {
-
+	if (ent->frozen)
+	{
+		if( level.time < ent->frozentime )
 			return;
+		else
+		{
+			int playernum;
+			char userinfo[MAX_INFO_STRING];
 
-		}
-		else {
 			playernum = ent - g_edicts - 1;
 			strcpy( userinfo, ent->client->pers.userinfo );
 			ent->frozen = 0;
@@ -1677,10 +1751,6 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			ent->s.renderfx |= 0;
 		}
 	}
-	// **********************************
-// frozen code end
-
-
 
 	level.current_entity = ent;
 	client = ent->client;
@@ -1710,11 +1780,8 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		client->ps.pmove.pm_type = PM_NORMAL;
 
 	client->ps.pmove.gravity = sv_gravity->value;
-/*ATTILA begin*/
- if ( Jet_Active(ent) )
- Jet_ApplyJet( ent, ucmd );
- /*ATTILA end*/
-
+	if ( Jet_Active(ent) )
+		Jet_ApplyJet( ent, ucmd );
 	pm.s = client->ps.pmove;
 
 	for (i=0 ; i<3 ; i++)
@@ -1744,11 +1811,9 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	for (i=0 ; i<3 ; i++)
 	{
 		ent->s.origin[i] = pm.s.origin[i]*0.125;
-/*ATTILA begin*/ 
-if ( !Jet_Active(ent) || (Jet_Active(ent)&&(fabs((float)pm.s.velocity[i]*0.125) < fabs(ent->velocity[i]))) )
- /*ATTILA end*/
-
-		ent->velocity[i] = pm.s.velocity[i]*0.125;
+		if ( !Jet_Active(ent)
+		|| (Jet_Active(ent)&&(fabs((float)pm.s.velocity[i]*0.125) < fabs(ent->velocity[i]))) )
+			ent->velocity[i] = pm.s.velocity[i]*0.125;
 	}
 
 	VectorCopy (pm.mins, ent->mins);
@@ -1757,15 +1822,13 @@ if ( !Jet_Active(ent) || (Jet_Active(ent)&&(fabs((float)pm.s.velocity[i]*0.125) 
 	client->resp.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
 	client->resp.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
 	client->resp.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
-/*ATTILA begin*/
- if ( Jet_Active(ent) )
- if( pm.groundentity )
- /*are we on ground*/
- if ( Jet_AvoidGround(ent) )
- /*then lift us if possible*/
- pm.groundentity = NULL;
- /*now we are no longer on ground*/
- /*ATTILA end*/
+	if ( Jet_Active(ent) )
+		/*are we on ground*/
+		if( pm.groundentity )
+			/*then lift us if possible*/
+			if ( Jet_AvoidGround(ent) )
+				/*now we are no longer on ground*/
+				pm.groundentity = NULL;
 
 
 	if (ent->groundentity && !pm.groundentity && (pm.cmd.upmove >= 10) && (pm.waterlevel == 0))
@@ -1811,9 +1874,15 @@ if ( !Jet_Active(ent) || (Jet_Active(ent)&&(fabs((float)pm.s.velocity[i]*0.125) 
 // frozen code begin
 		// ******************
 		// Take care of unfreezing
-		if (other->frozen && other->client ) {
+		if (other->frozen && other->client )
+		{
 			// only touch-unfreeze if we have the same skin
-			if( !strcmp( Info_ValueForKey( ent->client->pers.userinfo, "skin" ), other->oldskin)) {
+			if(!strcmp( Info_ValueForKey( ent->client->pers.userinfo, "skin" ),
+				other->oldskin))
+			{
+				int playernum;
+				char userinfo[MAX_INFO_STRING];
+
 				// find the player number
 				playernum = other - g_edicts - 1;
 				// get the userinfo
@@ -1850,10 +1919,12 @@ if ( !Jet_Active(ent) || (Jet_Active(ent)&&(fabs((float)pm.s.velocity[i]*0.125) 
 			Think_Weapon (ent);
 		}
 	}
-/* WonderSlug ----Code to go boom */ 
-if ((ent->client->kamikaze_framenum <= level.framenum) && (ent->client->kamikaze_mode & 1)) 
-Kamikaze_Explode(ent);
- /* WonderSlug End */
+
+	/* WonderSlug ----Code to go boom */ 
+	if ((ent->client->kamikaze_framenum <= level.framenum)
+	&& (ent->client->kamikaze_mode & 1)) 
+		Kamikaze_Explode(ent);
+	 /* WonderSlug End */
 
 
 }

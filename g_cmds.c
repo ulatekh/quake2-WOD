@@ -1,10 +1,7 @@
 #include "g_local.h"
 #include "m_player.h"
 
-void Addbot(edict_t *self);
-void AddbotF(void);
-void Cmd_Hook_f (edict_t *ent);
-
+void Cmd_UseGrenades_f (edict_t *ent, gitem_t *it);
 
 char *ClientTeam (edict_t *ent)
 {
@@ -51,7 +48,7 @@ qboolean OnSameTeam (edict_t *ent1, edict_t *ent2)
 void SelectNextItem (edict_t *ent, int itflags)
 {
 	gclient_t	*cl;
-	int			i, index;
+	unsigned int i, index;
 	gitem_t		*it;
 
 	cl = ent->client;
@@ -59,10 +56,11 @@ void SelectNextItem (edict_t *ent, int itflags)
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
 	{
-		index = (cl->pers.selected_item + i)%MAX_ITEMS;
+		// index = (cl->pers.selected_item + i)%MAX_ITEMS;
+		index = (((unsigned)cl->pers.selected_item) + i) & (MAX_ITEMS-1);
 		if (!cl->pers.inventory[index])
 			continue;
-		it = &itemlist[index];
+		it = itemlist[index];
 		if (!it->use)
 			continue;
 		if (!(it->flags & itflags))
@@ -78,7 +76,7 @@ void SelectNextItem (edict_t *ent, int itflags)
 void SelectPrevItem (edict_t *ent, int itflags)
 {
 	gclient_t	*cl;
-	int			i, index;
+	unsigned int i, index;
 	gitem_t		*it;
 
 	cl = ent->client;
@@ -86,10 +84,12 @@ void SelectPrevItem (edict_t *ent, int itflags)
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
 	{
-		index = (cl->pers.selected_item + MAX_ITEMS - i)%MAX_ITEMS;
+		// index = (cl->pers.selected_item + MAX_ITEMS - i)%MAX_ITEMS;
+		index = (((unsigned)cl->pers.selected_item) + MAX_ITEMS - i)
+			& (MAX_ITEMS-1);
 		if (!cl->pers.inventory[index])
 			continue;
-		it = &itemlist[index];
+		it = itemlist[index];
 		if (!it->use)
 			continue;
 		if (!(it->flags & itflags))
@@ -160,7 +160,7 @@ void Cmd_Give_f (edict_t *ent)
 	{
 		for (i=0 ; i<game.num_items ; i++)
 		{
-			it = itemlist + i;
+			it = itemlist[i];
 			if (!it->pickup)
 				continue;
 			if (!(it->flags & IT_WEAPON))
@@ -175,7 +175,7 @@ void Cmd_Give_f (edict_t *ent)
 	{
 		for (i=0 ; i<game.num_items ; i++)
 		{
-			it = itemlist + i;
+			it = itemlist[i];
 			if (!it->pickup)
 				continue;
 			if (!(it->flags & IT_AMMO))
@@ -190,13 +190,13 @@ void Cmd_Give_f (edict_t *ent)
 	{
 		gitem_armor_t	*info;
 
-		it = FindItem("Jacket Armor");
+		it = &gI_item_armor_jacket;
 		ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-		it = FindItem("Combat Armor");
+		it = &gI_item_armor_combat;
 		ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-		it = FindItem("Body Armor");
+		it = &gI_item_armor_body;
 		info = (gitem_armor_t *)it->info;
 		ent->client->pers.inventory[ITEM_INDEX(it)] = info->max_count;
 
@@ -206,7 +206,7 @@ void Cmd_Give_f (edict_t *ent)
 
 	if (give_all || Q_stricmp(name, "Power Shield") == 0)
 	{
-		it = FindItem("Power Shield");
+		it = &gI_item_power_shield;
 		it_ent = G_Spawn();
 		it_ent->classname = it->classname;
 		SpawnItem (it_ent, it);
@@ -222,7 +222,7 @@ void Cmd_Give_f (edict_t *ent)
 	{
 		for (i=0 ; i<game.num_items ; i++)
 		{
-			it = itemlist + i;
+			it = itemlist[i];
 			if (!it->pickup)
 				continue;
 			if (it->flags & (IT_ARMOR|IT_WEAPON|IT_AMMO))
@@ -360,6 +360,7 @@ void Cmd_Noclip_f (edict_t *ent)
 
 	gi.cprintf (ent, PRINT_HIGH, msg);
 }
+
 /*
 =====
 cmd_kamikaze_f
@@ -369,15 +370,10 @@ added so player cannot kamikaze when dead
 
 void Cmd_Kamikaze_f (edict_t *ent)
 {
-if (ent->deadflag)
-{
-gi.cprintf (ent, PRINT_HIGH, "Can't kamikaze; you're dead!\n");
-return;
-}
-else
-{
-Start_Kamikaze_Mode(ent);
-}
+	if (ent->deadflag)
+		return;
+	
+	Start_Kamikaze_Mode (ent);
 }
 
 /*
@@ -387,7 +383,7 @@ Cmd_Third_f
 */
 void Cmd_Third_f (edict_t *ent)
 {
-        if (ent->movetype == MOVETYPE_NOCLIP)
+   if (ent->movetype == MOVETYPE_NOCLIP)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Can't be in Chasecam Mode and noclip!\n");
 		return;
@@ -463,103 +459,102 @@ void Cmd_Use_f (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "Item is not usable.\n");
 		return;
 	}
+
+	// test if they have item
 	index = ITEM_INDEX(it);
 	if (!ent->client->pers.inventory[index])
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Out of item: %s\n", s);
 		return;
 	}
-    // to allow multiple weapons from one keypress
-    else if (!Q_stricmp(s, ent->client->pers.weapon->pickup_name)) 
-    {    
-// WoD QUICKFIND					
-        if (!Q_stricmp(s, "Blaster"))    
-		{
-			it = FindItem ("Super Blaster"); 
-		gi.cprintf (ent, PRINT_HIGH, "Super Blaster\n");
-		}
-        if (!Q_stricmp(s, "Rocket Launcher"))    
-		{
-			it = FindItem ("Homing Rocket Launcher"); 
-		gi.cprintf (ent, PRINT_HIGH, "Homing Rocketlauncher\n");
-		}
-        if (!Q_stricmp(s, "Hyperblaster"))    
-		{
-			it = FindItem ("Plasma Gun"); 
-		gi.cprintf (ent, PRINT_HIGH, "Plasma Gun\n");
-		}
-        if (!Q_stricmp(s, "Super Shotgun"))    
-		{
-			it = FindItem ("Freezer"); 
-		gi.cprintf (ent, PRINT_HIGH, "Freeze Gun\n");
-		}
-        if (!Q_stricmp(s, "Machinegun"))   
-		{
-			it = FindItem ("Standard Machinegun"); 
-		gi.cprintf (ent, PRINT_HIGH, "Standard Machinegun\n");
-		}
-        if (!Q_stricmp(s, "Railgun"))   
-		{
-			it = FindItem ("Railgun2"); 
-		gi.cprintf (ent, PRINT_HIGH, "Railgun\n");
-		}
 
-
- if (!Q_stricmp(s, "Shotgun"))    
+	// to allow multiple weapons from one keypress
+	// also tries to select alt. weapon if main weapon is out of ammo
+	else if (it == ent->client->pers.weapon
+	|| (!(it->flags & IT_ALTWEAPON)
+		&& it->ammo
+		&& ent->client->pers.inventory[ITEM_INDEX(it->ammo)] == 0
+		&& !g_select_empty->value))
+	{
+		// They're switching to one of the alternate weapons.
+      if (it == &gI_weapon_blaster)    
 		{
-			it = FindItem ("Sniper Gun"); 
-		gi.cprintf (ent, PRINT_HIGH, "Sniper Gun\n");
+			it = &gI_weapon_superblaster;
 		}
+      else if (it == &gI_weapon_rocketlauncher)    
+		{
+			it = &gI_weapon_homing;
+		}
+      else if (it == &gI_weapon_hyperblaster)    
+		{
+			it = &gI_weapon_plasma;
+		}
+      else if (it == &gI_weapon_supershotgun)
+		{
+			it = &gI_weapon_freezer;
+		}
+      else if (it == &gI_weapon_machinegun)
+		{
+			it = &gI_weapon_machine;
+		}
+      else if (it == &gI_weapon_chaingun)   
+		{
+			it = &gI_weapon_streetsweeper;
+		}
+      else if (it == &gI_weapon_railgun)   
+		{
+			it = &gI_weapon_railgun2;
+		}
+		else if (it == &gI_weapon_shotgun)    
+		{
+			it = &gI_weapon_sniper;
+		}
+		else if (it == &gI_ammo_grenades)
+			Cmd_UseGrenades_f (ent, it);
+
+		// False alarm, no alt weapon switching.
+		else
+			return;
 	}
-	
 
-	/* mfox-wod: for the rest of these I find it confusing to
-	   have multiple selection since there are other ways of
-	   selecting the other weapons anyway. So I'm just keeping
-	   code which tells the user when he has picked a modified
-	   weapon. */
+	// Hack all new selections of the grenade weapon to throw standard grenades.
+	else if (it == &gI_ammo_grenades)
+		ent->client->dM_grenade = 0;
 
-	else if (!Q_stricmp(it->classname, "weapon_supershotgun"))    
+	// Print what they selected.  Some of the normal weapons have been replaced
+	// by the alternates, and all the alternates need to be printed.  Also, we
+	// already printed the message for the grenades.
+	if (it == &gI_weapon_machinegun)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Super Shotgun\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_railgun"))    
+		gi.cprintf (ent, PRINT_HIGH, "Machine Rocket Gun\n");
+	}
+	else if (it == &gI_weapon_grenadelauncher)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Flame Thrower\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_machinegun"))    
+		gi.cprintf (ent, PRINT_HIGH, "Fire Grenade Launcher\n");
+	}
+	else if (it == &gI_weapon_rocketlauncher)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Machine Rocket Launcher\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_sniper"))    
+		gi.cprintf (ent, PRINT_HIGH, "Flame Rocket Launcher\n");
+	}
+	else if (it == &gI_weapon_railgun)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Sniper Gun\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_machine"))    
+		gi.cprintf (ent, PRINT_HIGH, "Flamethrower\n");
+	}
+	else if (it == &gI_weapon_railgun2)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Standard Machine Gun\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_plasma"))    
+		gi.cprintf (ent, PRINT_HIGH, "Railgun\n");
+	}
+	else if (it == &gI_ammo_grenades)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Plasma Gun\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_homing"))    
+		// The grenade type was already printed.
+	}
+	else if (it->pickup_name)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Homing Rocket Launcher\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_superblaster"))    
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Super Blaster\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_shotgun"))    
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Shotgun\n");
-	}  
-	else if (!Q_stricmp(it->classname, "weapon_rocketlauncher"))    
-	{
-		gi.cprintf (ent, PRINT_HIGH, "Flame Rocketlauncher\n");
-	}  
+		// Show them the pickup name.
+		gi.cprintf (ent, PRINT_HIGH, "%s\n", it->pickup_name);
+	}
 
+	// Try to use it.
 	it->use (ent, it);
 }
 
@@ -650,7 +645,7 @@ void Cmd_InvUse_f (edict_t *ent)
 		return;
 	}
 
-	it = &itemlist[ent->client->pers.selected_item];
+	it = itemlist[ent->client->pers.selected_item];
 	if (!it->use)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Item is not usable.\n");
@@ -667,30 +662,31 @@ Cmd_WeapPrev_f
 void Cmd_WeapPrev_f (edict_t *ent)
 {
 	gclient_t	*cl;
-	int			i, index;
+	unsigned int i, index;
 	gitem_t		*it;
-	int			selected_weapon;
+	unsigned int selected_weapon;
 
 	cl = ent->client;
 
 	if (!cl->pers.weapon)
 		return;
 
-	selected_weapon = ITEM_INDEX(cl->pers.weapon);
+	selected_weapon = ((unsigned)(ITEM_INDEX(cl->pers.weapon)));
 
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
 	{
-		index = (selected_weapon + i)%MAX_ITEMS;
+		// index = (selected_weapon + i)%MAX_ITEMS;
+		index = (selected_weapon + i) & (MAX_ITEMS-1);
 		if (!cl->pers.inventory[index])
 			continue;
-		it = &itemlist[index];
+		it = itemlist[index];
 		if (!it->use)
 			continue;
 		if (! (it->flags & IT_WEAPON) )
 			continue;
 		it->use (ent, it);
-		if (cl->pers.weapon == it)
+		if (cl->newweapon == it)
 			return;	// successful
 	}
 }
@@ -703,30 +699,31 @@ Cmd_WeapNext_f
 void Cmd_WeapNext_f (edict_t *ent)
 {
 	gclient_t	*cl;
-	int			i, index;
+	unsigned int i, index;
 	gitem_t		*it;
-	int			selected_weapon;
+	unsigned int selected_weapon;
 
 	cl = ent->client;
 
 	if (!cl->pers.weapon)
 		return;
 
-	selected_weapon = ITEM_INDEX(cl->pers.weapon);
+	selected_weapon = ((unsigned)(ITEM_INDEX (cl->pers.weapon)));
 
 	// scan  for the next valid one
 	for (i=1 ; i<=MAX_ITEMS ; i++)
 	{
-		index = (selected_weapon + MAX_ITEMS - i)%MAX_ITEMS;
+		// index = (selected_weapon + MAX_ITEMS - i)%MAX_ITEMS;
+		index = (selected_weapon + MAX_ITEMS - i) & (MAX_ITEMS-1);
 		if (!cl->pers.inventory[index])
 			continue;
-		it = &itemlist[index];
+		it = itemlist[index];
 		if (!it->use)
 			continue;
 		if (! (it->flags & IT_WEAPON) )
 			continue;
 		it->use (ent, it);
-		if (cl->pers.weapon == it)
+		if (cl->newweapon == it)
 			return;	// successful
 	}
 }
@@ -750,7 +747,7 @@ void Cmd_WeapLast_f (edict_t *ent)
 	index = ITEM_INDEX(cl->pers.lastweapon);
 	if (!cl->pers.inventory[index])
 		return;
-	it = &itemlist[index];
+	it = itemlist[index];
 	if (!it->use)
 		return;
 	if (! (it->flags & IT_WEAPON) )
@@ -775,7 +772,7 @@ void Cmd_InvDrop_f (edict_t *ent)
 		return;
 	}
 
-	it = &itemlist[ent->client->pers.selected_item];
+	it = itemlist[ent->client->pers.selected_item];
 	if (!it->drop)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Item is not dropable.\n");
@@ -795,6 +792,8 @@ void Cmd_Kill_f (edict_t *ent)
 		return;
 	ent->flags &= ~FL_GODMODE;
 	ent->health = 0;
+	ent->s.effects = 0;
+	ent->s.renderfx = 0;
 	meansOfDeath = MOD_SUICIDE;
 	player_die (ent, ent, ent, 100000, vec3_origin);
 	// don't even bother waiting for death frames
@@ -847,7 +846,7 @@ void Cmd_Players_f (edict_t *ent)
 
 	count = 0;
 	for (i = 0 ; i < maxclients->value ; i++)
-		if (game.clients[i].pers.connected)
+		if (game.clients[i].pers.connected && (g_edicts + i + 1)->inuse)
 		{
 			index[count] = i;
 			count++;
@@ -1075,19 +1074,45 @@ JDB: new command for lowlight vision (GL mode ONLY) 4/4/98
 */ 
 void Cmd_Lowlight_f (edict_t *ent) 
 { 
-if(ent->client->lowlight ^= 1) 
-{ 
-gi.cvar_forceset("gl_saturatelighting","1"); 
-gi.cvar_forceset("r_fullbright","1"); 
-ent->client->ps.fov = 75; 
+	if(ent->client->lowlight ^= 1) 
+	{ 
+		gi.cvar_forceset("gl_saturatelighting","1"); 
+		gi.cvar_forceset("r_fullbright","1"); 
+		ent->client->ps.fov = 75; 
+	} 
+	else 
+	{ 
+		gi.cvar_forceset("gl_saturatelighting","0"); 
+		gi.cvar_forceset("r_fullbright","0"); 
+		ent->client->ps.fov = 90; 
+	} 
 } 
-else 
-{ 
-gi.cvar_forceset("gl_saturatelighting","0"); 
-gi.cvar_forceset("r_fullbright","0"); 
-ent->client->ps.fov = 90; 
-} 
-} 
+
+/* 
+================= 
+Cmd_Zoom_f 
+================= 
+*/ 
+void Cmd_Zoom_f (edict_t *ent) 
+{
+	int zoomtype = atoi (gi.argv (1));
+
+	if (zoomtype == 0)	
+	{	
+		ent->client->ps.fov = 90;		
+	}	
+	else if (zoomtype == 1)
+	{	
+		if (ent->client->ps.fov == 90)
+			ent->client->ps.fov = 40;
+		else if (ent->client->ps.fov == 40) 
+			ent->client->ps.fov = 20;
+		else if (ent->client->ps.fov == 20)
+			ent->client->ps.fov = 10;
+		else
+			ent->client->ps.fov = 90;	
+	}	
+}
 
 /*
 =================
@@ -1096,131 +1121,180 @@ ClientCommand
 */
 void ClientCommand (edict_t *ent)
 {
-	char	*cmd;
+	char *cmd;
 
 	if (!ent->client)
 		return;		// not fully in game yet
 
 	cmd = gi.argv(0);
 
-	if (Q_stricmp (cmd, "players") == 0)
-	{
-		Cmd_Players_f (ent);
-		return;
-	}
-	if (Q_stricmp (cmd, "say") == 0)
-	{
-		Cmd_Say_f (ent, false, false);
-		return;
-	}
-	if (Q_stricmp (cmd, "say_team") == 0)
-	{
-		Cmd_Say_f (ent, true, false);
-		return;
-	}
-	if (Q_stricmp (cmd, "score") == 0)
-	{
-		Cmd_Score_f (ent);
-		return;
-	}
-	if (Q_stricmp (cmd, "help") == 0)
-	{
-		Cmd_Help_f (ent);
-		return;
-	}
-
+	// Only a few commands are available during intermissions.
 	if (level.intermissiontime)
+	{
+		if (Q_stricmp (cmd, "players") == 0)
+			Cmd_Players_f (ent);
+		else if (Q_stricmp (cmd, "say") == 0)
+			Cmd_Say_f (ent, false, false);
+		else if (Q_stricmp (cmd, "say_team") == 0)
+			Cmd_Say_f (ent, true, false);
+		else if (Q_stricmp (cmd, "score") == 0)
+			Cmd_Score_f (ent);
+		else if (Q_stricmp (cmd, "help") == 0)
+			Cmd_Help_f (ent);
+
+		// Those are the only commands we allow now.
 		return;
+	}
 
-	if (Q_stricmp (cmd, "use") == 0)
-		Cmd_Use_f (ent);
-	else if (Q_stricmp (cmd, "drop") == 0)
-		Cmd_Drop_f (ent);
-	else if (Q_stricmp (cmd, "give") == 0)
-		Cmd_Give_f (ent);
-	else if (Q_stricmp (cmd, "god") == 0)
-		Cmd_God_f (ent);
-	else if (Q_stricmp (cmd, "notarget") == 0)
-		Cmd_Notarget_f (ent);
-	else if (Q_stricmp (cmd, "noclip") == 0)
-		Cmd_Noclip_f (ent);
-	else if (Q_stricmp (cmd, "inven") == 0)
-		Cmd_Inven_f (ent);
-	else if (Q_stricmp (cmd, "invnext") == 0)
-		SelectNextItem (ent, -1);
-	else if (Q_stricmp (cmd, "invprev") == 0)
-		SelectPrevItem (ent, -1);
-	else if (Q_stricmp (cmd, "invnextw") == 0)
-		SelectNextItem (ent, IT_WEAPON);
-	else if (Q_stricmp (cmd, "invprevw") == 0)
-		SelectPrevItem (ent, IT_WEAPON);
-	else if (Q_stricmp (cmd, "invnextp") == 0)
-		SelectNextItem (ent, IT_POWERUP);
-	else if (Q_stricmp (cmd, "invprevp") == 0)
-		SelectPrevItem (ent, IT_POWERUP);
-	else if (Q_stricmp (cmd, "invuse") == 0)
-		Cmd_InvUse_f (ent);
-	else if (Q_stricmp (cmd, "invdrop") == 0)
-		Cmd_InvDrop_f (ent);
-	else if (Q_stricmp (cmd, "weapprev") == 0)
-		Cmd_WeapPrev_f (ent);
-	else if (Q_stricmp (cmd, "weapnext") == 0)
-		Cmd_WeapNext_f (ent);
-	else if (Q_stricmp (cmd, "weaplast") == 0)
-		Cmd_WeapLast_f (ent);
-	else if (Q_stricmp (cmd, "kill") == 0)
-		Cmd_Kill_f (ent);
-	else if (Q_stricmp (cmd, "putaway") == 0)
-		Cmd_PutAway_f (ent);
-	else if (Q_stricmp (cmd, "wave") == 0)
-		Cmd_Wave_f (ent);
-else if (Q_stricmp (cmd, "nightvision") == 0)
- Cmd_Lowlight_f (ent);
+	// Parse the command.  To speed things up cheaply, do a switch on the first
+	// few characters in the command.
+	switch (cmd[0])
+	{
+		case 'd':
+			if (Q_stricmp (cmd, "drop") == 0)
+				Cmd_Drop_f (ent);
+			else if (Q_stricmp (cmd, "decoy") == 0)
+				SP_Decoy (ent); 
+			else
+				goto notrecognized;
+			break;
 
-	 else if (Q_stricmp (cmd, "firemode") == 0)
-	 Cmd_FireMode_f (ent);
+		case 'g':
+			if (Q_stricmp (cmd, "give") == 0)
+				Cmd_Give_f (ent);
+			else if (Q_stricmp (cmd, "god") == 0)
+				Cmd_God_f (ent);
+			else
+				goto notrecognized;
+			break;
 
-	else if (Q_stricmp (cmd, "chasecam") == 0)
-		Cmd_Third_f (ent);
-	else if (Q_stricmp (cmd, "thirdx") == 0)
-		Cmd_ThirdX_f (ent);
-	else if (Q_stricmp (cmd, "thirdz") == 0)
-		Cmd_ThirdZ_f (ent);
-	else if (Q_stricmp (cmd, "hook") == 0)
-		Cmd_Hook_f (ent);
-	else if (Q_stricmp (cmd, "decoy") == 0)
-	 SP_Decoy (ent); 
-      else if (Q_stricmp (cmd, "scanner") == 0)
-	 Toggle_Scanner (ent);
-	else if (Q_stricmp (cmd, "lsight") == 0) 
-	SP_LaserSight (ent);
-         else if (Q_stricmp (cmd, "zoom") == 0)
-         {
-	int zoomtype=atoi(gi.argv(1));
-		if (zoomtype==0)	
-	{	
-		ent->client->ps.fov = 90;		
-	}	
-	else if (zoomtype==1)
-		{	
-		if (ent->client->ps.fov == 90) ent->client->ps.fov = 40;
-			else if (ent->client->ps.fov == 40) 
-ent->client->ps.fov = 20;
-			else if (ent->client->ps.fov == 20)
- ent->client->ps.fov = 10;
-			else ent->client->ps.fov = 90;	
-	}	
-}
-	 else if (Q_stricmp (cmd, "push") == 0)
-	 Cmd_Push_f (ent);
-	 else if (Q_stricmp (cmd, "kamikaze") == 0) 
-//		Start_Kamikaze_Mode(ent);
-		Cmd_Kamikaze_f (ent);
-	 else if (Q_stricmp (cmd, "pull") == 0)
-	 Cmd_Pull_f (ent);
- 	 else if (Q_stricmp (cmd, "laser") == 0) 
- 		PlaceLaser (ent);
+		case 'h':
+			if (Q_stricmp (cmd, "help") == 0)
+				Cmd_Help_f (ent);
+			else if (Q_stricmp (cmd, "hook") == 0)
+				Cmd_Hook_f (ent);
+			else
+				goto notrecognized;
+			break;
 
-    	else	// anything that doesn't match a command will be a chat
-		Cmd_Say_f (ent, false, true);
+		case 'i':
+			if (Q_stricmp (cmd, "inven") == 0)
+				Cmd_Inven_f (ent);
+			else if (Q_stricmp (cmd, "invnext") == 0)
+				SelectNextItem (ent, -1);
+			else if (Q_stricmp (cmd, "invprev") == 0)
+				SelectPrevItem (ent, -1);
+			else if (Q_stricmp (cmd, "invnextw") == 0)
+				SelectNextItem (ent, IT_WEAPON);
+			else if (Q_stricmp (cmd, "invprevw") == 0)
+				SelectPrevItem (ent, IT_WEAPON);
+			else if (Q_stricmp (cmd, "invnextp") == 0)
+				SelectNextItem (ent, IT_POWERUP);
+			else if (Q_stricmp (cmd, "invprevp") == 0)
+				SelectPrevItem (ent, IT_POWERUP);
+			else if (Q_stricmp (cmd, "invuse") == 0)
+				Cmd_InvUse_f (ent);
+			else if (Q_stricmp (cmd, "invdrop") == 0)
+				Cmd_InvDrop_f (ent);
+			else
+				goto notrecognized;
+			break;
+
+		case 'k':
+			if (Q_stricmp (cmd, "kill") == 0)
+				Cmd_Kill_f (ent);
+			else if (Q_stricmp (cmd, "kamikaze") == 0) 
+				Cmd_Kamikaze_f (ent);
+			else
+				goto notrecognized;
+			break;
+
+		case 'l':
+			if (Q_stricmp (cmd, "lsight") == 0) 
+				SP_LaserSight (ent);
+			else if (Q_stricmp (cmd, "laser") == 0) 
+				PlaceLaser (ent);
+			else
+				goto notrecognized;
+			break;
+
+		case 'n':
+			if (Q_stricmp (cmd, "notarget") == 0)
+				Cmd_Notarget_f (ent);
+			else if (Q_stricmp (cmd, "noclip") == 0)
+				Cmd_Noclip_f (ent);
+			else if (Q_stricmp (cmd, "nightvision") == 0)
+				Cmd_Lowlight_f (ent);
+			else
+				goto notrecognized;
+			break;
+
+		case 'p':
+			if (Q_stricmp (cmd, "push") == 0)
+				Cmd_Push_f (ent);
+			else if (Q_stricmp (cmd, "pull") == 0)
+				Cmd_Pull_f (ent);
+			else if (Q_stricmp (cmd, "putaway") == 0)
+				Cmd_PutAway_f (ent);
+			else if (Q_stricmp (cmd, "players") == 0)
+				Cmd_Players_f (ent);
+			else
+				goto notrecognized;
+			break;
+
+		case 's':
+			if (Q_stricmp (cmd, "say") == 0)
+				Cmd_Say_f (ent, false, false);
+			else if (Q_stricmp (cmd, "say_team") == 0)
+				Cmd_Say_f (ent, true, false);
+			else if (Q_stricmp (cmd, "scanner") == 0)
+				Toggle_Scanner (ent);
+			else if (Q_stricmp (cmd, "score") == 0)
+				Cmd_Score_f (ent);
+			else
+				goto notrecognized;
+			break;
+
+		case 't':
+			if (Q_stricmp (cmd, "thirdx") == 0)
+				Cmd_ThirdX_f (ent);
+			else if (Q_stricmp (cmd, "thirdz") == 0)
+				Cmd_ThirdZ_f (ent);
+			else
+				goto notrecognized;
+			break;
+
+		case 'w':
+			if (Q_stricmp (cmd, "weapprev") == 0)
+				Cmd_WeapPrev_f (ent);
+			else if (Q_stricmp (cmd, "weapnext") == 0)
+				Cmd_WeapNext_f (ent);
+			else if (Q_stricmp (cmd, "weaplast") == 0)
+				Cmd_WeapLast_f (ent);
+			else if (Q_stricmp (cmd, "wave") == 0)
+				Cmd_Wave_f (ent);
+			else
+				goto notrecognized;
+			break;
+
+		// Some commands are the only one to start with that letter.
+		default:
+			if (Q_stricmp (cmd, "use") == 0)
+				Cmd_Use_f (ent);
+			else if (Q_stricmp (cmd, "chasecam") == 0)
+				Cmd_Third_f (ent);
+			else if (Q_stricmp (cmd, "firemode") == 0)
+				Cmd_FireMode_f (ent);
+			else if (Q_stricmp (cmd, "zoom") == 0)
+				Cmd_Zoom_f (ent);
+
+		// Anything not recognized will print an error message.
+			else
+			{
+		notrecognized:
+				gi.cprintf (ent, PRINT_HIGH, "Unrecognized command: %s %s\n",
+					gi.argv (0), gi.args());
+			}
+			break;
+	}
 }

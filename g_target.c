@@ -389,7 +389,7 @@ void use_target_blaster (edict_t *self, edict_t *other, edict_t *activator)
 	else
 		effect = EF_BLASTER;
 
-	fire_blaster (self, self->s.origin, self->movedir, self->dmg, self->speed, EF_BLASTER, MOD_TARGET_BLASTER);
+	fire_blaster (self, self->s.origin, self->movedir, self->dmg, self->speed, EF_BLASTER /* , MOD_TARGET_BLASTER */);
 	gi.sound (self, CHAN_VOICE, self->noise_index, 1, ATTN_NORM, 0);
 }
 
@@ -466,21 +466,6 @@ void target_laser_think (edict_t *self)
 	vec3_t	point;
 	vec3_t	last_movedir;
 	int		count;
-if (strcmp(self -> classname,"laser_yaya") == 0) 
-if (level.time > self -> delay)
- { 
-// bit of damage 
-T_RadiusDamage (self, self, LASER_MOUNT_DAMAGE_RADIUS, NULL, LASER_MOUNT_DAMAGE, MOD_TRIPWIRE);
- // BANG ! 
-gi.WriteByte (svc_temp_entity);
- gi.WriteByte (TE_EXPLOSION1);
- gi.WritePosition(self -> s.origin);
- gi.multicast (self->s.origin, MULTICAST_PVS);
- // bye bye laser
- G_FreeEdict (self);
- return;
- }
-
 
 	if (self->spawnflags & 0x80000000)
 		count = 8;
@@ -500,9 +485,10 @@ gi.WriteByte (svc_temp_entity);
 	ignore = self;
 	VectorCopy (self->s.origin, start);
 	VectorMA (start, 2048, self->movedir, end);
-	while(1)
+	while (1)
 	{
-		tr = gi.trace (start, NULL, NULL, end, ignore, CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
+		tr = gi.trace (start, NULL, NULL, end, ignore,
+			CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_DEADMONSTER);
 
 		if (!tr.ent)
 			break;
@@ -511,7 +497,8 @@ gi.WriteByte (svc_temp_entity);
 		if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER))
 			T_Damage (tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MOD_TARGET_LASER);
 
-		// if we hit something that's not a monster or player or is immune to lasers, we're done
+		// if we hit something that's not a monster or player or is immune to lasers,
+		// we're done
 		if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
 		{
 			if (self->spawnflags & 0x80000000)

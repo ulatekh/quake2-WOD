@@ -4,6 +4,8 @@
 
 #include "g_local.h"
 
+void BecomeNewExplosion (edict_t *ent);
+
 /*
 =================
 Grenade_Explode
@@ -12,7 +14,7 @@ New grenade explosion.  Creates ~12 new entities (9 debris, 1 flash, 1 sound + 1
 (Id barrel explosion creates 15)
 =================
 */
-static void Grenade_Explode (edict_t *ent)
+void Grenade_Explode (edict_t *ent)
 {
 	// do blast damage	
 	T_RadiusDamage(ent, ent->owner, ent->dmg, NULL, ent->dmg_radius, MOD_CLUSTER);
@@ -89,7 +91,6 @@ make_debris
 */
 void make_debris (edict_t *ent)
 {
-	int		i;
 	vec3_t	org;
 	vec3_t	origin;
 	float		spd;
@@ -209,11 +210,7 @@ BecomeNewExplosion
 */
 void BecomeNewExplosion (edict_t *ent)
 {
-	edict_t	*chunk;
-	int		i;
-	vec3_t	org;
 	vec3_t	origin;
-	float		spd;
 
 	// calculate position for the explosion entity
 	VectorMA (ent->s.origin, -0.02, ent->velocity, origin);
@@ -326,9 +323,13 @@ void ThrowShrapnel (edict_t *self, char *modelname, float speed, vec3_t origin)
 	chunk->flags = 0;
 	chunk->classname = "debris";
 	chunk->takedamage = DAMAGE_NO;
-	chunk->die = G_FreeEdict;
+	chunk->die = misc_die;
 
 	chunk->s.effects |= EF_GRENADE;
+
+	// Credit damage done by the shrapnel to the attacker.
+	if (self->owner && self->owner->client)
+		chunk->owner = self->owner;
 
 	gi.linkentity (chunk);
 }
@@ -363,9 +364,13 @@ void ThrowShrapnel2 (edict_t *self, char *modelname, float speed, vec3_t origin)
 	chunk->flags = 0;
 	chunk->classname = "debris";
 	chunk->takedamage = DAMAGE_NO;
-	chunk->die = G_FreeEdict;
+	chunk->die = misc_die;
 
 	chunk->s.effects |= EF_GRENADE;
+
+	// Credit damage done by the shrapnel to the attacker.
+	if (self->owner && self->owner->client)
+		chunk->owner = self->owner;
 
 	gi.linkentity (chunk);
 }
@@ -400,9 +405,13 @@ void ThrowShrapnel3 (edict_t *self, char *modelname, float speed, vec3_t origin)
 	chunk->flags = 0;
 	chunk->classname = "debris";
 	chunk->takedamage = DAMAGE_NO;
-	chunk->die = G_FreeEdict;
+	chunk->die = misc_die;
 
 	chunk->s.effects |= EF_GRENADE;
+
+	// Credit damage done by the shrapnel to the attacker.
+	if (self->owner && self->owner->client)
+		chunk->owner = self->owner;
 
 	gi.linkentity (chunk);
 }
@@ -437,9 +446,13 @@ void ThrowShrapnel4 (edict_t *self, char *modelname, float speed, vec3_t origin)
 	chunk->flags = 0;
 	chunk->classname = "debris";
 	chunk->takedamage = DAMAGE_NO;
-	chunk->die = G_FreeEdict;
+	chunk->die = misc_die;
 
 	chunk->s.effects |= EF_GRENADE | EF_ROCKET;
+
+	// Credit damage done by the shrapnel to the attacker.
+	if (self->owner && self->owner->client)
+		chunk->owner = self->owner;
 
 	gi.linkentity (chunk);
 }

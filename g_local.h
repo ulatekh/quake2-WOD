@@ -195,10 +195,11 @@ typedef struct
 // gitem_t->flags
 #define	IT_WEAPON		1		// use makes active weapon
 #define	IT_AMMO			2
-#define IT_ARMOR		4
-#define IT_STAY_COOP	8
-#define IT_KEY			16
+#define IT_ARMOR			4
+#define IT_STAY_COOP		8
+#define IT_KEY				16
 #define IT_POWERUP		32
+#define	IT_ALTWEAPON	64		// for weapon switching (see Cmd_Use_f())
 
 typedef struct gitem_s
 {
@@ -217,14 +218,16 @@ typedef struct gitem_s
 	char		*pickup_name;	// for printing on pickup
 	int			count_width;		// number of digits to display by icon
 
-	int			quantity;		// for ammo how much, for weapons how much is used per shot
-	char		*ammo;			// for weapons
+	const int			quantity;		// for ammo how much, for weapons how much is used per shot
+	struct gitem_s		*ammo;			// for weapons
 	int			flags;			// IT_* flags
 
 	void		*info;
 	int			tag;
 
 	char		*precaches;		// string of all models, sounds, and images this item will use
+	
+	int		item_index;		// where this is in itemlist[]
 } gitem_t;
 
 
@@ -422,6 +425,7 @@ extern	game_import_t	gi;
 extern	game_export_t	globals;
 extern	spawn_temp_t	st;
 
+extern	int	vwep_index;
 extern	int	sm_meat_index;
 extern	int	snd_fry;
 
@@ -485,6 +489,7 @@ extern	int	body_armor_index;
 #define MOD_MACHINE		51
 #define MOD_RAILGUN2		52
 #define MOD_FREEZE		53
+#define MOD_STREETSWEEP	54
 #define MOD_FRIENDLY_FIRE	0x8000000
 
 extern	int	meansOfDeath;
@@ -526,9 +531,7 @@ extern	cvar_t	*bob_roll;
 
 extern	cvar_t	*sv_cheats;
 extern	cvar_t	*maxclients;
-extern	cvar_t	*gotten;
-extern	cvar_t	*sex;
-extern	cvar_t	*bottalk;
+extern	cvar_t	*gamedir;
 
 
 #define world	(&g_edicts[0])
@@ -571,7 +574,8 @@ typedef struct
 
 
 extern	field_t fields[];
-extern	gitem_t	itemlist[];
+extern	gitem_t	*itemlist[];
+extern	gitem_t	*itemlistSorted[];
 
 
 //
@@ -588,7 +592,7 @@ void InitItems (void);
 void SetItemNames (void);
 gitem_t	*FindItem (char *pickup_name);
 gitem_t	*FindItemByClassname (char *classname);
-#define	ITEM_INDEX(x) ((x)-itemlist)
+#define	ITEM_INDEX(x) ((x)->item_index)
 edict_t *Drop_Item (edict_t *ent, gitem_t *item);
 void SetRespawn (edict_t *ent, float delay);
 void ChangeWeapon (edict_t *ent);
@@ -599,6 +603,63 @@ int PowerArmorType (edict_t *ent);
 gitem_t	*GetItemByIndex (int index);
 qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count);
 void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
+
+extern gitem_t gI_item_armor_body;
+extern gitem_t gI_item_armor_combat;
+extern gitem_t gI_item_armor_jacket;
+extern gitem_t gI_item_armor_shard;
+extern gitem_t gI_item_power_screen;
+extern gitem_t gI_item_power_shield;
+extern gitem_t gI_weapon_blaster;
+extern gitem_t gI_weapon_shotgun;
+extern gitem_t gI_weapon_supershotgun;
+extern gitem_t gI_weapon_machine;
+extern gitem_t gI_weapon_machinegun;
+extern gitem_t gI_weapon_freezer;
+extern gitem_t gI_weapon_chaingun;
+extern gitem_t gI_weapon_streetsweeper;
+extern gitem_t gI_ammo_grenades;
+extern gitem_t gI_weapon_clustergrenade;
+extern gitem_t gI_weapon_railbomb;
+extern gitem_t gI_weapon_plasmagrenade;
+extern gitem_t gI_weapon_napalmgrenade;
+extern gitem_t gI_weapon_shrapnelgrenade;
+extern gitem_t gI_weapon_cataclysm;
+extern gitem_t gI_weapon_grenadelauncher;
+extern gitem_t gI_weapon_rocketlauncher;
+extern gitem_t gI_weapon_homing;
+extern gitem_t gI_weapon_hyperblaster;
+extern gitem_t gI_weapon_superblaster;
+extern gitem_t gI_weapon_railgun;
+extern gitem_t gI_weapon_railgun2;
+extern gitem_t gI_weapon_bfg;
+extern gitem_t gI_weapon_sniper;
+extern gitem_t gI_weapon_plasma;
+extern gitem_t gI_ammo_shells;
+extern gitem_t gI_ammo_bullets;
+extern gitem_t gI_ammo_cells;
+extern gitem_t gI_ammo_rockets;
+extern gitem_t gI_ammo_slugs;
+extern gitem_t gI_item_jetpack;
+extern gitem_t gI_item_quad;
+extern gitem_t gI_item_invulnerability;
+extern gitem_t gI_item_silencer;
+extern gitem_t gI_item_breather;
+extern gitem_t gI_item_enviro;
+extern gitem_t gI_item_ancient_head;
+extern gitem_t gI_item_adrenaline;
+extern gitem_t gI_item_bandolier;
+extern gitem_t gI_item_pack;
+extern gitem_t gI_key_data_cd;
+extern gitem_t gI_key_power_cube;
+extern gitem_t gI_key_pyramid;
+extern gitem_t gI_key_data_spinner;
+extern gitem_t gI_key_pass;
+extern gitem_t gI_key_blue_key;
+extern gitem_t gI_key_red_key;
+extern gitem_t gI_key_commander_head;
+extern gitem_t gI_key_airstrike_target;
+extern gitem_t gI_item_health;
 
 //
 // g_utils.c
@@ -679,6 +740,22 @@ void ThrowHead (edict_t *self, char *gibname, int damage, int type);
 void ThrowClientHead (edict_t *self, int damage);
 void ThrowGib (edict_t *self, char *gibname, int damage, int type);
 void BecomeExplosion1(edict_t *self);
+void BecomeExplosion2 (edict_t *self);
+void misc_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point);
+
+//
+// jetpack.c
+//
+qboolean Jet_Active (edict_t *ent);
+void Jet_BecomeExplosion (edict_t *ent, int damage);
+void Jet_ApplyJet (edict_t *ent, usercmd_t *ucmd);
+qboolean Jet_AvoidGround (edict_t *ent);
+
+//
+// maplist.c
+//
+extern cvar_t *maplist;
+extern qboolean MaplistNext (void);
 
 //
 // g_ai.c
@@ -711,51 +788,40 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int 
 void fire_rocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick);
 void fire_bfg (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius);
+
+void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
+void fire_sniper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
+void fire_freezer (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
+void fire_mr (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, int typ);
+void fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
+void fire_super (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
+void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 
-             // my functions
-             void            PlaceLaser (edict_t *ent);
-             void            pre_target_laser_think (edict_t *self);
+//
+// laser.c
+//
+void PlaceLaser (edict_t *ent);
+#define LASER_TIME 30
+#define CELLS_FOR_LASER 20
+#define LASER_DAMAGE 100
+#define LASER_MOUNT_DAMAGE 50
+#define LASER_MOUNT_DAMAGE_RADIUS 64
+void            target_laser_use (edict_t *self, edict_t *other, edict_t *activator);
+void            target_laser_think (edict_t *self);
+void            target_laser_on (edict_t *self);
+void            target_laser_off (edict_t *self);
 
-             // controlling parameters
-             #define         LASER_TIME                                                                      30
-             #define         CELLS_FOR_LASER                                                         20
-             #define         LASER_DAMAGE                                                            100
-             #define         LASER_MOUNT_DAMAGE                                                      50
-             #define         LASER_MOUNT_DAMAGE_RADIUS                                       64
-
-             // In-built Quake2 routines
-             void            target_laser_use (edict_t *self, edict_t *other, edict_t *activator);
-             void            target_laser_think (edict_t *self);
-             void            target_laser_on (edict_t *self);
-             void            target_laser_off (edict_t *self);
-// from kamikaze header file
-/*  Amount of Damage caused */
-
+//
+// kamikaze.c
+//
 #define KAMIKAZE_DAMAGE                 300
-
-
-
-/* Radius of blast */
-
 #define KAMIKAZE_DAMAGE_RADUIS  800 // Quake Units
-
-
-
-/* Count down time */
-
 #define KAMIKAZE_BLOW_TIME               50 // 1/10 seconds
-
-
-
-void            Start_Kamikaze_Mode(edict_t *the_doomed_one); // setup and start self destruct mode
-
-qboolean                Kamikaze_Active(edict_t *the_doomed_one);
-
-void            Kamikaze_Explode(edict_t *the_doomed_one);
-
-void            Kamikaze_Cancel(edict_t *the_spared_one);
-// end of kazmikaze header file
+void Start_Kamikaze_Mode(edict_t *the_doomed_one);
+qboolean Kamikaze_Active(edict_t *the_doomed_one);
+void Kamikaze_Explode(edict_t *the_doomed_one);
+void Kamikaze_Cancel(edict_t *the_spared_one);
 
 //
 // g_ptrail.c
@@ -794,6 +860,8 @@ void	ServerCommand (void);
 // p_view.c
 //
 void ClientEndServerFrame (edict_t *ent);
+void ThirdBegin (edict_t *ent);
+void ThirdEnd (edict_t *ent);
 
 //
 // p_hud.c
@@ -802,6 +870,11 @@ void MoveClientToIntermission (edict_t *client);
 void G_SetStats (edict_t *ent);
 void ValidateSelectedItem (edict_t *ent);
 void DeathmatchScoreboardMessage (edict_t *client, edict_t *killer);
+
+//
+// p_hook.c
+//
+void Cmd_Hook_f (edict_t *ent);
 
 //
 // g_pweapon.c
@@ -874,12 +947,12 @@ typedef struct
 
 	gitem_t		*weapon;
 	gitem_t		*lastweapon;
- qboolean fire_mode; // Muce: 0 for FA and 1 for BF
+	qboolean fire_mode; // Muce: 0 for FA and 1 for BF
 
 
 	int			power_cubes;	// used for tracking the cubes in coop games
 	int			score;			// for calculating total unit score in coop games
-int	scanner_active;
+	int	scanner_active;
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -966,21 +1039,20 @@ int burstfire_count; // Muce: to keep track of BF
 	float		invincible_framenum;
 	float		breather_framenum;
 	float		enviro_framenum;
-/*ATTILA begin*/ 
-float Jet_framenum;
- /*burn out time when jet is activated*/
- float Jet_remaining;
- /*remaining fuel time*/ 
-float Jet_next_think;
- /*ATTILA end*/
 
+	/*ATTILA begin*/ 
+	float Jet_framenum;		// burn out time when jet is activated
+	float Jet_remaining;		// remaining fuel time
+	float Jet_next_think;
+	/*ATTILA end*/
 
 	qboolean	grenade_blew_up;
 	float		grenade_time;
 	int			silencer_shots;
 	int			weapon_sound;
 // dM
-        int                     dM_grenade;
+   int         dM_grenade;
+   int         dM_ammoCost;
 // dM
 
 	float		pickup_msg_time;
@@ -1171,22 +1243,21 @@ struct edict_s
 	float		thirdoffx;		// So the player can move the camera around
 	float		thirdoffz;
 
-int homing_lock; //0 = not locked, 1 = locked
+	int homing_lock; //0 = not locked, 1 = locked
 
 	 edict_t *decoy;
 	 edict_t *creator;
 
- //SBOF: Chasecam variables
-int chasedist1;
-int chasedist2;
+	 //SBOF: Chasecam variables
+	int chasedist1;
+	int chasedist2;
 
-	  edict_t		*hook_target;
-        float           burnout;
-        edict_t         *burner;
+	edict_t		*hook_target;
+	float           burnout;
+	edict_t         *burner;
 	edict_t *lasersight;
-	struct gclient_s	*botclient;
-
 };
+
 void LaserSightThink (edict_t *self);
 void SP_LaserSight(edict_t *self);
 extern void CheckChasecam_Viewent(edict_t *ent);

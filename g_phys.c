@@ -32,6 +32,7 @@ edict_t	*SV_TestEntityPosition (edict_t *ent)
 	trace_t	trace;
 	int		mask;
 
+
 	if (ent->clipmask)
 		mask = ent->clipmask;
 	else
@@ -656,7 +657,6 @@ void SV_Physics_Toss (edict_t *ent)
 	qboolean	wasinwater;
 	qboolean	isinwater;
 	vec3_t		old_origin;
-int rnum;
 
 
 // regular thinking
@@ -700,33 +700,41 @@ int rnum;
 
 	if (trace.fraction < 1)
 	{
-	if (ent->movetype == MOVETYPE_FLYRICOCHET) 
-	backoff = 2; //steve
+		if (ent->movetype == MOVETYPE_FLYRICOCHET) 
+			backoff = 2;
 		else if (ent->movetype == MOVETYPE_BOUNCE)
 			backoff = 1.5;
 		else
 			backoff = 1;
 
 		ClipVelocity (ent->velocity, trace.plane.normal, ent->velocity, backoff);
-if (ent->movetype == MOVETYPE_FLYRICOCHET)
- { 
-vectoangles (ent->velocity, ent->s.angles);
-//WonderSlug --- Add in Ricochet Sounds
- rnum = rand();
- //Will make a sound about 1/2 the time 
-if (rnum < (RAND_MAX/2))
-{ 
-//Pick one of three Rico Sounds
- if (rnum < ((RAND_MAX/2)/3))
- gi.positioned_sound(old_origin, ent, CHAN_WEAPON, gi.soundindex ("world/ric1.wav"), 1, ATTN_STATIC, 0);
- else if (rnum < ((RAND_MAX/2)/3)*2) gi.positioned_sound(old_origin, ent, CHAN_WEAPON, gi.soundindex ("world/ric2.wav"), 1, ATTN_STATIC, 0);
- else gi.positioned_sound(old_origin, ent, CHAN_WEAPON, gi.soundindex ("world/ric3.wav"), 1, ATTN_STATIC, 0);
- }
 
- } 
+		// ricochet
+		if (ent->movetype == MOVETYPE_FLYRICOCHET)
+		{ 
+			int rnum;
 
- 	// stop if on ground STEVE changed next line so bolts dont 'stop' on the ground
-		if (trace.plane.normal[2] > 0.7 && ent->movetype != MOVETYPE_FLYRICOCHET)
+			vectoangles (ent->velocity, ent->s.angles);
+
+			//Will make a sound about 1/2 the time 
+			rnum = rand();
+			if (rnum < (RAND_MAX/2))
+			{ 
+				//Pick one of three Rico Sounds
+				if (rnum < ((RAND_MAX/2)/3))
+					gi.positioned_sound(old_origin, ent, CHAN_WEAPON,
+						gi.soundindex ("world/ric1.wav"), 1, ATTN_STATIC, 0);
+				else if (rnum < ((RAND_MAX/2)/3)*2)
+					gi.positioned_sound(old_origin, ent, CHAN_WEAPON,
+						gi.soundindex ("world/ric2.wav"), 1, ATTN_STATIC, 0);
+				else
+					gi.positioned_sound(old_origin, ent, CHAN_WEAPON,
+						gi.soundindex ("world/ric3.wav"), 1, ATTN_STATIC, 0);
+			}
+		}
+
+ 		// stop if on ground
+		else if (trace.plane.normal[2] > 0.7)
 		{		
 			if (ent->velocity[2] < 60 || ent->movetype != MOVETYPE_BOUNCE )
 			{

@@ -7,6 +7,7 @@ game_import_t	gi;
 game_export_t	globals;
 spawn_temp_t	st;
 
+int vwep_index;
 int	sm_meat_index;
 int	snd_fry;
 int meansOfDeath;
@@ -41,9 +42,7 @@ cvar_t	*bob_pitch;
 cvar_t	*bob_roll;
 
 cvar_t	*sv_cheats;
-cvar_t	*gotten;
-cvar_t	*sex;
-cvar_t	*bottalk;
+
 
 
 void SpawnEntities (char *mapname, char *entities, char *spawnpoint);
@@ -183,6 +182,13 @@ void EndDMLevel (void)
 		ent->classname = "target_changelevel";
 		ent->map = level.mapname;
 	}
+	// get the next one out of the maplist
+	else if (maplist->value && MaplistNext())
+	{
+		ent = G_Spawn ();
+		ent->classname = "target_changelevel";
+		ent->map = level.nextmap;
+	}
 	else if (level.nextmap[0])
 	{	// go to a specific map
 		ent = G_Spawn ();
@@ -190,7 +196,7 @@ void EndDMLevel (void)
 		ent->map = level.nextmap;
 	}
 	else
-	{	// search for a changeleve
+	{	// search for a changelevel
 		ent = G_Find (NULL, FOFS(classname), "target_changelevel");
 		if (!ent)
 		{	// the map designer didn't include a changelevel,

@@ -374,7 +374,14 @@ void G_InitEdict (edict_t *e)
 	e->classname = "noclass";
 	e->gravity = 1.0;
 	e->s.number = e - g_edicts;
+
+	// Clear what the free-edict list may have set.
+	e->chain = NULL;
 }
+
+// The free-edict list.  Meant to vastly speed up G_Spawn().
+edict_t *g_freeEdictsH = NULL;
+edict_t *g_freeEdictsT = NULL;
 
 /*
 =================
@@ -392,6 +399,33 @@ edict_t *G_Spawn (void)
 	int			i;
 	edict_t		*e;
 
+	// If the free-edict queue can help, let it.
+	while (g_freeEdictsH != NULL)
+	{
+		// Remove the first item.
+		e = g_freeEdictsH;
+		g_freeEdictsH = g_freeEdictsH->chain;
+		if (g_freeEdictsH == NULL)
+			g_freeEdictsT = NULL;
+
+		// If it's in use, get another one.
+		if (e->inuse)
+			continue;
+
+		// If it's safe to use it, do so.
+		if (e->freetime < 2 || level.time - e->freetime > 0.5)
+		{
+			G_InitEdict (e);
+			return e;
+		}
+
+		// If we can't use it, we won't be able to use any of these -- anything
+		// after it in the queue was freed even later.
+		else
+			break;
+	}
+
+	// The old way to find a free edict.
 	e = &g_edicts[(int)maxclients->value+1];
 	for ( i=maxclients->value+1 ; i<globals.num_edicts ; i++, e++)
 	{
@@ -433,6 +467,14 @@ void G_FreeEdict (edict_t *ed)
 	ed->classname = "freed";
 	ed->freetime = level.time;
 	ed->inuse = false;
+
+	// Put this edict into the free-edict queue.
+	if (g_freeEdictsH == NULL)
+		g_freeEdictsH = ed;
+	else
+		g_freeEdictsT->chain = ed;
+	g_freeEdictsT = ed;
+	ed->chain = NULL;
 }
 
 

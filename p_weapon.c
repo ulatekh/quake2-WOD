@@ -106,25 +106,44 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 
 	index = ITEM_INDEX(ent->item);
 
-	if ( ( ((int)(dmflags->value) & DF_WEAPONS_STAY) || coop->value) 
-		&& other->client->pers.inventory[index])
+	if ((((int)(dmflags->value) & DF_WEAPONS_STAY) || coop->value) 
+	&& other->client->pers.inventory[index])
 	{
-		if (!(ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM) ) )
+		if (!(ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)))
 			return false;	// leave the weapon for others to pickup
+		if (ent->item->ammo && !Add_Ammo (other, ent->item->ammo, 0))
+			return false;	// gun *and* full ammo already
 	}
 
+	// Increase their inventory of this weapon.
 	other->client->pers.inventory[index]++;
 
-	if (!(ent->spawnflags & DROPPED_ITEM) )
+	// Increase their inventory of the special counterpart to this weapon.
+	if (ent->item == &gI_weapon_shotgun)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_sniper)]++;
+	else if (ent->item == &gI_weapon_supershotgun)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_freezer)]++;
+	else if (ent->item == &gI_weapon_machinegun)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)]++;
+	else if (ent->item == &gI_weapon_chaingun)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)]++;
+	else if (ent->item == &gI_weapon_rocketlauncher)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)]++;
+	else if (ent->item == &gI_weapon_hyperblaster)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)]++;
+	else if (ent->item == &gI_weapon_railgun)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun2)]++;
+
+	if (!(ent->spawnflags & DROPPED_ITEM))
 	{
 		// give them some ammo with it
-		ammo = FindItem (ent->item->ammo);
-		if ( (int)dmflags->value & DF_INFINITE_AMMO )
+		ammo = ent->item->ammo;
+		if ((int)dmflags->value & DF_INFINITE_AMMO)
 			Add_Ammo (other, ammo, 1000);
 		else
-			Add_Ammo (other, ammo, ammo->quantity);
+			Add_Ammo (other, ammo, ammo->quantity * 2);
 
-		if (! (ent->spawnflags & DROPPED_PLAYER_ITEM) )
+		if (! (ent->spawnflags & DROPPED_PLAYER_ITEM))
 		{
 			if (deathmatch->value)
 			{
@@ -140,7 +159,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 
 	if (other->client->pers.weapon != ent->item && 
 		(other->client->pers.inventory[index] == 1) &&
-		( !deathmatch->value || other->client->pers.weapon == FindItem("blaster") ) )
+		(!deathmatch->value || other->client->pers.weapon == &gI_weapon_blaster))
 		other->client->newweapon = ent->item;
 
 	return true;
@@ -156,36 +175,59 @@ current
 ===============
 */
 
+// ### Hentai ### BEGIN
+void ShowGun(edict_t *ent)
+{	
+	char heldmodel[128];
+	int n;
+
+	if(!ent->client->pers.weapon)
+	{
+		ent->s.modelindex2 = 0;
+		return;
+	}
+	ent->s.modelindex2 = 255;
+	strcpy(heldmodel, "#");
+	strcat(heldmodel, ent->client->pers.weapon->icon);	
+	strcat(heldmodel, ".md2");
+	//gi.dprintf ("%s\n", heldmodel);
+	n = (gi.modelindex(heldmodel) - vwep_index) << 8;
+
+	ent->s.skinnum &= 0xFF;
+	ent->s.skinnum |= n;
+}
+// ### Hentai ### END
+
 void ChangeWeapon (edict_t *ent)
 {
-if (ent->client->grenade_time)
-{
-ent->client->grenade_time = level.time;
-ent->client->weapon_sound = 0;
-weapon_grenade_fire (ent, false);
-ent->client->grenade_time = 0;
-}
+	if (ent->client->grenade_time)
+	{
+		ent->client->grenade_time = level.time;
+		ent->client->weapon_sound = 0;
+		weapon_grenade_fire (ent, false);
+		ent->client->grenade_time = 0;
+	}
 
-ent->client->pers.lastweapon = ent->client->pers.weapon;
-ent->client->pers.weapon = ent->client->newweapon;
-ent->client->newweapon = NULL;
-ent->client->machinegun_shots = 0;
+	ent->client->pers.lastweapon = ent->client->pers.weapon;
+	ent->client->pers.weapon = ent->client->newweapon;
+	ent->client->newweapon = NULL;
+	ent->client->machinegun_shots = 0;
 
-if (ent->client->pers.weapon && ent->client->pers.weapon->ammo)
-ent->client->ammo_index = ITEM_INDEX(FindItem(ent->client->pers.weapon->ammo));
-else
-ent->client->ammo_index = 0;
+	if (ent->client->pers.weapon && ent->client->pers.weapon->ammo)
+		ent->client->ammo_index = ITEM_INDEX(ent->client->pers.weapon->ammo);
+	else
+		ent->client->ammo_index = 0;
 
-if (!ent->client->pers.weapon)
-{ // dead
-ent->client->ps.gunindex = 0;
-return;
-}
+	if (!ent->client->pers.weapon || ent->s.modelindex != 255 || ent->deadflag) // ### Hentai ### 
+	{	// dead, or not on client, so VWep animations could do wacky things
+		ent->client->ps.gunindex = 0;
+		ent->s.modelindex2 = 0;
+		return;
+	}
 
-ent->client->weaponstate = WEAPON_ACTIVATING;
-ent->client->ps.gunframe = 0;
-if (!ent->thirdperson) ent->client->ps.gunindex = gi.modelindex(ent->client->pers.weapon->view_model);
-ent->currentweapon = gi.modelindex(ent->client->pers.weapon->view_model);
+	ent->client->weaponstate = WEAPON_ACTIVATING;
+	ent->client->ps.gunframe = 0;
+	ent->client->ps.gunindex = gi.modelindex(ent->client->pers.weapon->view_model);
 
 	// ### Hentai ### BEGIN
 	ent->client->anim_priority = ANIM_PAIN;
@@ -200,10 +242,10 @@ ent->currentweapon = gi.modelindex(ent->client->pers.weapon->view_model);
 			ent->client->anim_end = FRAME_pain304;
 			
 	}
-
+	
+	ShowGun(ent);	
 
 	// ### Hentai ### END
-
 }
 
 /*
@@ -213,61 +255,113 @@ NoAmmoWeaponChange
 */
 void NoAmmoWeaponChange (edict_t *ent)
 {
-if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("slugs"))] > 2
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("railgun"))] )
+	// Hyperblaster
+	if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_hyperblaster.ammo)]
+		>= gI_weapon_hyperblaster.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_hyperblaster)])
 	{
-		ent->client->newweapon = FindItem ("railgun");
-		return;
+		ent->client->newweapon = &gI_weapon_hyperblaster;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))]
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("hyperblaster"))] )
+
+	// Streetsweeper
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_streetsweeper.ammo)]
+		>= gI_weapon_streetsweeper.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)])
 	{
-		ent->client->newweapon = FindItem ("hyperblaster");
-		return;
+		ent->client->newweapon = &gI_weapon_streetsweeper;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))] > 2
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("chaingun"))] )
+
+	// Machine rocket gun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_machinegun.ammo)]
+		>= gI_weapon_machinegun.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machinegun)])
 	{
-		ent->client->newweapon = FindItem ("chaingun");
-		return;
+		ent->client->newweapon = &gI_weapon_machinegun;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))] > 2
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("sniper gun"))] )
+
+	// Standard machinegun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_machine.ammo)]
+		>= gI_weapon_machine.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)])
 	{
-		ent->client->newweapon = FindItem ("sniper gun");
-		return;
+		ent->client->newweapon = &gI_weapon_machine;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))]  > 2
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("machinegun"))] )
+
+	// Chaingun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_chaingun.ammo)]
+		>= gI_weapon_chaingun.quantity * 5
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)])
 	{
-		ent->client->newweapon = FindItem ("machinegun");
-		return;
+		ent->client->newweapon = &gI_weapon_chaingun;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))] > 1
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("super shotgun"))] )
+
+	// Super shotgun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_supershotgun.ammo)]
+		>= gI_weapon_supershotgun.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_supershotgun)])
 	{
-		ent->client->newweapon = FindItem ("super shotgun");
-		return;
+		ent->client->newweapon = &gI_weapon_supershotgun;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))]
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("shotgun"))] )
+
+	// Shotgun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_shotgun.ammo)]
+		>= gI_weapon_shotgun.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_shotgun)])
 	{
-		ent->client->newweapon = FindItem ("shotgun");
-		return;
+		ent->client->newweapon = &gI_weapon_shotgun;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))]
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("Plasma Gun"))] )
+
+	// Sniper gun
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_sniper.ammo)]
+		>= gI_weapon_sniper.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_sniper)])
 	{
-		ent->client->newweapon = FindItem ("Plasma Gun");
-		return;
+		ent->client->newweapon = &gI_weapon_sniper;
 	}
-	if ( ent->client->pers.inventory[ITEM_INDEX(FindItem("rockets"))]
-		&&  ent->client->pers.inventory[ITEM_INDEX(FindItem("Homing Rocket Launcher"))] )
+
+	// Plasma rifle
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_plasma.ammo)]
+		>= gI_weapon_plasma.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)])
 	{
-		ent->client->newweapon = FindItem ("Homing Rocket Launcher");
-		return;
+		ent->client->newweapon = &gI_weapon_plasma;
 	}
-	ent->client->newweapon = FindItem ("blaster");
+
+	// Homing rocketlauncher
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_homing.ammo)]
+		>= gI_weapon_homing.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)])
+	{
+		ent->client->newweapon = &gI_weapon_homing;
+	}
+
+	// Flame rocketlauncher
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_rocketlauncher.ammo)]
+		>= gI_weapon_rocketlauncher.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)])
+	{
+		ent->client->newweapon = &gI_weapon_rocketlauncher;
+	}
+
+	// Flamethrower
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_railgun.ammo)]
+		>= gI_weapon_railgun.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun)])
+	{
+		ent->client->newweapon = &gI_weapon_railgun;
+	}
+
+	// Grenade launcher
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_grenadelauncher.ammo)]
+		>= gI_weapon_grenadelauncher.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)])
+	{
+		ent->client->newweapon = &gI_weapon_grenadelauncher;
+	}
+
+	// No other choice...give them the blaster.
+	else
+		ent->client->newweapon = &gI_weapon_blaster;
 }
 
 /*
@@ -312,60 +406,29 @@ void Use_Weapon (edict_t *ent, gitem_t *item)
 	gitem_t		*ammo_item;
 
 	// see if we're already using it
-        // darKMajick: check for alt grenades:
 	if (item == ent->client->pers.weapon)
-        {
-                if (strcmp(item->pickup_name, "Grenades") == 0)
-                {
-                        // Ok, using grenades when already sel'd to change type:
-                        // Do it!
-                        ent->client->dM_grenade += 1;
-                        if(ent->client->dM_grenade > 6)
-                                ent->client->dM_grenade = 0;
-                        // Print the type:
-                        if(ent->client->dM_grenade == 0)
-                                gi.cprintf (ent, PRINT_HIGH, "Standard grenade\n");
-                        if(ent->client->dM_grenade == 1)
-                                gi.cprintf (ent, PRINT_HIGH, "Cluster grenade\n");
-                        if(ent->client->dM_grenade == 2)
-                                gi.cprintf (ent, PRINT_HIGH, "RailBomb\n");
-                        if(ent->client->dM_grenade == 3)
-                                gi.cprintf (ent, PRINT_HIGH, "Plasma grenade\n");
-                        if(ent->client->dM_grenade == 4)
-                                gi.cprintf (ent, PRINT_HIGH, "Napalm grenade\n");
-                        if(ent->client->dM_grenade == 5)
-                                gi.cprintf (ent, PRINT_HIGH, "Shrapnel Grenade\n");
-                        if(ent->client->dM_grenade == 6)
-                                gi.cprintf (ent, PRINT_HIGH, "Cataclysm Device\n");
-                        // Set the quantity used:
-                        if(ent->client->dM_grenade == 0)
-                                ent->client->pers.weapon->quantity = 1;
-                        else if(ent->client->dM_grenade == 6)
-                                ent->client->pers.weapon->quantity = 1;
-                        else
-                                ent->client->pers.weapon->quantity = 1;
-                }
 		return;
-        }
 
-	if (item->ammo)
+	if (item->ammo && !g_select_empty->value && !(item->flags & IT_AMMO))
 	{
-		ammo_item = FindItem(item->ammo);
+		ammo_item = item->ammo;
 		ammo_index = ITEM_INDEX(ammo_item);
 
-// if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-//		ent->client->pers.inventory[ent->client->ammo_index]--;
-
-		if (!ent->client->pers.inventory[ammo_index] && !g_select_empty->value)
+		if (!ent->client->pers.inventory[ammo_index])
 		{
 			gi.cprintf (ent, PRINT_HIGH, "No %s for %s.\n", ammo_item->pickup_name, item->pickup_name);
+			return;
+		}
+
+		if (ent->client->pers.inventory[ammo_index] < item->quantity)
+		{
+			gi.cprintf (ent, PRINT_HIGH, "Not enough %s for %s.\n", ammo_item->pickup_name, item->pickup_name);
 			return;
 		}
 	}
 
 	// change to this weapon when down
 	ent->client->newweapon = item;
-      //  ent->client->dM_grenade = 0;
 }
 
 
@@ -383,15 +446,79 @@ void Drop_Weapon (edict_t *ent, gitem_t *item)
 		return;
 
 	index = ITEM_INDEX(item);
+
 	// see if we're already using it
-	if ( ((item == ent->client->pers.weapon) || (item == ent->client->newweapon))&& (ent->client->pers.inventory[index] == 1) )
+	if ((item == ent->client->pers.weapon || item == ent->client->newweapon)
+	&& ent->client->pers.inventory[index] == 1)
 	{
 		gi.cprintf (ent, PRINT_HIGH, "Can't drop current weapon\n");
 		return;
 	}
 
+#if 0
+	// Don't let them drop the special variants -- make it a normal one.
+	if (item == &gI_weapon_machine)
+		item = &gI_weapon_machinegun;
+	else if (item == &gI_weapon_plasma)
+		item = &gI_weapon_hyperblaster;
+	else if (item == &gI_weapon_sniper)
+		item = &gI_weapon_shotgun;
+	else if (item == &gI_weapon_streetsweeper)
+		item = &gI_weapon_chaingun;
+	else if (item == &gI_weapon_homing)
+		item = &gI_weapon_rocketlauncher;
+	else if (item == &gI_weapon_railgun2)
+		item = &gI_weapon_railgun;
+	else if (item == &gI_weapon_freezer)
+		item = &gI_weapon_supershotgun;
+	index = ITEM_INDEX(item);		// just in case
+#endif
+
+	// see if we're already using it
+	if ((item == ent->client->pers.weapon || item == ent->client->newweapon)
+	&& ent->client->pers.inventory[index] == 1)
+	{
+		gi.cprintf (ent, PRINT_HIGH, "Can't drop current weapon\n");
+		return;
+	}
+
+	// Drop it.
 	Drop_Item (ent, item);
 	ent->client->pers.inventory[index]--;
+
+#if 0
+	// Decrease their inventory of the counterpart to this weapon.
+	// (I'd do a switch statement, but link-time values aren't "constant"
+	// enough for switch statements.  Lame.)
+	if (item == &gI_weapon_shotgun)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_sniper)]--;
+	else if (item == &gI_weapon_sniper)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_shotgun)]--;
+	else if (item == &gI_weapon_supershotgun)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_freezer)]--;
+	else if (item == &gI_weapon_freezer)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_supershotgun)]--;
+	else if (item == &gI_weapon_machinegun)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)]--;
+	else if (item == &gI_weapon_machine)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_machinegun)]--;
+	else if (item == &gI_weapon_chaingun)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)]--;
+	else if (item == &gI_weapon_streetsweeper)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)]--;
+	else if (item == &gI_weapon_rocketlauncher)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)]--;
+	else if (item == &gI_weapon_homing)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)]--;
+	else if (item == &gI_weapon_hyperblaster)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_plasma)]--;
+	else if (item == &gI_weapon_plasma)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_hyperblaster)]--;
+	else if (item == &gI_weapon_railgun)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun2)]--;
+	else if (item == &gI_weapon_railgun2)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_railgun)]--;
+#endif
 }
 
 
@@ -406,9 +533,15 @@ A generic function to handle the basics of weapon thinking
 #define FRAME_IDLE_FIRST		(FRAME_FIRE_LAST + 1)
 #define FRAME_DEACTIVATE_FIRST	(FRAME_IDLE_LAST + 1)
 
-void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, int *pause_frames, int *fire_frames, void (*fire)(edict_t *ent))
+void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
+							int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST,
+							int *pause_frames, int *fire_frames,
+							void (*fire)(edict_t *ent))
 {
 	int		n;
+
+	if (ent->deadflag || ent->s.modelindex != 255) // ### Hentai ### 
+		return; // not on client, so VWep animations could do wacky things
 
 	if (ent->client->weaponstate == WEAPON_DROPPING)
 	{
@@ -479,24 +612,18 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
-		if ( ((ent->client->latched_buttons|ent->client->buttons) & BUTTON_ATTACK) )
+		if (((ent->client->latched_buttons|ent->client->buttons) & BUTTON_ATTACK))
 		{
-			int nQuantity = ent->client->pers.weapon->quantity; // mfox-wod
 			ent->client->latched_buttons &= ~BUTTON_ATTACK;
 
-
-			// mfox-wod: ugly hack to fix firing railgun when only 1 slug left which
-			// results in -1 slugs. Need to find out where quantity isset (incorrectly)
-			// to 1 for railgun. !!!TBD!!!
-			if(!strcmp(ent->client->pers.weapon->classname, "weapon_railgun"))
-				nQuantity=2;
-
 			if ((!ent->client->ammo_index) || 
-				( ent->client->pers.inventory[ent->client->ammo_index] >= ent->client->pers.weapon->quantity))
+				(ent->client->pers.inventory[ent->client->ammo_index]
+				>= ent->client->pers.weapon->quantity))
 			{
 				ent->client->ps.gunframe = FRAME_FIRE_FIRST;
 				ent->client->weaponstate = WEAPON_FIRING;
 
+				// ### Hentai ### BEGIN
 				// start the animation
 				ent->client->anim_priority = ANIM_ATTACK;
 				if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -509,6 +636,7 @@ void Weapon_Generic (edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST,
 					ent->s.frame = FRAME_attack1-1;
 					ent->client->anim_end = FRAME_attack8;
 				}
+				// ### Hentai ### END
 			}
 			else
 			{
@@ -580,6 +708,90 @@ GRENADE
 #define GRENADE_MINSPEED	400
 #define GRENADE_MAXSPEED	800
 
+void Cmd_UseGrenades_f (edict_t *ent, gitem_t *it)
+{
+	// Switch to the next grenade type for which they have sufficient
+	// ammunition.
+	for (;;)
+	{
+		const char *name;
+		int ammoCost;
+
+		// First, switch.
+		ent->client->dM_grenade += 1;
+		if(ent->client->dM_grenade > 6)
+			ent->client->dM_grenade = 0;
+
+		// Find out what kind of grenade we're at.
+		switch (ent->client->dM_grenade)
+		{
+			case 0:
+			default:
+				// Standard grenade
+				name = "Standard grenade";
+				ammoCost = 1;
+				break;
+
+			case 1:
+				// Cluster grenade
+				name = "Cluster grenade";
+				ammoCost = 5;
+				break;
+
+			case 2:
+				// Rail bomb
+				name = "Rail bomb";
+				ammoCost = 5;
+				break;
+
+			case 3:
+				// Plasma grenade
+				name = "Plasma grenade";
+				ammoCost = 5;
+				break;
+
+			case 4:
+				// Napalm grenade
+				name = "Napalm grenade";
+				ammoCost = 5;
+				break;
+
+			case 5:
+				// Shrapnel grenade
+				name = "Shrapnel grenade";
+				ammoCost = 5;
+				break;
+
+			case 6:
+				// Cataclysm device
+				name = "Cataclysm device";
+				ammoCost = 10;
+				break;
+		}
+
+		// If they don't have enough ammunition, tell them so and try the
+		// next type.
+		if (ent->client->pers.inventory[ITEM_INDEX (it->ammo)] < ammoCost)
+		{
+			gi.cprintf (ent, PRINT_HIGH,
+				"Not enough %s for %s (%d needed).\n",
+				it->ammo->pickup_name, name, ammoCost);
+			if (ent->client->dM_grenade != 0)
+				continue;
+		}
+
+		// Print the type.
+		gi.cprintf (ent, PRINT_HIGH, "%s (%d grenades per use)\n",
+			name, ammoCost);
+
+		// Set the quantity used.
+		ent->client->dM_ammoCost = ammoCost;
+
+		// Done!
+		break;
+	}
+}
+
 void weapon_grenade_fire (edict_t *ent, qboolean held)
 {
 	vec3_t	offset;
@@ -602,31 +814,33 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
 	timer = ent->client->grenade_time - level.time;
 	speed = GRENADE_MINSPEED + (GRENADE_TIMER - timer) * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER);
 
-        // darKMajick:
-        typ = ent->client->dM_grenade;
-        // fire_grenade2 (ent, start, forward, damage, speed, timer, radius);
-        fire_grenade_dM (ent, start, forward, damage, speed, timer, radius, typ);
+  // darKMajick:
+  typ = ent->client->dM_grenade;
+  // fire_grenade2 (ent, start, forward, damage, speed, timer, radius);
+  fire_grenade_dM (ent, start, forward, damage, speed, timer, radius, typ);
 
-	// ### Hentai ### BEGIN
-
-	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
-		ent->client->anim_priority = ANIM_ATTACK;
-		ent->s.frame = FRAME_crattak1-1;
-		ent->client->anim_end = FRAME_crattak3;
+		// ### Hentai ### BEGIN
+		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			ent->client->anim_priority = ANIM_ATTACK;
+			ent->s.frame = FRAME_crattak1-1;
+			ent->client->anim_end = FRAME_crattak3;
+		}
+		else if(ent->s.modelindex != 255)
+		{
+			ent->client->anim_priority = ANIM_REVERSE;
+			ent->s.frame = FRAME_wave08;
+			ent->client->anim_end = FRAME_wave01;
+		}
+		// ### Hentai ### END
 	}
-	else
-	{
-		ent->client->anim_priority = ANIM_REVERSE;
-		ent->s.frame = FRAME_wave08;
-		ent->client->anim_end = FRAME_wave01;
-	}
-	// ### Hentai ### END
 
-
-
-        // darKMajick, altered to use pers.weapon->quantity:
-        ent->client->pers.inventory[ent->client->ammo_index]-=ent->client->pers.weapon->quantity;
+	// Altered to use dM_ammoCost
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->dM_ammoCost;
 
 	ent->client->grenade_time = level.time + 1.0;
 }
@@ -648,17 +862,25 @@ void Weapon_Grenade (edict_t *ent)
 
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
-		if ( ((ent->client->latched_buttons|ent->client->buttons) & BUTTON_ATTACK) )
+		if (((ent->client->latched_buttons|ent->client->buttons) & BUTTON_ATTACK))
 		{
 			ent->client->latched_buttons &= ~BUTTON_ATTACK;
-			if (ent->client->pers.inventory[ent->client->ammo_index])
+			if (ent->client->pers.inventory[ent->client->ammo_index]
+				>= ent->client->dM_ammoCost)
 			{
+				// Start throwing the grenade.
 				ent->client->ps.gunframe = 1;
 				ent->client->weaponstate = WEAPON_FIRING;
 				ent->client->grenade_time = 0;
 			}
+			else if (ent->client->pers.inventory[ent->client->ammo_index])
+			{
+				// Switch to a less ammo-intensive type of grenade.
+				Cmd_UseGrenades_f (ent, &gI_ammo_grenades);
+			}
 			else
 			{
+				// No grenades, switch to something else.
 				if (level.time >= ent->pain_debounce_time)
 				{
 					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
@@ -737,6 +959,40 @@ void Weapon_Grenade (edict_t *ent)
 	}
 }
 
+void Use_GrenadeWeapon (edict_t *ent, gitem_t *item)
+{
+	// First, see if we can use this special grenade type.
+	Use_Weapon (ent, item);
+
+	// If we could, set it up for use.
+	if (ent->client->newweapon == item)
+	{
+		// Make them use the grenades.
+		ent->client->newweapon = &gI_ammo_grenades;
+
+		// Set the type of grenade to use.
+		if (item == &gI_weapon_clustergrenade)
+			ent->client->dM_grenade = 1;
+		else if (item == &gI_weapon_railbomb)
+			ent->client->dM_grenade = 2;
+		else if (item == &gI_weapon_plasmagrenade)
+			ent->client->dM_grenade = 3;
+		else if (item == &gI_weapon_napalmgrenade)
+			ent->client->dM_grenade = 4;
+		else if (item == &gI_weapon_shrapnelgrenade)
+			ent->client->dM_grenade = 5;
+		else if (item == &gI_weapon_cataclysm)
+			ent->client->dM_grenade = 6;
+
+		// If we get lost, recover.
+		else
+			ent->client->dM_grenade = 0;
+
+		// Set the ammo usage.
+		ent->client->dM_ammoCost = item->quantity;
+	}
+}
+
 /*
 ======================================================================
 
@@ -775,7 +1031,7 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index]--;
 }
 
@@ -831,7 +1087,7 @@ void Weapon_RocketLauncher_Fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index]--;
 }
 
@@ -880,8 +1136,9 @@ void Weapon_Homing_Fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 void Weapon_Homing (edict_t *ent)
@@ -916,7 +1173,7 @@ void Blaster_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
 
-	fire_blaster (ent, start, forward, damage, 1000, effect, hyper);
+	fire_blaster (ent, start, forward, damage, 1000, effect /* , hyper */);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -940,21 +1197,22 @@ void Weapon_Blaster_Fire (edict_t *ent)
 	else
 		damage = 10;
 	Blaster_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
-			// ### Hentai ### BEGIN
 
-			ent->client->anim_priority = ANIM_ATTACK;
-			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-			{
-				ent->s.frame = FRAME_crattak1 - 1;
-				ent->client->anim_end = FRAME_crattak9;
-			}
-			else
-			{
-				ent->s.frame = FRAME_attack1 - 1;
-				ent->client->anim_end = FRAME_attack8;
-			}
-	
-			// ### Hentai ### END
+	// ### Hentai ### BEGIN
+
+	ent->client->anim_priority = ANIM_ATTACK;
+	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+	{
+		ent->s.frame = FRAME_crattak1 - 1;
+		ent->client->anim_end = FRAME_crattak9;
+	}
+	else
+	{
+		ent->s.frame = FRAME_attack1 - 1;
+		ent->client->anim_end = FRAME_attack8;
+	}
+
+	// ### Hentai ### END
 
 	ent->client->ps.gunframe++;
 }
@@ -983,7 +1241,7 @@ void Super_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int 
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
 
-	fire_super (ent, start, forward, damage, 1000, effect, hyper);
+	fire_super (ent, start, forward, damage, 1000, effect /* , hyper */);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -995,8 +1253,8 @@ void Super_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int 
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-	ent->client->pers.inventory[ent->client->ammo_index] -= ent->client->pers.weapon->quantity;
-
+	ent->client->pers.inventory[ent->client->ammo_index]
+		-= ent->client->pers.weapon->quantity;
 }
 
 
@@ -1012,7 +1270,7 @@ void Weapon_Super_Fire (edict_t *ent)
 	ent->client->ps.gunframe++;
 }
 
-void Weapon_Super (edict_t *ent)
+void Weapon_SuperBlaster (edict_t *ent)
 {
 	static int	pause_frames[]	= {25, 33, 42, 50, 0};
 	static int	fire_frames[]	= {5, 0};
@@ -1024,70 +1282,85 @@ void Weapon_Super (edict_t *ent)
 
 void Weapon_HyperBlaster_Fire (edict_t *ent)
 {
-        float   rotation;
-        vec3_t  offset;
-        int             effect;
+	float	rotation;
+	vec3_t	offset;
+	int		effect;
+	int		damage;
 
-        ent->client->weapon_sound = gi.soundindex("weapons/hyprbl1a.wav");
+	ent->client->weapon_sound = gi.soundindex("weapons/hyprbl1a.wav");
 
-        if (!(ent->client->buttons & BUTTON_ATTACK))
-        {
-                ent->client->ps.gunframe++;
-        }
-        else
-        {
-                if (! ent->client->pers.inventory[ent->client->ammo_index] )
-                {
-                        if (level.time >= ent->pain_debounce_time)
-                        {
-                                gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-                                ent->pain_debounce_time = level.time + 1;
-                        }
-                        NoAmmoWeaponChange (ent);
-                }
-                else
-                {
-                        // STEVE .... the lines below are new !
-                        // ...........TRIPLE HYPER BLASTER !!!
+	if (!(ent->client->buttons & BUTTON_ATTACK))
+	{
+		ent->client->ps.gunframe++;
+	}
+	else
+	{
+		if (! ent->client->pers.inventory[ent->client->ammo_index] )
+		{
+			if (level.time >= ent->pain_debounce_time)
+			{
+				gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
+				ent->pain_debounce_time = level.time + 1;
+			}
+			NoAmmoWeaponChange (ent);
+		}
+		else
+		{
+			rotation = (ent->client->ps.gunframe - 5) * 2*M_PI/6;
+			offset[0] = -4 * sin(rotation);
+			offset[1] = 0;
+			offset[2] = 4 * cos(rotation);
 
-                        if ((ent->client->ps.gunframe == 6) || (ent->client->ps.gunframe == 9))
-                                effect = EF_HYPERBLASTER;
-                        else
-                                effect = 0;
+			// Don't give every shot a yellow glow, otherwise the client will
+			// get too much rendering lag.
+			if ((ent->client->ps.gunframe == 6) || (ent->client->ps.gunframe == 9))
+				effect = EF_HYPERBLASTER;
+			else
+				effect = 0;
 
-                        // change the offset radius to 6 (from 4), spread the bolts out a little
-                        rotation = (ent->client->ps.gunframe - 5) * 2*M_PI/6;
-                        offset[0] = 0;
-                        offset[1] = -8 * sin(rotation);
-                        offset[2] = 8 * cos(rotation);
-                        Blaster_Fire (ent, offset, 10, true, effect);
+			if (deathmatch->value)
+				damage = 15;
+			else
+				damage = 20;
 
-                        // fire a second blast at a different rotation
-                        rotation = (ent->client->ps.gunframe - 5) * 2*M_PI/6 + M_PI*2.0/3.0;
-                        offset[0] = 0;
-                        offset[1] = -8 * sin(rotation);
-                        offset[2] = 8 * cos(rotation);
-                        Blaster_Fire (ent, offset, 10, true, effect);
+			Blaster_Fire (ent, offset, damage, true, effect);
 
+			if (!ent->deadflag)
+			{
+				// ### Hentai ### BEGIN
 
+				ent->client->anim_priority = ANIM_ATTACK;
+				if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+				{
+					ent->s.frame = FRAME_crattak1 - 1;
+					ent->client->anim_end = FRAME_crattak9;
+				}
+				else
+				{
+					ent->s.frame = FRAME_attack1 - 1;
+					ent->client->anim_end = FRAME_attack8;
+				}
+		
+				// ### Hentai ### END
+			}
 
-                        // deduct 3 times the amount of ammo as before (... the *3 on end)
 			if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-				ent->client->pers.inventory[ent->client->ammo_index]--;
-                }
+				ent->client->pers.inventory[ent->client->ammo_index]
+					-= ent->client->pers.weapon->quantity;
+		}
 
-                ent->client->ps.gunframe++;
-                if (ent->client->ps.gunframe == 12 && ent->client->pers.inventory[ent->client->ammo_index])
-                        ent->client->ps.gunframe = 6;
-        }
+		ent->client->ps.gunframe++;
+		if (ent->client->ps.gunframe == 12 && ent->client->pers.inventory[ent->client->ammo_index])
+			ent->client->ps.gunframe = 6;
+	}
 
-        if (ent->client->ps.gunframe == 12)
-        {
-                gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/hyprbd1a.wav"), 1, ATTN_NORM, 0);
-                ent->client->weapon_sound = 0;
-        }
-
+	if (ent->client->ps.gunframe == 12)
+	{
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/hyprbd1a.wav"), 1, ATTN_NORM, 0);
+		ent->client->weapon_sound = 0;
+	}
 }
+
 void Weapon_HyperBlaster (edict_t *ent)
 {
 	static int	pause_frames[]	= {0};
@@ -1112,23 +1385,23 @@ void Machine_Fire (edict_t *ent)
 	int			kick = 2;
 	vec3_t		offset;
 
-if (!(ent->client->buttons & BUTTON_ATTACK) &&
- ( (ent->client->burstfire_count > 2) ||
- (!ent->client->burstfire_count ) ) )
-{ 
-ent->client->machinegun_shots=0;
- ent->client->burstfire_count=0;
- ent->client->ps.gunframe++;
- return;
-}
+	if (!(ent->client->buttons & BUTTON_ATTACK) &&
+	((ent->client->burstfire_count > 2) ||
+	(!ent->client->burstfire_count)))
+	{ 
+		ent->client->machinegun_shots=0;
+		ent->client->burstfire_count=0;
+		ent->client->ps.gunframe++;
+		return;
+	}
 
-if (ent->client->burstfire_count < 3)
-{
-	if (ent->client->ps.gunframe == 5)
-		ent->client->ps.gunframe = 4;
-	else
-		ent->client->ps.gunframe = 5;
-}
+	if (ent->client->burstfire_count < 3)
+	{
+		if (ent->client->ps.gunframe == 5)
+			ent->client->ps.gunframe = 4;
+		else
+			ent->client->ps.gunframe = 5;
+	}
 	if (ent->client->pers.inventory[ent->client->ammo_index] < 1)
 	{
 		ent->client->ps.gunframe = 6;
@@ -1137,7 +1410,7 @@ if (ent->client->burstfire_count < 3)
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
 			ent->pain_debounce_time = level.time + 1;
 		}
- ent->client->burstfire_count=0;
+		ent->client->burstfire_count=0;
 
 		NoAmmoWeaponChange (ent);
 		return;
@@ -1158,52 +1431,69 @@ if (ent->client->burstfire_count < 3)
 	ent->client->kick_angles[0] = ent->client->machinegun_shots * -1.5;
 
 	// raise the gun as it is firing
-        if (!deathmatch->value && !ent->client->pers.fire_mode)
-        {
-                ent->client->machinegun_shots++;
-                if (ent->client->machinegun_shots > 9)
-                        ent->client->machinegun_shots = 9;
-        }
+	if (!deathmatch->value && !ent->client->pers.fire_mode)
+	{
+		ent->client->machinegun_shots++;
+		if (ent->client->machinegun_shots > 9)
+			ent->client->machinegun_shots = 9;
+	}
 
 	// get start / end positions
 	VectorAdd (ent->client->v_angle, ent->client->kick_angles, angles);
 	AngleVectors (angles, forward, right, NULL);
 	VectorSet(offset, 0, 8, ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
-switch (ent->client->pers.fire_mode) 
-{ 
-// Fire Burst Fire
- case 1:
- ent->client->burstfire_count++;
- if (ent->client->burstfire_count < 4)
- {
-fire_bullet (ent, start, forward, damage*4, kick/2, DEFAULT_BULLET_HSPREAD/2, DEFAULT_BULLET_VSPREAD/2, MOD_MACHINE);
- gi.WriteByte (svc_muzzleflash);
- gi.WriteShort (ent-g_edicts);
- gi.WriteByte (MZ_MACHINEGUN | is_silenced);
- gi.multicast (ent->s.origin, MULTICAST_PVS);
- PlayerNoise(ent, start, PNOISE_WEAPON);
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-	ent->client->pers.inventory[ent->client->ammo_index] -= 2;
- } 
-else if (ent->client->burstfire_count > 6) 
-ent->client->burstfire_count=0;
- break;
- // Fire Fully Automatic
- case 0:
- default:
-fire_bullet (ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINE);
- gi.WriteByte (svc_muzzleflash);
- gi.WriteShort (ent-g_edicts);
- gi.WriteByte (MZ_MACHINEGUN | is_silenced);
- gi.multicast (ent->s.origin, MULTICAST_PVS);
- PlayerNoise(ent, start, PNOISE_WEAPON);
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index]--;
+	switch (ent->client->pers.fire_mode) 
+	{ 
+		// Fire burst
+		case 1:
+			ent->client->burstfire_count++;
+			if (ent->client->burstfire_count < 4)
+			{
+				fire_bullet (ent, start, forward, damage*4, kick/2, DEFAULT_BULLET_HSPREAD/2, DEFAULT_BULLET_VSPREAD/2, MOD_MACHINE);
+				gi.WriteByte (svc_muzzleflash);
+				gi.WriteShort (ent-g_edicts);
+				gi.WriteByte (MZ_MACHINEGUN | is_silenced);
+				gi.multicast (ent->s.origin, MULTICAST_PVS);
+				PlayerNoise(ent, start, PNOISE_WEAPON);
+				if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+					ent->client->pers.inventory[ent->client->ammo_index] -= 2;
+			} 
+			else if (ent->client->burstfire_count > 6) 
+				ent->client->burstfire_count=0;
+			break;
+		// Fire Fully Automatic
+		case 0:
+		default:
+			fire_bullet (ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINE);
+			gi.WriteByte (svc_muzzleflash);
+			gi.WriteShort (ent-g_edicts);
+			gi.WriteByte (MZ_MACHINEGUN | is_silenced);
+			gi.multicast (ent->s.origin, MULTICAST_PVS);
+			PlayerNoise(ent, start, PNOISE_WEAPON);
+			if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+				ent->client->pers.inventory[ent->client->ammo_index]--;
+			break;
+	}
 
- break;
- }
+	if (!ent->deadflag)
+	{
+		// ### Hentai ### BEGIN
 
+		ent->client->anim_priority = ANIM_ATTACK;
+		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			ent->s.frame = FRAME_crattak1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_crattak9;
+		}
+		else
+		{
+			ent->s.frame = FRAME_attack1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_attack8;
+		}
+
+		// ### Hentai ### END
+	}
 }
 
 void Weapon_Machine (edict_t *ent)
@@ -1263,24 +1553,26 @@ void Machinegun_Fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	// ### Hentai ### BEGIN
-
-	ent->client->anim_priority = ANIM_ATTACK;
-	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
-		ent->s.frame = FRAME_crattak1 - (int) (random()+0.25);
-		ent->client->anim_end = FRAME_crattak9;
+		// ### Hentai ### BEGIN
+
+		ent->client->anim_priority = ANIM_ATTACK;
+		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			ent->s.frame = FRAME_crattak1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_crattak9;
+		}
+		else
+		{
+			ent->s.frame = FRAME_attack1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_attack8;
+		}
+
+		// ### Hentai ### END
 	}
-	else
-	{
-		ent->s.frame = FRAME_attack1 - (int) (random()+0.25);
-		ent->client->anim_end = FRAME_attack8;
-	}
 
-	// ### Hentai ### END
-
-
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index] -= 2;
 }
 
@@ -1335,6 +1627,25 @@ void Chaingun_Fire (edict_t *ent)
 	else
 	{
 		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+	}
+
+	if (!ent->deadflag)
+	{
+		// ### Hentai ### BEGIN
+
+		ent->client->anim_priority = ANIM_ATTACK;
+		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
+			ent->client->anim_end = FRAME_crattak9;
+		}
+		else
+		{
+			ent->s.frame = FRAME_attack1 - (ent->client->ps.gunframe & 1);
+			ent->client->anim_end = FRAME_attack8;
+		}
+
+		// ### Hentai ### END
 	}
 
 	if (ent->client->ps.gunframe <= 9)
@@ -1395,25 +1706,26 @@ void Chaingun_Fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	// ### Hentai ### BEGIN
-
-	ent->client->anim_priority = ANIM_ATTACK;
-	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+	if (!ent->deadflag)
 	{
-		ent->s.frame = FRAME_crattak1 - (int) (random()+0.25);
-		ent->client->anim_end = FRAME_crattak9;
+		// ### Hentai ### BEGIN
+
+		ent->client->anim_priority = ANIM_ATTACK;
+		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			ent->s.frame = FRAME_crattak1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_crattak9;
+		}
+		else
+		{
+			ent->s.frame = FRAME_attack1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_attack8;
+		}
+
+		// ### Hentai ### END
 	}
-	else
-	{
-		ent->s.frame = FRAME_attack1 - (int) (random()+0.25);
-		ent->client->anim_end = FRAME_attack8;
-	}
 
-	// ### Hentai ### END
-
-
-
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index] -= shots;
 }
 
@@ -1424,6 +1736,149 @@ void Weapon_Chaingun (edict_t *ent)
 	static int	fire_frames[]	= {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0};
 
 	Weapon_Generic (ent, 4, 31, 61, 64, pause_frames, fire_frames, Chaingun_Fire);
+}
+
+
+void weapon_streetsweeper_fire (edict_t *ent)
+{
+	vec3_t		start;
+	vec3_t		forward, right;
+	vec3_t		offset;
+	int			damage = 4;
+	int			kick = 8;
+
+	AngleVectors (ent->client->v_angle, forward, right, NULL);
+
+	VectorScale (forward, -2, ent->client->kick_origin);
+	ent->client->kick_angles[0] = -2;
+
+	VectorSet(offset, 0, 8,  ent->viewheight-8);
+	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
+
+	if (is_quad)
+	{
+		damage *= 4;
+		kick *= 4;
+	}
+
+	if (!(ent->client->pers.inventory[ent->client->ammo_index]))
+	{
+		// Stop firing.
+		ent->client->ps.gunframe = 22;
+		ent->client->weapon_sound = 0;
+
+		// Make the streetsweeper-noammo sound.
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/noammo.wav"), 1, ATTN_IDLE, 0);
+
+		// Switch to some other weapon.
+		NoAmmoWeaponChange (ent);
+
+		return;
+	}
+	else if (ent->client->weaponstate == WEAPON_FIRING
+	&& ent->client->ps.gunframe == 21
+	&& (ent->client->buttons & BUTTON_ATTACK)
+	&& ent->client->pers.inventory[ent->client->ammo_index])
+	{
+		// Keep firing.
+		ent->client->ps.gunframe = 15;
+	}
+	else if (ent->client->weaponstate == WEAPON_FIRING
+	&& ent->client->ps.gunframe >= 5
+	&& ent->client->ps.gunframe <= 21
+	&& !(ent->client->buttons & BUTTON_ATTACK))
+	{
+		// Stop firing.
+		ent->client->ps.gunframe = 22;
+		ent->client->weapon_sound = 0;
+
+		// Make the streetsweeper-winddown sound.
+		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+	}
+	else
+	{
+		if (ent->client->ps.gunframe == 5)
+		{
+			// Start firing.
+
+			// Make the streetsweeper-windup sound.
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
+		}
+		else if (ent->client->ps.gunframe >= 15
+		&& ent->client->ps.gunframe <= 21)
+		{
+			// Now that the wind-up sound has finished, play the "during" sound
+			// continuously until they stop firing.
+			ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+		}
+
+		ent->client->ps.gunframe++;
+	}
+
+	if (!ent->deadflag)
+	{
+		// ### Hentai ### BEGIN
+
+		ent->client->anim_priority = ANIM_ATTACK;
+		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
+			ent->client->anim_end = FRAME_crattak9;
+		}
+		else
+		{
+			ent->s.frame = FRAME_attack1 - (ent->client->ps.gunframe & 1);
+			ent->client->anim_end = FRAME_attack8;
+		}
+
+		// ### Hentai ### END
+	}
+
+	if (deathmatch->value)
+		fire_shotgun (ent, start, forward, damage, kick, 500, 500, DEFAULT_DEATHMATCH_SHOTGUN_COUNT, MOD_STREETSWEEP);
+	else
+		fire_shotgun (ent, start, forward, damage, kick, 500, 500, DEFAULT_SHOTGUN_COUNT, MOD_STREETSWEEP);
+
+	// send muzzle flash
+	gi.WriteByte (svc_muzzleflash);
+	gi.WriteShort (ent-g_edicts);
+	gi.WriteByte (MZ_SHOTGUN | is_silenced);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);
+
+	PlayerNoise(ent, start, PNOISE_WEAPON);
+
+	if (!ent->deadflag)
+	{
+		// ### Hentai ### BEGIN
+
+		ent->client->anim_priority = ANIM_ATTACK;
+		if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+		{
+			ent->s.frame = FRAME_crattak1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_crattak9;
+		}
+		else
+		{
+			ent->s.frame = FRAME_attack1 - (int) (random()+0.25);
+			ent->client->anim_end = FRAME_attack8;
+		}
+
+		// ### Hentai ### END
+	}
+
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
+}
+
+void Weapon_Streetsweeper (edict_t *ent)
+{
+	static int	pause_frames[]	= {38, 43, 51, 61, 0};
+	static int	fire_frames[]	= {5, 7, 9, 11, 13, 15, 17, 19, 21, 0};
+
+	// Hacked-up chaingun spec
+	Weapon_Generic (ent, 4, 31, 61, 64, pause_frames, fire_frames,
+		weapon_streetsweeper_fire);
 }
 
 
@@ -1477,7 +1932,7 @@ void weapon_shotgun_fire (edict_t *ent)
 	ent->client->ps.gunframe++;
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index]--;
 }
 
@@ -1496,8 +1951,8 @@ void weapon_supershotgun_fire (edict_t *ent)
 	vec3_t		forward, right;
 	vec3_t		offset;
 	vec3_t		v;
-	int			damage = 4; // 6 was too much if you ask me
-	int			kick = 300;
+	int			damage = 6;
+	int			kick = 100;
 
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
 
@@ -1531,7 +1986,7 @@ void weapon_supershotgun_fire (edict_t *ent)
 	ent->client->ps.gunframe++;
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index] -= 2;
 }
 
@@ -1547,7 +2002,7 @@ void Weapon_SuperShotgun (edict_t *ent)
 /*
 ======================================================================
 
-RAILGUN
+SNIPER GUN
 
 ======================================================================
 */
@@ -1568,7 +2023,7 @@ void Sniper_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
 
-	fire_sniper (ent, start, forward, damage, 2500, effect, hyper);
+	fire_sniper (ent, start, forward, damage, 2500, effect);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -1593,7 +2048,7 @@ void Weapon_Sniper_Fire (edict_t *ent)
 		damage = 600;
 	Sniper_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
 	ent->client->ps.gunframe++;
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index]--;
 }
 
@@ -1605,16 +2060,17 @@ void Weapon_Sniper (edict_t *ent)
 	Weapon_Generic (ent, 4, 29, 52, 55, pause_frames, fire_frames, Weapon_Sniper_Fire);
 }
 
-// Plasma
+
 /*
 ======================================================================
 
-RAILGUN
+PLASMA RIFLE
 
 ======================================================================
 */
 
-void Plasma_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int effect)
+void Plasma_Fire (edict_t *ent, vec3_t g_offset, int damage,
+						qboolean hyper, int effect)
 {
 	vec3_t	forward, right;
 	vec3_t	start;
@@ -1630,7 +2086,7 @@ void Plasma_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
 
-	fire_plasma (ent, start, forward, damage, 900, effect, hyper);
+	fire_plasma (ent, start, forward, damage, 1200, effect);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -1638,7 +2094,7 @@ void Plasma_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int
 	if (hyper)
 		gi.WriteByte (MZ_HYPERBLASTER | is_silenced);
 	else
-		gi.WriteByte (MZ_BFG | is_silenced);
+		gi.WriteByte (MZ_BLASTER | is_silenced);
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
@@ -1652,27 +2108,52 @@ void Weapon_Plasma_Fire (edict_t *ent)
 	if (deathmatch->value)
 		damage = 15;
 	else
-		damage = 50;
+		damage = 20;
 	Plasma_Fire (ent, vec3_origin, damage, false, EF_BFG);
 	ent->client->ps.gunframe++;
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index]--;
 }
 
 void Weapon_Plasma (edict_t *ent)
 {
 	static int	pause_frames[]	= {25, 33, 42, 50, 0};
-	static int	fire_frames[]	= {6, 0};
+	static int	fire_frames[]	= {6, 7, 0};
 
-	Weapon_Generic (ent, 5, 7, 59, 64, pause_frames, fire_frames, Weapon_Plasma_Fire);
+	// As long as they're holding down the fire button, fire.
+	// (That's why we fire in frame 7; to keep it from going idle.)
+	if (ent->client->weaponstate == WEAPON_FIRING
+	&& ent->client->ps.gunframe == 7)
+	{
+		if (!ent->client->newweapon
+		&& (ent->client->buttons & BUTTON_ATTACK)
+		&& ent->client->pers.inventory[ITEM_INDEX(gI_weapon_plasma.ammo)]
+			>= gI_weapon_plasma.quantity)
+		{
+			// Turn back the clock.
+			ent->client->ps.gunframe = 6;
+		}
+		else
+		{
+			// Move the clock forward.
+			ent->client->ps.gunframe = 8;
+		}
+	}
+
+	// Then act like a normal weapon.
+	Weapon_Generic (ent, 5, 7, 59, 64, pause_frames, fire_frames,
+		Weapon_Plasma_Fire);
 }
-// end plasma
+
 
 /*
 ======================================================================
-Flamethrower (used to be the railgun)
+
+FLAMETHROWER (used to be the railgun)
+
 ======================================================================
 */
+
 void fire_rg (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int effect)
 {
 	vec3_t	forward, right;
@@ -1704,8 +2185,40 @@ void fire_rg (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int eff
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-	ent->client->pers.inventory[ent->client->ammo_index] -= ent->client->pers.weapon->quantity;
 }
+
+void weapon_railgun_fire (edict_t *ent)
+{
+	int		damage;
+
+	if (deathmatch->value)
+		damage = 10;
+	else
+		damage = 20;
+	fire_rg (ent, vec3_origin, damage, false, EF_ROCKET);
+	ent->client->ps.gunframe++;
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
+}
+
+void Weapon_Railgun (edict_t *ent)
+{
+	static int	pause_frames[]	= {34, 51, 59, 0};
+	static int	fire_frames[]	= {4, 5, 0};
+
+	Weapon_Generic (ent, 3, 5, 56, 61, pause_frames, fire_frames, weapon_railgun_fire);
+}
+
+
+/*
+======================================================================
+
+RAILGUN
+
+======================================================================
+*/
+
 void weapon_railgun2_fire (edict_t *ent)
 {
 	vec3_t		start;
@@ -1749,8 +2262,9 @@ void weapon_railgun2_fire (edict_t *ent)
 	ent->client->ps.gunframe++;
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index] -= 4;
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 
@@ -1762,28 +2276,6 @@ void Weapon_Railgun2 (edict_t *ent)
 	Weapon_Generic (ent, 3, 18, 56, 61, pause_frames, fire_frames, weapon_railgun2_fire);
 }
 
-
-void weapon_railgun_fire (edict_t *ent)
-{
-	int		damage;
-
-	if (deathmatch->value)
-		damage = 10;
-	else
-		damage = 20;
-	fire_rg (ent, vec3_origin, damage, false, EF_ROCKET);
-	ent->client->ps.gunframe++;
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
-		ent->client->pers.inventory[ent->client->ammo_index];
-}
-
-void Weapon_Railgun (edict_t *ent)
-{
-	static int	pause_frames[]	= {34, 51, 59, 0};
-	static int	fire_frames[]	= {4, 5, 0};
-
-	Weapon_Generic (ent, 3, 5, 56, 61, pause_frames, fire_frames, weapon_railgun_fire);
-}
 
 /*
 ======================================================================
@@ -1847,7 +2339,7 @@ void weapon_bfg_fire (edict_t *ent)
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index] -= 50;
 }
 
@@ -1858,6 +2350,16 @@ void Weapon_BFG (edict_t *ent)
 
 	Weapon_Generic (ent, 8, 32, 55, 58, pause_frames, fire_frames, weapon_bfg_fire);
 }
+
+
+/*
+======================================================================
+
+FREEZE GUN
+
+======================================================================
+*/
+
 void Freezer_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int effect)
 {
 	vec3_t	forward, right;
@@ -1888,9 +2390,7 @@ void Freezer_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 }
-// **************************
-// ************************
-// Same as Weapon_Blaster_Fire with some modifications
+
 void Weapon_Freezer_Fire (edict_t *ent)
 {
 	int		damage;
@@ -1901,9 +2401,10 @@ void Weapon_Freezer_Fire (edict_t *ent)
 		damage = 20;
 	Freezer_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
 	ent->client->ps.gunframe++;
-	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index] -= 10;
 }
+
 void Weapon_Freezer (edict_t *ent)
 {
 	static int	pause_frames[]	= {19, 32, 0};

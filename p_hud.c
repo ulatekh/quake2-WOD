@@ -40,6 +40,9 @@ void MoveClientToIntermission (edict_t *ent)
 	ent->client->grenade_blew_up = false;
 	ent->client->grenade_time = 0;
 
+	// don't drown during intermission
+	ent->waterlevel = 0;
+
 	ent->viewheight = 0;
 	ent->s.modelindex = 0;
 	ent->s.modelindex2 = 0;
@@ -94,7 +97,7 @@ void BeginIntermission (edict_t *targ)
 				// strip players of all keys between units
 				for (n = 0; n < MAX_ITEMS; n++)
 				{
-					if (itemlist[n].flags & IT_KEY)
+					if (itemlist[n]->flags & IT_KEY)
 						client->client->pers.inventory[n] = 0;
 				}
 			}
@@ -404,7 +407,7 @@ void G_SetStats (edict_t *ent)
 	}
 	else
 	{
-		item = &itemlist[ent->client->ammo_index];
+		item = itemlist[ent->client->ammo_index];
 		ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex (item->icon);
 		ent->client->ps.stats[STAT_AMMO] = ent->client->pers.inventory[ent->client->ammo_index];
 	}
@@ -415,7 +418,7 @@ void G_SetStats (edict_t *ent)
 	power_armor_type = PowerArmorType (ent);
 	if (power_armor_type)
 	{
-		cells = ent->client->pers.inventory[ITEM_INDEX(FindItem ("cells"))];
+		cells = ent->client->pers.inventory[ITEM_INDEX(&gI_ammo_cells)];
 		if (cells == 0)
 		{	// ran out of cells for power armor
 			ent->flags &= ~FL_POWER_ARMOR;
@@ -501,7 +504,8 @@ else if (ent->client->kamikaze_framenum > level.framenum)
 	if (ent->client->pers.selected_item == -1)
 		ent->client->ps.stats[STAT_SELECTED_ICON] = 0;
 	else
-		ent->client->ps.stats[STAT_SELECTED_ICON] = gi.imageindex (itemlist[ent->client->pers.selected_item].icon);
+		ent->client->ps.stats[STAT_SELECTED_ICON]
+			= gi.imageindex (itemlist[ent->client->pers.selected_item]->icon);
 
 	ent->client->ps.stats[STAT_SELECTED_ITEM] = ent->client->pers.selected_item;
 

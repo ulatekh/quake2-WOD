@@ -337,6 +337,9 @@ void Cmd_Hook_f (edict_t *ent)
 	char *s;
 	int *hookstate;
 
+	if (ent->deadflag)
+		return;
+
 	// get the first hook argument
 	s = gi.argv(1);
 

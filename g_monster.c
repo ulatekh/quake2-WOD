@@ -31,7 +31,7 @@ void monster_fire_shotgun (edict_t *self, vec3_t start, vec3_t aimdir, int damag
 
 void monster_fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect)
 {
-	fire_blaster (self, start, dir, damage, speed, effect, false);
+	fire_blaster (self, start, dir, damage, speed, effect /* , false */);
 
 	gi.WriteByte (svc_muzzleflash2);
 	gi.WriteShort (self - g_edicts);
@@ -345,18 +345,16 @@ void M_MoveFrame (edict_t *self)
 	int		index;
 
 	move = self->monsterinfo.currentmove;
-// frozen code begin	
-	if( self->frozen ) {
+
+	// frozen code begin	
+	if (self->frozen)
+	{
 		self->nextthink = level.time + 70*FRAMETIME;
 		self->frozen = 0;
 	}
-
-	else {
+	else
  	      self->nextthink = level.time + FRAMETIME;
-	  }
-// frozen code end
-
-//	self->nextthink = level.time + FRAMETIME;
+	// frozen code end
 
 	if ((self->monsterinfo.nextframe) && (self->monsterinfo.nextframe >= move->firstframe) && (self->monsterinfo.nextframe <= move->lastframe))
 	{
@@ -525,14 +523,11 @@ void monster_death_use (edict_t *self)
 
 qboolean monster_start (edict_t *self)
 {
-	/* ?
-if (deathmatch->value)
+	if (deathmatch->value)
 	{
 		G_FreeEdict (self);
 		return false;
-	
 	} 
-*/
 
 	if ((self->spawnflags & 4) && !(self->monsterinfo.aiflags & AI_GOOD_GUY))
 	{
