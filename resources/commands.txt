@@ -1,0 +1,60 @@
+====================================================
+Weapons of Destruction 5.4 Commands quick reference
+I recommend that you print this out.
+====================================================
+-
+Super Blaster: Press 1 twice
+Sniper Gun: Press 2 twice when you have the shotgun
+Homing Rocket Launcher: Press 7 twice when you have the rocket launcher
+Plasma Gun: Press 8 twice when you have the hyperblaster
+Freeze Gun: Select Super Shotgun twice
+Select the Machine Gun again for standard.
+Select Flamethrower[9] twice for the standard railgun
+-
+--------------------------------------------------------
+Function		| binding	| Command
+--------------------------------------------------------
+Night Vision		| N		| cmd night vision
+--------------------------------------------------------
+Jetpack			| J		| use jetpack
+--------------------------------------------------------
+Laser Sight		| S		| cmd lsight
+--------------------------------------------------------
+Laser Tripwire		| L		| cmd laser
+--------------------------------------------------------
+TractorBeam Pull	| o		| cmd pull
+--------------------------------------------------------
+TractorBeam Push	| p		| cmd push
+--------------------------------------------------------
+Cycles Zoom Views	| f11		| cmd zoom 1
+--------------------------------------------------------
+Original View		| f10		| cmd zoom 0
+--------------------------------------------------------
+Kamikaze		| end		| cmd kamikaze
+--------------------------------------------------------
+darKMajick grenades     | N\A           | see below
+--------------------------------------------------------
+Grappling Hook:		| G		| +hook
+Slide up grapple        | R		| +shrink
+Slide down grapple      | F		| +grow
+--------------------------------------------------------
+Scanner			| S		| cmd scanner
+--------------------------------------------------------
+Chasecam		| X		| cmd chasecam
+--------------------------------------------------------
+Decoy			| D		| cmd decoy
+--------------------------------------------------------
+Toggle Burst fire for   | M		| cmd firemode
+Standard machine gun    | M		| cmd firemode
+--------------------------------------------------------
+use commands "thirdx" and "thirdz" to adjust the chasecam
+--------------------------------------------------------
+			
+To use darKMajick grenades (yes the spelling is intentional):
+a.) Select the grenade from the heads up display by using [ and ],
+-OR-
+bind a key to "use grenades" and press the key several times
+b.) Press enter again after selecting the grenades, it will go through
+a list and text up at the screen of which grenade you have selected.
+
+* Tip * Use console command "give all" to get all the items.
