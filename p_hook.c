@@ -74,19 +74,22 @@ void MaintainLinks (edict_t *ent)
 
 	// create temp entity chain
 	gi.WriteByte (svc_temp_entity);
-#if 0
-	gi.WriteByte (TE_MEDIC_CABLE_ATTACK);
-	gi.WriteShort (ent - g_edicts);
-	gi.WritePosition (pred_hookpos);
-	gi.WritePosition (start);
-#else
-	gi.WriteByte (TE_GRAPPLE_CABLE);
-	gi.WriteShort (ent->owner - g_edicts);
-	gi.WritePosition (ent->owner->s.origin);
-	gi.WritePosition (pred_hookpos);
-	VectorSubtract (start, ent->owner->s.origin, offset);
-	gi.WritePosition (offset);
-#endif
+	if (ctf->value)
+	{
+		gi.WriteByte (TE_GRAPPLE_CABLE);
+		gi.WriteShort (ent->owner - g_edicts);
+		gi.WritePosition (ent->owner->s.origin);
+		gi.WritePosition (pred_hookpos);
+		VectorSubtract (start, ent->owner->s.origin, offset);
+		gi.WritePosition (offset);
+	}
+	else
+	{
+		gi.WriteByte (TE_MEDIC_CABLE_ATTACK);
+		gi.WriteShort (ent - g_edicts);
+		gi.WritePosition (pred_hookpos);
+		gi.WritePosition (start);
+	}
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 }
 

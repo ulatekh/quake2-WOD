@@ -108,7 +108,7 @@ void LaserSightThink (edict_t *self)
 	VectorCopy(tr.endpos,self->s.origin);
 
 	gi.linkentity (self);
-	self->nextthink = level.time + 0.1;
+	self->nextthink = level.time + FRAMETIME;
 
 #if 0
 	// Hehe, draw a line in the air too!

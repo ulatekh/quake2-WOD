@@ -189,6 +189,8 @@ void SetRespawn (edict_t *ent, float delay)
 	ent->solid = SOLID_NOT;
 	ent->nextthink = level.time + delay;
 	ent->think = DoRespawn;
+	VectorCopy (ent->pos1, ent->s.origin);		// Restore origin/angles (if item
+	VectorCopy (ent->pos2, ent->s.angles);		// got knocked around)
 	gi.linkentity (ent);
 }
 
@@ -1045,6 +1047,11 @@ void droptofloor (edict_t *ent)
 
 	VectorCopy (tr.endpos, ent->s.origin);
 
+	// Save the item's origin/angles, so they can be restored if it gets
+	// knocked around.
+	VectorCopy (ent->s.origin, ent->pos1);
+	VectorCopy (ent->s.angles, ent->pos2);
+
 	if (ent->team)
 	{
 		ent->flags &= ~FL_TEAMSLAVE;
@@ -1159,7 +1166,61 @@ be on an entity that hasn't spawned yet.
 void SpawnItem (edict_t *ent, gitem_t *item)
 {
 	// Some items have been banned.
-	if (item == &gI_item_jetpack
+	if (item == &gI_item_bandolier
+	&& ((int)featureban->value & FB_BANDOLIER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_pack
+	&& ((int)featureban->value & FB_AMMOPACK))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_silencer
+	&& ((int)featureban->value & FB_SILENCER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_breather
+	&& ((int)featureban->value & FB_REBREATHER))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_enviro
+	&& ((int)featureban->value & FB_ENVIROSUIT))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_adrenaline
+	&& ((int)featureban->value & FB_ADRENALINE))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_health && ent->count == 100
+	&& ((int)featureban->value & FB_MEGAHEALTH))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if ((item == &gI_item_power_screen || item == &gI_item_power_shield)
+	&& ((int)featureban->value & FB_POWERARMOR))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_invulnerability
+	&& ((int)featureban->value & FB_INVULNERABILITY))
+	{
+		G_FreeEdict (ent);
+		return;
+	}
+	else if (item == &gI_item_jetpack
 	&& ((int)featureban->value & FB_JETPACK))
 	{
 		G_FreeEdict (ent);
@@ -1578,9 +1639,9 @@ gitem_t gI_weapon_supershotgun =
 gitem_t gI_weapon_machine =
 {
 	"weapon_machine", 
-	NULL,
+	Pickup_Weapon,
 	Use_Weapon,
-	NULL,
+	Drop_Weapon,
 	Weapon_Machine,
 	"misc/w_pkup.wav",
 	"models/weapons/g_machn/tris.md2", EF_ROTATE,
@@ -1624,12 +1685,12 @@ gitem_t gI_weapon_machinegun =
 gitem_t gI_weapon_freezer =
 {
 	"weapon_freezer", 
-	NULL,
+	Pickup_Weapon,
 	Use_Weapon,
-	NULL,
+	Drop_Weapon,
 	Weapon_Freezer,
 	"misc/w_pkup.wav",
-	NULL, 0,
+	"models/weapons/g_shotg2/tris.md2", EF_ROTATE,
 	"models/weapons/v_shotg2/tris.md2",
 /* icon */		"w_sshotgun",
 /* pickup */	"Freezer",
@@ -1670,9 +1731,9 @@ gitem_t gI_weapon_chaingun =
 gitem_t gI_weapon_streetsweeper =
 {
 	"weapon_streetsweeper", 
-	NULL,
+	Pickup_Weapon,
 	Use_Weapon,
-	NULL,
+	Drop_Weapon,
 	Weapon_Streetsweeper,
 	"misc/w_pkup.wav",
 	"models/weapons/g_chain/tris.md2", EF_ROTATE,
@@ -1876,7 +1937,7 @@ gitem_t gI_weapon_grenadelauncher =
 */
 gitem_t gI_weapon_bazooka =
 {
-	"weapon_grenadelauncher",
+	"weapon_bazooka",
 	Pickup_Weapon,
 	Use_Weapon,
 	Drop_Weapon,
@@ -1923,9 +1984,9 @@ gitem_t gI_weapon_rocketlauncher =
 gitem_t gI_weapon_homing =
 {
 	"weapon_homing",
-	NULL,
+	Pickup_Weapon,
 	Use_Weapon,
-	NULL,
+	Drop_Weapon,
 	Weapon_Homing,
 	"misc/w_pkup.wav",
 	"models/weapons/g_rocket/tris.md2", EF_ROTATE,
@@ -2018,9 +2079,9 @@ gitem_t gI_weapon_railgun =
 gitem_t gI_weapon_railgun2 =
 {
 	"weapon_railgun2", 
-	NULL,
+	Pickup_Weapon,
 	Use_Weapon,
-	NULL,
+	Drop_Weapon,
 	Weapon_Railgun2,
 	"misc/w_pkup.wav",
 	"models/weapons/g_rail/tris.md2", EF_ROTATE,
@@ -2065,9 +2126,9 @@ gitem_t gI_weapon_bfg =
 gitem_t gI_weapon_sniper =
 {
 	"weapon_sniper", 
-	NULL,
+	Pickup_Weapon,
 	Use_Weapon,
-	NULL,
+	Drop_Weapon,
 	Weapon_Sniper,
 	"misc/w_pkup.wav",
 	"models/weapons/g_rail/tris.md2", EF_ROTATE,
@@ -2088,9 +2149,9 @@ gitem_t gI_weapon_sniper =
 gitem_t gI_weapon_plasma =
 {
 	"weapon_plasma", 
-	NULL,
+	Pickup_Weapon,
 	Use_Weapon,
-	NULL,
+	Drop_Weapon,
 	Weapon_Plasma,
 	"misc/w_pkup.wav",
 	"models/weapons/g_hyperb/tris.md2", EF_ROTATE,

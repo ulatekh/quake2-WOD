@@ -116,7 +116,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 	// Determine what weapon was picked up and what weapons will be added to the
 	// inventory, depending on weapon banning.
 	item1 = item2 = NULL;
-	if (item == &gI_weapon_shotgun)
+	if (item == &gI_weapon_shotgun || item == &gI_weapon_sniper)
 	{
 		if (!((int)weaponban->value & WB_SHOTGUN))
 			item1 = &gI_weapon_shotgun;
@@ -125,7 +125,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_SNIPERGUN))
 			item2 = &gI_weapon_sniper;
 	}
-	else if (item == &gI_weapon_supershotgun)
+	else if (item == &gI_weapon_supershotgun || item == &gI_weapon_freezer)
 	{
 		if (!((int)weaponban->value & WB_SUPERSHOTGUN))
 			item1 = &gI_weapon_supershotgun;
@@ -134,7 +134,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_FREEZEGUN))
 			item2 = &gI_weapon_freezer;
 	}
-	else if (item == &gI_weapon_machinegun)
+	else if (item == &gI_weapon_machinegun || item == &gI_weapon_machine)
 	{
 		if (!((int)weaponban->value & WB_MACHINEROCKETGUN))
 			item1 = &gI_weapon_machinegun;
@@ -143,7 +143,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_MACHINEGUN))
 			item2 = &gI_weapon_machine;
 	}
-	else if (item == &gI_weapon_chaingun)
+	else if (item == &gI_weapon_chaingun || item == &gI_weapon_streetsweeper)
 	{
 		if (!((int)weaponban->value & WB_CHAINGUN))
 			item1 = &gI_weapon_chaingun;
@@ -152,7 +152,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_STREETSWEEPER))
 			item2 = &gI_weapon_streetsweeper;
 	}
-	else if (item == &gI_weapon_grenadelauncher)
+	else if (item == &gI_weapon_grenadelauncher || item == &gI_weapon_bazooka)
 	{
 		if (!((int)weaponban->value & WB_GRENADELAUNCHER))
 			item1 = &gI_weapon_grenadelauncher;
@@ -161,7 +161,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_BAZOOKA))
 			item2 = &gI_weapon_bazooka;
 	}
-	else if (item == &gI_weapon_rocketlauncher)
+	else if (item == &gI_weapon_rocketlauncher || item == &gI_weapon_homing)
 	{
 		if (!((int)weaponban->value & WB_ROCKETLAUNCHER))
 			item1 = &gI_weapon_rocketlauncher;
@@ -170,7 +170,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_HOMINGROCKETLAUNCHER))
 			item2 = &gI_weapon_homing;
 	}
-	else if (item == &gI_weapon_hyperblaster)
+	else if (item == &gI_weapon_hyperblaster || item == &gI_weapon_plasma)
 	{
 		if (!((int)weaponban->value & WB_HYPERBLASTER))
 			item1 = &gI_weapon_hyperblaster;
@@ -179,7 +179,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_PLASMARIFLE))
 			item2 = &gI_weapon_plasma;
 	}
-	else if (item == &gI_weapon_railgun)
+	else if (item == &gI_weapon_railgun || item == &gI_weapon_railgun2)
 	{
 		if (!((int)weaponban->value & WB_FLAMETHROWER))
 			item1 = &gI_weapon_railgun;
@@ -225,7 +225,15 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 			if (deathmatch->value)
 			{
 				if ((int)(dmflags->value) & DF_WEAPONS_STAY)
-					ent->flags |= FL_RESPAWN;
+				{
+					// If the weapon hasn't been moved, do a quick in-place respawn,
+					// otherwise do a more visual respawn.
+					if (VectorCompare (ent->pos1, ent->s.origin)
+					&& VectorCompare (ent->pos2, ent->s.angles))
+						ent->flags |= FL_RESPAWN;
+					else
+						SetRespawn (ent, 2 * FRAMETIME);
+				}
 				else
 					SetRespawn (ent, 30);
 			}
@@ -595,9 +603,9 @@ void Drop_Weapon (edict_t *ent, gitem_t *item)
 
 	// Finally, drop the weapon.  Don't drop an alternate weapon -- make it a
 	// normal weapon.
-	if (item->flags & IT_ALTWEAPON)
+	/* if (item->flags & IT_ALTWEAPON)
 		Drop_Item (ent, altitem);
-	else
+	else */
 		Drop_Item (ent, item);
 
 	// If they dropped the current weapon, switch.
@@ -817,11 +825,11 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
 	timer = ent->client->grenade_time - level.time;
 	speed = GRENADE_MINSPEED + (GRENADE_TIMER - timer) * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER);
 
-  // darKMajick:
-  typ = ent->client->dM_grenade;
-  // fire_grenade2 (ent, start, forward, damage, speed, timer, radius);
-  fire_grenade_dM (ent, start, forward, damage, speed, timer, radius, typ,
-	  /* held */ true, /* bazookad */ false);
+	// darKMajick:
+	typ = ent->client->dM_grenade;
+	// fire_grenade2 (ent, start, forward, damage, speed, timer, radius);
+	fire_grenade_dM (ent, start, forward, damage, speed, timer, radius, typ,
+		/* held */ true, /* bazookad */ false);
 
 	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
@@ -1334,8 +1342,10 @@ void Super_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int 
 	gi.multicast (ent->s.origin, MULTICAST_PVS);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-	ent->client->pers.inventory[ent->client->ammo_index]
-		-= ent->client->pers.weapon->quantity;
+
+	if (! ( (int)dmflags->value & DF_INFINITE_AMMO ) )
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->pers.weapon->quantity;
 }
 
 
@@ -1609,9 +1619,9 @@ void Machinegun_Fire (edict_t *ent)
 	float	damage_radius;
 	int		radius_damage;
 
-	damage = 20 + (int)(random() * 20.0);
-	radius_damage = 20;
-	damage_radius = 120;
+	damage = 15 + (int)(random() * 10.0);
+	radius_damage = 15 + (int)(random() * 10.0);
+	damage_radius = 20;
 	if (is_quad)
 	{
 		damage *= 4;
@@ -1637,7 +1647,7 @@ void Machinegun_Fire (edict_t *ent)
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
-	fire_mr (ent, start, forward, damage, 1000, 20, 20);
+	fire_mr (ent, start, forward, damage, 1000, damage_radius, radius_damage);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);

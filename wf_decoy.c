@@ -294,6 +294,8 @@ void spawn_decoy (edict_t *owner)
 	self->s.skinnum = owner->s.skinnum;
 	self->s.modelindex = owner->s.modelindex;
 	self->s.modelindex2 = owner->s.modelindex2;
+	self->s.modelindex3 = owner->s.modelindex3;
+	self->s.modelindex4 = owner->s.modelindex4;
 	self->s.number = self - g_edicts;
 
 	self->s.effects = 0;

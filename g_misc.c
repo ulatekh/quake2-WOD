@@ -245,13 +245,11 @@ void ThrowClientHead (edict_t *self, int damage)
 		self->client->anim_priority = ANIM_DEATH;
 		self->client->anim_end = self->s.frame;
 	}
-#if 0
 	else
 	{
 		self->think = NULL;
 		self->nextthink = 0;
 	}
-#endif
 
 	gi.linkentity (self);
 }

@@ -498,6 +498,10 @@ void G_FindTeams (void)
 	gi.dprintf ("%i teams with %i entities\n", c, c2);
 }
 
+// Define this to make SpawnEntities() output a version of the read entities
+// containing everything that wasn't freed.  (A game-development thing.)
+//#define STRIPENTS
+
 /*
 ==============
 SpawnEntities
@@ -513,6 +517,23 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	char		*com_token;
 	int			i;
 	float		skill_level;
+#ifdef STRIPENTS
+	char *entstart;
+	FILE *f;
+	char szFile[MAX_QPATH];
+#endif STRIPENTS
+
+#ifdef STRIPENTS
+	// Create the pathname to the new entity file.
+	Com_sprintf (szFile, sizeof (szFile), "%s/ent/new-%s.ent",
+		gamedir->string, mapname);
+
+	// Try to open it.
+	f = fopen (szFile, "wb");
+	if (!f)
+		gi.error ("SpawnEntities STRIPENTS: couldn't open %s for writing\n",
+			szFile);
+#endif STRIPENTS
 
 	skill_level = floor (skill->value);
 	if (skill_level < 0)
@@ -542,6 +563,11 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 // parse ents
 	while (1)
 	{
+#ifdef STRIPENTS
+		// keep track of where the entity started.
+		entstart = entities;
+#endif STRIPENTS
+
 		// parse the opening brace	
 		com_token = COM_Parse (&entities);
 		if (!entities)
@@ -589,7 +615,31 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 		}
 
 		ED_CallSpawn (ent);
+
+#ifdef STRIPENTS
+		// If this entity survived, print it.
+		if (ent->inuse)
+		{
+			int entsize, nWritten;
+
+			// Move past the end of the line.
+			while (*entities == 12 || *entities == 15)
+				entities++;
+
+			// Calculate the size of the entity, in characters.
+			entsize = entities - entstart;
+
+			// Write it.
+			nWritten = fwrite (entstart, sizeof (char), entsize, f);
+			if (nWritten != entsize)
+				gi.error ("SpawnEntities STRIPENTS: couldn't write to file\n");
+		}
+#endif STRIPENTS
 	}	
+
+#ifdef STRIPENTS
+	fclose (f);
+#endif STRIPENTS
 
 	gi.dprintf ("%i entities inhibited\n", inhibit);
 

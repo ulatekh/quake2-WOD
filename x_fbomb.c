@@ -114,9 +114,9 @@ void fire_flamegrenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage, 
 	VectorClear (grenade->maxs);
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade/tris.md2");
 	grenade->owner = self;
-        grenade->touch = FireGrenade_Touch;
+	grenade->touch = FireGrenade_Touch;
 	grenade->nextthink = level.time + timer;
-		  grenade->think = FireGrenade_Explode;
+	grenade->think = FireGrenade_Explode;
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
 	grenade->classname = "grenade";
@@ -147,9 +147,9 @@ void fire_flamegrenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
 	VectorClear (grenade->maxs);
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade2/tris.md2");
 	grenade->owner = self;
-		  grenade->touch = FireGrenade_Touch;
+	grenade->touch = FireGrenade_Touch;
 	grenade->nextthink = level.time + timer;
-        grenade->think = FireGrenade_Explode;
+	grenade->think = FireGrenade_Explode;
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
 	grenade->classname = "grenade";

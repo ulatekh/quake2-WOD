@@ -123,7 +123,7 @@
 
 #define MELEE_DISTANCE	80
 
-#define BODY_QUEUE_SIZE		16
+#define BODY_QUEUE_SIZE		8
 
 typedef enum
 {

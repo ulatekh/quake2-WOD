@@ -1260,7 +1260,8 @@ void fire_grenade (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
 
 // Not used any more.
 
-void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, qboolean held)
+void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
+						  int speed, float timer, float damage_radius, qboolean held)
 {
 	edict_t	*grenade;
 	vec3_t	dir;
@@ -1498,7 +1499,8 @@ void mr_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 
 	G_FreeEdict (ent);
 }
-void fire_mr (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage)
+void fire_mr (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
+				  float damage_radius, int radius_damage)
 {
 	edict_t	*rocket;
 
@@ -1519,8 +1521,8 @@ void fire_mr (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
 	rocket->nextthink = level.time + 8000/speed;
 	rocket->think = G_FreeEdict;
 	rocket->dmg = damage;
-	rocket->radius_dmg = 40;
-	rocket->dmg_radius = 40;
+	rocket->radius_dmg = 20;
+	rocket->dmg_radius = 20;
 	rocket->s.sound = gi.soundindex ("weapons/rockfly.wav");
 	rocket->classname = "rocket";
 
@@ -2121,13 +2123,12 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 	rocket->health = damage;
 	rocket->max_health = damage;
 	rocket->die = homing_die;
-	//rocket->monsterinfo.aiflags = AI_NOSTEP;
 
 	rocket->dmg = damage;
 	rocket->radius_dmg = 120;
 	rocket->dmg_radius = 120;
 	rocket->s.sound = gi.soundindex ("weapons/rockfly.wav");
-	rocket->classname = "rocket";
+	rocket->classname = "homing rocket";
 
 	// Find a target to home in on.
 	{
@@ -2188,6 +2189,10 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 	{
 		// Let the inflictor know the rocket isn't going to home in on anyone.
 		gi.sound (self, CHAN_AUTO, gi.soundindex ("misc/talk1.wav"), 1, ATTN_NORM, 0);
+
+		// No need to think.
+		rocket->nextthink = 0;
+		rocket->think = NULL;
 	}
 
 	if (self->client)

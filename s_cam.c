@@ -35,7 +35,7 @@ void ChasecamStart (edict_t *ent)
 	* slowly backwards from the player model */
 	VectorCopy (ent->s.origin, chasecam->s.origin);        
 	chasecam->classname = "chasecam";
-	chasecam->nextthink = level.time + 0.100;
+	chasecam->nextthink = level.time + FRAMETIME;
 	chasecam->think = ChasecamTrack;
 	ent->client->chasecam = chasecam;     
 	ent->client->oldplayer = G_Spawn();        
@@ -45,7 +45,7 @@ void ChasecamRestart (edict_t *ent)
 {
 	/* Keep thinking this function to check all the time whether the
 	* player is out of the water */
-	ent->nextthink = level.time + 0.100;
+	ent->nextthink = level.time + FRAMETIME;
 
 	/* If the player is dead, the camera is not wanted... Kill me and stop
 	* the function. (return;) */
@@ -87,7 +87,7 @@ void ChasecamRemove (edict_t *ent, char *opt)
 	if (!strcmp(opt, "background"))
 	{
 		ent->client->chasetoggle = 3;
-		ent->client->chasecam->nextthink = level.time + 0.100;
+		ent->client->chasecam->nextthink = level.time + FRAMETIME;
 		ent->client->chasecam->think = ChasecamRestart;
 	}
 	else if (!strcmp(opt, "off"))
@@ -107,7 +107,7 @@ void ChasecamTrack (edict_t *ent)
 	int distance;
 	int tot;
 
-	ent->nextthink = level.time + 0.100;
+	ent->nextthink = level.time + FRAMETIME;
 
 	// Update the held weapon.
 	if (ent->owner->client->ps.gunindex)

@@ -561,6 +561,8 @@ void TossClientWeapon (edict_t *self)
 	// the special one did.)
 	if (item == &gI_weapon_superblaster)
 		item = NULL;
+#if 0
+	// Actually, it's OK to drop most of the special weapons now.
 	if (item == &gI_weapon_machine)
 	{
 		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_machinegun)])
@@ -617,6 +619,7 @@ void TossClientWeapon (edict_t *self)
 		else
 			item = NULL;
 	}
+#endif
 
 	if (!((int)(dmflags->value) & DF_QUAD_DROP))
 		quad = false;
@@ -1318,17 +1321,6 @@ void PutClientInServer (edict_t *ent)
 	{
 		char		userinfo[MAX_INFO_STRING];
 
-		// If this is an "infinite ammo" game, just give it all to them now.
-		if ((int)(dmflags->value) & DF_INFINITE_AMMO)
-		{
-			Add_Ammo (ent, &gI_ammo_shells, 1000);
-			Add_Ammo (ent, &gI_ammo_bullets, 1000);
-			Add_Ammo (ent, &gI_ammo_grenades, 1000);
-			Add_Ammo (ent, &gI_ammo_rockets, 1000);
-			Add_Ammo (ent, &gI_ammo_cells, 1000);
-			Add_Ammo (ent, &gI_ammo_slugs, 1000);
-		}
-
 		resp = client->resp;
 		memcpy (userinfo, client->pers.userinfo, sizeof(userinfo));
 		InitClientPersistant (client);
@@ -1412,6 +1404,18 @@ void PutClientInServer (edict_t *ent)
 //ZOID
 	client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
 //ZOID
+
+	// If this is an "infinite ammo" game, just give it all to them now.
+	if (deathmatch->value
+	&& ((int)(dmflags->value) & DF_INFINITE_AMMO))
+	{
+		Add_Ammo (ent, &gI_ammo_shells, 1000);
+		Add_Ammo (ent, &gI_ammo_bullets, 1000);
+		Add_Ammo (ent, &gI_ammo_grenades, 1000);
+		Add_Ammo (ent, &gI_ammo_rockets, 1000);
+		Add_Ammo (ent, &gI_ammo_cells, 1000);
+		Add_Ammo (ent, &gI_ammo_slugs, 1000);
+	}
 
 	if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV))
 	{
