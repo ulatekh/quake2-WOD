@@ -47,7 +47,7 @@
 #define WB_GRENADELAUNCHER			0x00020000
 #define WB_BAZOOKA					0x00040000
 #define WB_ROCKETLAUNCHER			0x00080000
-#define WB_HOMINGROCKETLAUNCHER	0x00100000
+#define WB_GUIDEDROCKETLAUNCHER	0x00100000
 #define WB_HYPERBLASTER				0x00200000
 #define WB_PLASMARIFLE				0x00400000
 #define WB_RAILGUN					0x00800000
@@ -565,7 +565,7 @@ extern	int	body_armor_index;
 #define MOD_SNIPER		45
 #define MOD_PLASMAGUN		46
 #define MOD_H_SPLASH		47
-#define MOD_HOMING		48
+#define MOD_GUIDEDROCKET	48
 #define MOD_SHRAPNEL		49
 #define MOD_SHRAPG		50
 #define MOD_MACHINE		51
@@ -634,6 +634,8 @@ extern	cvar_t	*teamplay;
 extern	cvar_t	*weaponban;
 extern	cvar_t	*featureban;
 extern	cvar_t	*fragban;
+
+extern	cvar_t	*idledetect;
 
 
 #define world	(&g_edicts[0])
@@ -708,6 +710,7 @@ int PowerArmorType (edict_t *ent);
 gitem_t	*GetItemByIndex (int index);
 qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count);
 void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
+void droptofloor (edict_t *ent);
 
 extern gitem_t gI_item_armor_body;
 extern gitem_t gI_item_armor_combat;
@@ -733,7 +736,7 @@ extern gitem_t gI_weapon_cataclysm;
 extern gitem_t gI_weapon_grenadelauncher;
 extern gitem_t gI_weapon_bazooka;
 extern gitem_t gI_weapon_rocketlauncher;
-extern gitem_t gI_weapon_homing;
+extern gitem_t gI_weapon_guidedrocketlauncher;
 extern gitem_t gI_weapon_hyperblaster;
 extern gitem_t gI_weapon_superblaster;
 extern gitem_t gI_weapon_railgun;
@@ -906,7 +909,7 @@ void fire_sniper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 void fire_freezer (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void fire_mr (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, int typ, qboolean held, qboolean bazookad);
-void fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
+void fire_guidedrocket (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_super (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 
@@ -1023,6 +1026,7 @@ void M_ChangeYaw (edict_t *ent);
 // g_phys.c
 //
 void G_RunEntity (edict_t *ent);
+int ClipVelocity (vec3_t in, vec3_t normal, vec3_t out, float overbounce);
 
 //
 // g_main.c
@@ -1044,6 +1048,13 @@ void GetChaseTarget(edict_t *ent);
 //
 void SP_Decoy (edict_t *self);
 void free_decoy (edict_t *self);
+
+//
+// lsight.c
+//
+void SP_LaserSight (edict_t *self);
+void LaserSight_Check (edict_t *self);
+void LaserSight_Off (edict_t *self);
 
 
 //============================================================================
@@ -1092,10 +1103,6 @@ typedef struct
 	int			power_cubes;	// used for tracking the cubes in coop games
 	int			score;			// for calculating total unit score in coop games
 	
-	char zbotBuf[24];				// For Lithium ZBot detection
-	// Don't add any fields before zbotBuf[], or the precompiled ZbotCheck.o
-	// will get confused and start overwriting the wrong things.
-
 	int			game_helpchanged;
 	int			helpchanged;
 
@@ -1124,6 +1131,17 @@ typedef struct
 	int			ctf_state;
 	qboolean	id_state;
 //ZOID
+
+	// Zbot check
+	short angles[2][2];
+	int tog;
+	int jitter;				// The number of jitters in the series
+	float jitter_time;	// The time of the first jitter in the series
+	float jitter_last;	// The time of the last jitter in the series
+
+	// Idle check
+	float idleTime;
+
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1421,10 +1439,9 @@ struct edict_s
 	edict_t     *burner;
 
 	edict_t		*lasersight;
+	qboolean		lasersightOn;
 };
 
-void LaserSightThink (edict_t *self);
-void SP_LaserSight(edict_t *self);
 extern void CheckChasecam_Viewent(edict_t *ent);
 // scanner consts & macros
 #define	SCANNER_UNIT                   32

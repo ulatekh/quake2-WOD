@@ -665,6 +665,7 @@ void SV_Physics_Toss (edict_t *ent)
 	edict_t		*slave;
 	qboolean	wasinwater;
 	qboolean	isinwater;
+	int watertype;
 	vec3_t		old_origin;
 
 
@@ -703,9 +704,45 @@ void SV_Physics_Toss (edict_t *ent)
 
 // move origin
 	VectorScale (ent->velocity, FRAMETIME, move);
+redoMove:
 	trace = SV_PushEntity (ent, move);
 	if (!ent->inuse)
 		return;
+
+// check for water transition
+	wasinwater = (ent->watertype & MASK_WATER);
+	watertype = gi.pointcontents (ent->s.origin);
+	isinwater = watertype & MASK_WATER;
+
+	// If we're supposed to ricochet off water, do so.
+	if (ent->movetype == MOVETYPE_FLYRICOCHET
+	&& ((!wasinwater && isinwater) /* || (wasinwater && !isinwater) */))
+	{
+		trace_t ricochetTrace;
+
+		// Find the water plane.
+		ricochetTrace = gi.trace (old_origin, ent->mins, ent->maxs, ent->s.origin,
+			ent, CONTENTS_WATER);
+		if (ricochetTrace.fraction < 1.0)
+		{
+			// Ricochet.
+			ClipVelocity (ent->velocity, ricochetTrace.plane.normal,
+				ent->velocity, 2);
+
+			// Try the move again.
+			VectorCopy (ricochetTrace.endpos, ent->s.origin);
+			VectorCopy (ricochetTrace.endpos, ent->s.old_origin);
+			VectorScale (ent->velocity,
+				(1.0 - ricochetTrace.fraction) * FRAMETIME, move);
+			goto redoMove;
+		}
+	}
+
+	ent->watertype = watertype;
+	if (isinwater)
+		ent->waterlevel = 1;
+	else
+		ent->waterlevel = 0;
 
 	if (trace.fraction < 1)
 	{
@@ -758,16 +795,6 @@ void SV_Physics_Toss (edict_t *ent)
 //			ent->touch (ent, trace.ent, &trace.plane, trace.surface);
 	}
 	
-// check for water transition
-	wasinwater = (ent->watertype & MASK_WATER);
-	ent->watertype = gi.pointcontents (ent->s.origin);
-	isinwater = ent->watertype & MASK_WATER;
-
-	if (isinwater)
-		ent->waterlevel = 1;
-	else
-		ent->waterlevel = 0;
-
 	if (!wasinwater && isinwater)
 		gi.positioned_sound (old_origin, g_edicts, CHAN_AUTO, gi.soundindex("misc/h2ohit1.wav"), 1, 1, 0);
 	else if (wasinwater && !isinwater)

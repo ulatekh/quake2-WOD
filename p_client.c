@@ -312,11 +312,11 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				else
 					message = "ignited himself with a flamerocket";
 				break;			
-			case MOD_HOMING:
+			case MOD_GUIDEDROCKET:
 				if (IsFemale(self))
-					message = "was betrayed by her homing rocket";
+					message = "laser-guided the rocket back to herself";
 				else
-					message = "was betrayed by his homing rocket";
+					message = "laser-guided the rocket back to himself";
 				break;
 			case MOD_FGRENADE:
 				if (IsFemale(self))
@@ -370,7 +370,7 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				break;
 			case MOD_H_SPLASH:
 				message = "almost evaded";
-				message2 = "'s homing rocket";
+				message2 = "'s laser-guided rocket";
 				break;
 			case MOD_FREEZE:
 				message = "was frozen to death by";
@@ -398,9 +398,9 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message = "was torn apart by";
 				message2 = "'s shrapnel grenade";
 				break;
-			case MOD_HOMING:
+			case MOD_GUIDEDROCKET:
 				message = "was chased down by";
-				message2 = "'s homing rocket";
+				message2 = "'s laser-guided rocket";
 				break;
 			case MOD_TRIPWIRE:
 				message = "tripped over";
@@ -598,7 +598,7 @@ void TossClientWeapon (edict_t *self)
 		else
 			item = NULL;
 	}
-	if (item == &gI_weapon_homing)
+	if (item == &gI_weapon_guidedrocketlauncher)
 	{
 		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)])
 			item = &gI_weapon_rocketlauncher;
@@ -882,12 +882,14 @@ void InitClientResp (gclient_t *client)
 //ZOID
 	int ctf_team = client->resp.ctf_team;
 //ZOID
+	float idleTime = client->resp.idleTime;
 
 	memset (&client->resp, 0, sizeof(client->resp));
 	
 //ZOID
 	client->resp.ctf_team = ctf_team;
 //ZOID
+	client->resp.idleTime = idleTime;
 
 	client->resp.enterframe = level.framenum;
 	client->resp.coop_respawn = client->pers;
@@ -1352,7 +1354,6 @@ void PutClientInServer (edict_t *ent)
 
 	// clear everything but the persistant data
 	saved = client->pers;
-	memset (saved.zbotBuf, 0, sizeof(saved.zbotBuf));
 	memset (client, 0, sizeof(*client));
 	client->pers = saved;
 	if (client->pers.health <= 0)
@@ -1757,6 +1758,9 @@ qboolean ClientConnect (edict_t *ent, char *userinfo)
 	if (gotAddr)
 		ent->client->pers.ipAddr = ipAddr.compare;
 
+	// Reset their idle time
+	ent->client->resp.idleTime = level.time;
+
 	// if there is already a body waiting for us (a loadgame), just
 	// take it, otherwise spawn one from scratch
 	if (ent->inuse == false)
@@ -1798,7 +1802,7 @@ void ClientDisconnect (edict_t *ent)
 
 	// Remove the lasersight.
 	if (ent->lasersight)
-		SP_LaserSight (ent);
+		LaserSight_Off (ent);
 
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
@@ -1849,6 +1853,41 @@ void PrintPmove (pmove_t *pm)
 	c1 = CheckBlock (&pm->s, sizeof(pm->s));
 	c2 = CheckBlock (&pm->cmd, sizeof(pm->cmd));
 	Com_Printf ("sv %3i:%i %i\n", pm->cmd.impulse, c1, c2);
+}
+
+qboolean
+BigZbotCheck (edict_t *ent, usercmd_t *ucmd)
+{
+	// Look for zbot impulses.
+	if (ucmd->impulse >= 169 && ucmd->impulse <= 174)
+		return true;
+
+	// Use Lithium's Zbot checker.
+	if (ZbotCheck (ent, ucmd))
+		return true;
+
+	// No zbot detected.
+	return false;
+}
+
+qboolean
+IdleCheck (edict_t *ent, usercmd_t *ucmd)
+{
+	// No idle timeout if there isn't one.
+	if (!idledetect->value)
+		return false;
+
+	// If they haven't moved, they're still idle.
+	if (ucmd->forwardmove != 0 || ucmd->sidemove != 0 || ucmd->upmove != 0
+	|| (ucmd->buttons & BUTTON_ATTACK))
+		ent->client->resp.idleTime = level.time;
+
+	// If they've been idle long enough, say so.
+	if (level.time - ent->client->resp.idleTime >= idledetect->value * 60.0)
+		return true;
+
+	// Not idle yet.
+	return false;
 }
 
 /*
@@ -2094,10 +2133,9 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 	}
 //ZOID
 
-#ifdef _WIN32
 	// Detect ZBot, blab it to everyone, then kick the bastard.  If they keep
 	// trying to log in, they'll keep getting outed and kicked.  Ha!
-	if (ZbotCheck (ent, ucmd))
+	if (deathmatch->value && BigZbotCheck (ent, ucmd))
 	{
 		// Tell everyone.
 		gi.bprintf (PRINT_CHAT, ">>> Zbot detected: %s <<<\n",
@@ -2107,7 +2145,16 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		gi.AddCommandString (va ("kick %d\n", ent - g_edicts - 1));
 		stuffcmd (ent, "disconnect\n");
 	}
-#endif
+
+	// Detect idle players.
+	if (deathmatch->value && IdleCheck (ent, ucmd))
+	{
+		gi.bprintf (PRINT_HIGH, "Idle timeout: %s\n", ent->client->pers.netname);
+
+		// Disconnect them.
+		stuffcmd (ent, "disconnect\n");
+		gi.AddCommandString (va ("kick %d\n", ent - g_edicts - 1));
+	}
 }
 
 

@@ -71,16 +71,15 @@ Ban cataclysm device		65536
 Ban grenade launcher		131072
 Ban bazooka			262144
 Ban rocket launcher		524288
-Ban homing rocket launcher	1048576
+Ban guided rocket launcher	1048576
 Ban hyperblaster		2097152
 Ban plasma rifle		4194304
 Ban railgun			8388608
 Ban flamethrower		16777216
 Ban BFG10K			33554432
 
-For example, to ban the cataclysm device, the homing rocketlauncher,
-and the BFG10K (the 3 most hated weapons it seems), weaponban is
-65536 + 1048576 + 33554432 == 34668544.
+For example, to ban the cataclysm device and the BFG10K (the 2 most
+hated weapons it seems), weaponban is 65536 + 33554432 == 33619968.
 
 Note that if you ban grenades (value 1024), then *all* of the grenade
 types, as well as the grenade launcher and bazooka, are banned too.
@@ -121,8 +120,8 @@ Ban frags for telefrags				134217728
 Ban frags for kamikazes				268435456
 Ban frags for grappling hook			536870912
 
-For example, to ban frags for cataclysm devices, homing rockets, and
-telefrags, fragban is 65536 + 1048576 + 134217728 == 135331840.
+For example, to ban frags for cataclysm devices and telefrags, fragban
+is 65536 + 134217728 == 134283264.
 
 Also note that banning frags for the flamethrower (value 16777216) will
 ban frags for all fire.
@@ -132,7 +131,7 @@ ban frags for all fire.
 WoD now features IP banning.  You can add or remove addresses from the
 filter list with "sv addip <ip>" and "sv removeip <ip>".  The ip address
 is specified in dot format, and any unspecified digits will match any
-value, so you can specify an entire class C network with "addip 192.246.40".
+value, so you can specify an entire class C network with "sv addip 192.246.40".
 
 removeip will only remove an address specified exactly the same way.
 You cannot addip a subnet, then removeip a single host.
@@ -141,7 +140,7 @@ There is one more way to ban a player.  "sv kickban <player#>" will ban
 the player's IP address and then kick them from the server.
 
 "sv listip" prints the current list of filters.  "sv writeip" dumps
-"addip <ip>" commands to listip.cfg so it can be execed at a later date.
+"sv addip <ip>" commands to listip.cfg so it can be execed at a later date.
 The filter lists are not saved and restored by default.
 
 In addition, there's a "filterban" variable.  If set to 1 (the default),
@@ -152,31 +151,25 @@ that only allows players from your local network.
 
 -----
 
+Other variables:
+
+idledetect - The number of minutes a player can be idle before they're
+	kicked.  (Set it to 0 to turn it off.)
+maplistfile - The name of the maplist file.  Default is "maplist.txt"
+motdfile - The name of the message-of-the-day file.  Default is "motd.txt"
+
+-----
+
 Does your server sometimes crash with "ERROR: *Index: overflow"?
 
-I've finally figured out what the problem is.  Turns out the game is
-running out of modelindexes.  Every model in the game (male player,
-female player, each weapon, health-pack, and so on) gets loaded in and
-is assigned a modelindex.  Quake II has an internal limit of 256 models.
-
-Most people don't get this problem unless they have several extra player
-models installed on their server machine, *and* they use the maplist
-feature.
+Usually, it's the server running out of modelindexes.
 
 The problem happens because anything in the map that can move or be
 destroyed (exploding walls, bridges, and so on) are also considered a
 model.  They might not be used in the deathmatch game, but the
-modelindex doesn't get freed.  That's just some sloppiness on Id's part.
-I've written them a letter about it.
+modelindex doesn't get freed.
 
-Until they fix their bug, here's what you do.  First, if you have extra
-installed player models, you don't necessarily have to remove them.
-First, see if you can get just the standard 8 DM maps to run without
-incident.  If not, you have too many player models & you're gonna have
-to remove some.  But if the DM maps work fine, then you can run your
-server with maplist turned on.  Note what maps cause your server to
-crash, and remove them from the maplist.txt file.  Eventually :) you
-will have a list of maps that won't crash your server.
+It just means you can't use that map with WoD.  Stop using it.
 
 -----
 

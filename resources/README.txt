@@ -1,5 +1,5 @@
 =================================================
-Weapons of Destruction for Quake2 - *Version 6.03*
+Weapons of Destruction for Quake2 - *Version 6.06*
 =================================================
 
 Author: Steven Boswell a.k.a. Hash Assassin
@@ -7,12 +7,12 @@ Original author: Matt Wright a.k.a. PunK
 
 Email: weapons@telefragged.com
 
-Date: 12/7/98
+Date: 4/23/99
 
 Page: http://www.telefragged.com/weapons/ - The official Weapons of
-Destruction page.  Includes the old source of 3.6 and 5.4a, and all
-recent news about the mod.  Also check out this page and ensure you have
-the latest version.
+Destruction page.  Includes the old source of 3.6, 5.4a, and 6.05, and
+all recent news about the mod.  Also check out this page and ensure you
+have the latest version.
 
 ========================
 Installation - Important
@@ -26,7 +26,7 @@ Say c:\quake2\weapons
 things consistent, so that QuakeII knows how to match up servers with
 what you have installed on your machine.)
 
-Unzip my mod using winzip -or- pkunzip -d wod603.zip
+Unzip my mod using winzip -or- pkunzip -d wod606.zip
 Unzip the files straight into the weapons directory.  (If you unzip
 to another directory and then move the files over, be sure you move
 any hidden files too.)
@@ -46,7 +46,7 @@ Extinction server, or whatever you want to do.
 
 If you have trouble installing WoD, feel free to e-mail me.
 
-You must have Quake2 version 3.19 to run this patch.
+You must have Quake2 version 3.20 to run this patch.
 
 To locate WoD and WoD:Extinction servers on the Net, the distribution
 comes with tabs for GameSpy and PingTool that will automatically
@@ -54,7 +54,7 @@ locate such servers for you.  Follow the directions that come with
 GameSpy and PingTool to install them.
 
 ==========================================
-Description of Weapons of Destruction 6.03
+Description of Weapons of Destruction 6.06
 ==========================================
 
 There are three ways to enjoy Weapons of Destruction:
@@ -62,7 +62,7 @@ There are three ways to enjoy Weapons of Destruction:
 o Single-player
   The Strogg won't know what hit them.  To make things a little more
   fair, you might want to select Nightmare skill level -- type "skill 3"
-  at your Q2 console.
+  at your Q2 console before starting a game.
 o Deathmatch
   The classic way.  Get a bunch of your friends together and blow each
   other to smithereens.  Or join a public server and wreak chaos on
@@ -70,8 +70,8 @@ o Deathmatch
 o Extinction
   Teamplay WoD!  Two teams fight over control of the spawnpoints.  Once a
   team has no spawnpoints, they can't spawn into the game, and are in
-  danger of going extinct.  Who needs a wimpy "capture the flag" game when
-  you can fight to the death?
+  danger of going extinct.  Who needs a wimpy "capture the flag" game
+  when you can fight to the death?
 
 Weapons of Destruction adds several new weapons and features to the
 game.  All the weapons are available as "alternates" to the normal
@@ -123,12 +123,12 @@ o Cataclysm device: Has to be seen to be believed.  Explodes like an
 
 The grenade launcher will lob whatever grenade type you selected last.
 
-Bazooka: The alternate grenade launcher.  Instead of lobbing grenades,
-it fires them in a straight line.  Like the grenade launcher, it fires
-whatever type of grenade you selected last.
+Bazooka: The alternate grenade launcher.  Lobs gliding grenades.
+Like the grenade launcher, it fires whatever type of grenade you
+selected last.
 
-Homing Rocket Launcher: The alternate rocketlauncher.  Aim in someone's
-general direction and fire; it'll do the rest.
+Guided Rocket Launcher: The alternate rocketlauncher.  Fire it and it'll
+chase your laser-sight.
 
 Plasma Rifle: The alternate hyperblaster.  Fires a beam that you can
 wave around; it tends to fry anything it touches.
@@ -164,7 +164,8 @@ Laser Tripwires: Much like the Duke Nukem 3D laser-tripped grenades.
 Set up a darKMajick grenade to fire when they walk through a laserbeam.
 The wall-mounted (floor-mounted, ceiling-mounted, door-mounted,
 whatever) grenade can also be shot at until it blows up.  Takes 5 cells,
-plus the grenades.
+plus the grenades.  You can only make a new laser tripwire every 1 1/2
+seconds.
 
 Tractor Beam: When all else fails, use The Force.  Pull player or
 monster toward you or push them away.
@@ -187,6 +188,10 @@ will spray fire when they explode.
 
 When you grab a machinegun, you get the machine-rocket gun first.
 Similarly, when you grab a railgun, the flamethrower comes up first.
+
+The energy-bolt weapons (blaster, hyperblaster, super blaster, freezer)
+reflect off of glass and the surface of water.  Catch them on the
+ricochet!
 
 --------
 Features
@@ -269,8 +274,8 @@ New Model(s): Yep
 Known Bugs: I've fixed all the bugs I've received. If you find any more,
 mail me at weapons@telefragged.com
 
-Source: You can download the full source of Weapons of Destruction 5.4a
-and 3.6 at the Weapons of Destruction page.
+Source: You can download the full source of Weapons of Destruction 5.4a,
+3.6, and 6.05 at the Weapons of Destruction page.
 
 =======
 Credits
@@ -316,6 +321,32 @@ Editors used by Steve: Microsoft Developer Studio and vi.
 Mod History
 ===========
 
+6.06
+-Homing rocketlauncher changed to guided rocketlauncher.
+-Push/pull strength decreases with distance.
+-Idle timeout added.
+-"maplistfile" and "motdfile" variables added.
+-Better Zbot detection.
+-New laser tripwires only every 1 1/2 seconds.
+-New reflecting energy-bolt weapons.
+-New bazooka.
+-Plasma grenade toned down.
+-Laser tripwires even easier to shoot.
+6.05
+-Source code release only
+6.04
+-Bug fixes
+6.03
+-Weapon banning, feature banning, and frag banning.
+-Teamplay (Extinction) added.
+-Chat flood protection.
+-IP banning.
+-Homing rocketlauncher targeting reworked.
+-Push/pull feedback.
+-Freeze gun easier to use. Frozen effect vastly improved.
+-Laser tripwire placement is more intuitive now. Tripwires are also easier to shoot off the walls.
+-Dead bodies sometimes attract flies. Like, gross!
+-A bunch of bug fixes as usual.
 6.02
 -Grenade launcher now fires all darKMajick grenades
 -New alternate grenade-launcher weapon, the bazooka.  Fires all

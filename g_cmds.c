@@ -579,13 +579,13 @@ void Cmd_Use_f (edict_t *ent)
 	else if (it == &gI_weapon_rocketlauncher)
 	{
 		if ((it == ent->client->pers.weapon
-		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)])
+		&& ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_guidedrocketlauncher)])
 		|| (it != ent->client->pers.weapon
 		&& (!ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_rocketlauncher)]
 			|| (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_rocketlauncher.ammo)]
 				< gI_weapon_rocketlauncher.quantity
 					&& !g_select_empty->value))))
-			it = &gI_weapon_homing;
+			it = &gI_weapon_guidedrocketlauncher;
 	}
 	else if (it == &gI_weapon_hyperblaster)
 	{
@@ -1074,6 +1074,9 @@ void Cmd_Players_f (edict_t *ent)
 	gi.cprintf (ent, PRINT_HIGH, "%s\n%i players\n", large, count);
 }
 
+// The distance at which push/pull works.
+static const int kPushPullRange = 1000;
+
 /*
 =================
 Cmd_Push_f
@@ -1084,6 +1087,8 @@ void Cmd_Push_f (edict_t *ent)
 	vec3_t	start;
 	vec3_t	forward;
 	vec3_t	end;
+	vec3_t	extent;
+	vec_t		strength;
 	trace_t	tr;
 
 	// No pushing when you're dead.
@@ -1105,7 +1110,7 @@ void Cmd_Push_f (edict_t *ent)
 	VectorCopy (ent->s.origin, start);
 	start[2] += ent->viewheight - 8;
 	AngleVectors (ent->client->v_angle, forward, NULL, NULL);
-	VectorMA (start, 8192, forward, end);
+	VectorMA (start, kPushPullRange, forward, end);
 	tr = gi.trace (start, NULL, NULL, end, ent, MASK_SHOT);
 	if (tr.ent
 	&& ((tr.ent->svflags & SVF_MONSTER)
@@ -1128,8 +1133,12 @@ void Cmd_Push_f (edict_t *ent)
 		gi.sound (ent, CHAN_WEAPON, gi.soundindex ("items/damage3.wav"), 1,
 			ATTN_NORM, 0);
 
+		// Calculate how much power to give to the push.
+		VectorSubtract (tr.endpos, start, extent);
+		strength = kPushPullRange - VectorLength (extent);
+
 		// Now push them.
-		VectorScale (forward, 2500, forward);
+		VectorScale (forward, strength, forward);
 		VectorAdd(forward, tr.ent->velocity, tr.ent->velocity);
 	}
 }
@@ -1145,6 +1154,8 @@ void Cmd_Pull_f (edict_t *ent)
 	vec3_t	forward;
 	vec3_t	end;
 	trace_t	tr;
+	vec3_t	extent;
+	vec_t		strength;
 
 	// No pulling when you're dead.
 	if (ent->deadflag)
@@ -1165,7 +1176,7 @@ void Cmd_Pull_f (edict_t *ent)
 	VectorCopy(ent->s.origin, start);
 	start[2] += ent->viewheight - 8;
 	AngleVectors(ent->client->v_angle, forward, NULL, NULL);
-	VectorMA(start, 8192, forward, end);
+	VectorMA(start, kPushPullRange, forward, end);
 	tr = gi.trace(start, NULL, NULL, end, ent, MASK_SHOT);
 	if (tr.ent
 	&& ((tr.ent->svflags & SVF_MONSTER)
@@ -1188,8 +1199,12 @@ void Cmd_Pull_f (edict_t *ent)
 		gi.sound (ent, CHAN_WEAPON, gi.soundindex ("items/damage3.wav"), 1,
 			ATTN_NORM, 0);
 
+		// Calculate how much power to give to the push.
+		VectorSubtract (tr.endpos, start, extent);
+		strength = kPushPullRange - VectorLength (extent);
+
 		// Now pull them.
-		VectorScale (forward, -2500, forward);
+		VectorScale (forward, -strength, forward);
 		VectorAdd (forward, tr.ent->velocity, tr.ent->velocity);
 	}
 }
@@ -1479,6 +1494,9 @@ void ClientCommand (edict_t *ent)
 
 	if (!ent->client)
 		return;		// not fully in game yet
+
+	// Issuing any command is considered not idle.
+	ent->client->resp.idleTime = level.time;
 
 	cmd = gi.argv(0);
 

@@ -21,7 +21,7 @@ void Weapon_Railgun2 (edict_t *ent);
 void Weapon_Sniper (edict_t *ent);
 void Weapon_BFG (edict_t *ent);
 void Weapon_Plasma (edict_t *ent);
-void Weapon_Homing (edict_t *ent);
+void Weapon_GuidedRocketLauncher (edict_t *ent);
 void Weapon_Freezer (edict_t *ent);
 void Weapon_Streetsweeper (edict_t *ent);
 void Weapon_Bazooka (edict_t *ent);
@@ -189,8 +189,16 @@ void SetRespawn (edict_t *ent, float delay)
 	ent->solid = SOLID_NOT;
 	ent->nextthink = level.time + delay;
 	ent->think = DoRespawn;
-	VectorCopy (ent->pos1, ent->s.origin);		// Restore origin/angles (if item
-	VectorCopy (ent->pos2, ent->s.angles);		// got knocked around)
+
+	// Restore origin/angles (if item got knocked around)
+	if (!VectorCompare (ent->pos1, ent->s.origin)
+	&& !VectorCompare (ent->pos2, ent->s.angles))
+	{
+		VectorCopy (ent->pos1, ent->s.origin);
+		VectorCopy (ent->pos2, ent->s.angles);
+		droptofloor (ent);
+	}
+
 	gi.linkentity (ent);
 }
 
@@ -1265,7 +1273,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 	}
 	else if (item == &gI_weapon_rocketlauncher
 	&& ((int)weaponban->value & WB_ROCKETLAUNCHER)
-	&& ((int)weaponban->value & WB_HOMINGROCKETLAUNCHER))
+	&& ((int)weaponban->value & WB_GUIDEDROCKETLAUNCHER))
 	{
 		G_FreeEdict (ent);
 		return;
@@ -1327,7 +1335,7 @@ void SpawnItem (edict_t *ent, gitem_t *item)
 	}
 	else if (item == &gI_ammo_rockets
 	&& ((int)weaponban->value & WB_ROCKETLAUNCHER)
-	&& ((int)weaponban->value & WB_HOMINGROCKETLAUNCHER))
+	&& ((int)weaponban->value & WB_GUIDEDROCKETLAUNCHER))
 	{
 		G_FreeEdict (ent);
 		return;
@@ -1979,22 +1987,22 @@ gitem_t gI_weapon_rocketlauncher =
 /* precache */ "models/objects/rocket/tris.md2 weapons/rockfly.wav weapons/rocklf1a.wav weapons/rocklr1b.wav models/objects/debris2/tris.md2"
 };
 
-/*QUAKED weapon_homing (.3 .3 1) (-16 -16 -16) (16 16 16)
+/*QUAKED weapon_guidedrocketlauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
 */
-gitem_t gI_weapon_homing =
+gitem_t gI_weapon_guidedrocketlauncher =
 {
-	"weapon_homing",
+	"weapon_guidedrocketlauncher",
 	Pickup_Weapon,
 	Use_Weapon,
 	Drop_Weapon,
-	Weapon_Homing,
+	Weapon_GuidedRocketLauncher,
 	"misc/w_pkup.wav",
 	"models/weapons/g_rocket/tris.md2", EF_ROTATE,
 	"models/weapons/v_rocket/tris.md2",
 /* icon */		"w_rlauncher",
-/* pickup */	"Homing Rocket Launcher",
+/* pickup */	"Guided Rocket Launcher",
 	0,
-	1,
+	2,
 	&gI_ammo_rockets,
 	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
 	NULL,
@@ -2816,7 +2824,7 @@ gitem_t *itemlist[] =
 	&gI_weapon_grenadelauncher,
 	&gI_weapon_bazooka,
 	&gI_weapon_rocketlauncher,
-	&gI_weapon_homing,
+	&gI_weapon_guidedrocketlauncher,
 	&gI_weapon_hyperblaster,
 	&gI_weapon_plasma,
 	&gI_weapon_railgun,
@@ -2882,7 +2890,7 @@ gitem_t *itemlistSorted[] =
 	&gI_weapon_grenadelauncher,
 	&gI_weapon_bazooka,
 	&gI_weapon_rocketlauncher,
-	&gI_weapon_homing,
+	&gI_weapon_guidedrocketlauncher,
 	&gI_weapon_hyperblaster,
 	&gI_weapon_plasma,
 	&gI_weapon_superblaster,

@@ -56,6 +56,8 @@ cvar_t	*weaponban;
 cvar_t	*featureban;
 cvar_t	*fragban;
 
+cvar_t	*idledetect;
+
 
 
 void ClientThink (edict_t *ent, usercmd_t *cmd);

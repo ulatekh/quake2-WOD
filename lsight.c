@@ -1,8 +1,10 @@
 
 
 // laser sight patch, by Geza Beladi
-
 #include "g_local.h"
+
+void LaserSightThink (edict_t *self);
+void LaserSight_On (edict_t *self);
 
 
 /*----------------------------------------
@@ -15,16 +17,6 @@ Create/remove the laser sight entity
 
 void SP_LaserSight (edict_t *self)
 {
-	vec3_t  start,forward,right,end;
-
-	if ( lss )
-	{
-		G_FreeEdict(lss);
-		lss = NULL;
-		gi.cprintf (self, PRINT_HIGH, "Lasersight off.\n");
-		return;
-	}
-
 	// No lasersight when you're dead.
 	if (self->deadflag)
 		return;
@@ -36,6 +28,53 @@ void SP_LaserSight (edict_t *self)
 	// Or if lasersights have been banned.
 	if ((int)featureban->value & FB_LASERSIGHT)
 		return;
+
+	// Toggle its status
+	self->lasersightOn = !(self->lasersightOn);
+
+	// Print its status.
+	gi.cprintf (self, PRINT_HIGH, "Lasersight %s.\n",
+		((self->lasersightOn) ? "on" : "off"));
+
+	// Check to see if we should display the lasersight.
+	LaserSight_Check (self);
+}
+
+
+void LaserSight_Check (edict_t *self)
+{
+	// If there's no lasersight, and any reason there should be one, make one.
+	if (!self->lasersight
+	&& (self->client->pers.weapon == &gI_weapon_guidedrocketlauncher
+		|| self->lasersightOn))
+	{
+		LaserSight_On (self);
+	}
+
+	// If there's a lasersight, and any reason there shouldn't be one, get rid
+	// of it.
+	if (self->lasersight
+	&& self->client->pers.weapon != &gI_weapon_guidedrocketlauncher
+	&& !self->lasersightOn)
+	{
+		LaserSight_Off (self);
+	}
+}
+
+
+void LaserSight_Off (edict_t *self)
+{
+	if ( lss )
+	{
+		G_FreeEdict(lss);
+		lss = NULL;
+	}
+}
+
+
+void LaserSight_On (edict_t *self)
+{
+	vec3_t  start,forward,right,end;
 
 	AngleVectors (self->client->v_angle, forward, right, NULL);
 
@@ -54,8 +93,6 @@ void SP_LaserSight (edict_t *self)
 
 	lss->think = LaserSightThink;
 	lss->nextthink = level.time + FRAMETIME;
-
-	gi.cprintf (self, PRINT_HIGH, "Lasersight on.\n");
 }
 
 

@@ -1,5 +1,5 @@
 This server is running
-Weapons of Destruction v6.03.
+Weapons of Destruction v6.06.
 
 There are lots of new weapons. Once you
 pick up a weapon, press its number again

@@ -163,14 +163,15 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		if (!((int)weaponban->value & WB_BAZOOKA))
 			item2 = &gI_weapon_bazooka;
 	}
-	else if (item == &gI_weapon_rocketlauncher || item == &gI_weapon_homing)
+	else if (item == &gI_weapon_rocketlauncher
+		|| item == &gI_weapon_guidedrocketlauncher)
 	{
 		if (!((int)weaponban->value & WB_ROCKETLAUNCHER))
 			item1 = &gI_weapon_rocketlauncher;
 		else
-			item = &gI_weapon_homing;
-		if (!((int)weaponban->value & WB_HOMINGROCKETLAUNCHER))
-			item2 = &gI_weapon_homing;
+			item = &gI_weapon_guidedrocketlauncher;
+		if (!((int)weaponban->value & WB_GUIDEDROCKETLAUNCHER))
+			item2 = &gI_weapon_guidedrocketlauncher;
 	}
 	else if (item == &gI_weapon_hyperblaster || item == &gI_weapon_plasma)
 	{
@@ -334,6 +335,9 @@ void ChangeWeapon (edict_t *ent)
 	ShowGun(ent);	
 
 	// ### Hentai ### END
+
+	// If they switched to/from a laser-guided weapon, adjust the lasersight.
+	LaserSight_Check (ent);
 }
 
 /*
@@ -391,12 +395,12 @@ void NoAmmoWeaponChange (edict_t *ent)
 		ent->client->newweapon = &gI_weapon_rocketlauncher;
 	}
 
-	// Homing rocketlauncher
-	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_homing.ammo)]
-		>= gI_weapon_homing.quantity
-	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)])
+	// Guided rocketlauncher
+	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_guidedrocketlauncher.ammo)]
+		>= gI_weapon_guidedrocketlauncher.quantity
+	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_guidedrocketlauncher)])
 	{
-		ent->client->newweapon = &gI_weapon_homing;
+		ent->client->newweapon = &gI_weapon_guidedrocketlauncher;
 	}
 
 	// Standard machinegun
@@ -580,8 +584,8 @@ void Drop_Weapon (edict_t *ent, gitem_t *item)
 	else if (item == &gI_weapon_bazooka)
 		altitem = &gI_weapon_grenadelauncher;
 	else if (item == &gI_weapon_rocketlauncher)
-		altitem = &gI_weapon_homing;
-	else if (item == &gI_weapon_homing)
+		altitem = &gI_weapon_guidedrocketlauncher;
+	else if (item == &gI_weapon_guidedrocketlauncher)
 		altitem = &gI_weapon_rocketlauncher;
 	else if (item == &gI_weapon_hyperblaster)
 		altitem = &gI_weapon_plasma;
@@ -1211,7 +1215,7 @@ void Weapon_RocketLauncher (edict_t *ent)
 }
 
 
-void Weapon_Homing_Fire (edict_t *ent)
+void Weapon_GuidedRocket_Fire (edict_t *ent)
 {
 	vec3_t	offset, start;
 	vec3_t	forward, right;
@@ -1235,7 +1239,7 @@ void Weapon_Homing_Fire (edict_t *ent)
 
 	VectorSet(offset, 8, 8, ent->viewheight-8);
 	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
-	fire_homing (ent, start, forward, damage, 650, damage_radius, radius_damage);
+	fire_guidedrocket (ent, start, forward, damage, 650, damage_radius, radius_damage);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);
@@ -1252,12 +1256,12 @@ void Weapon_Homing_Fire (edict_t *ent)
 			-= ent->client->pers.weapon->quantity;
 }
 
-void Weapon_Homing (edict_t *ent)
+void Weapon_GuidedRocketLauncher (edict_t *ent)
 {
 	static int	pause_frames[]	= {25, 33, 42, 50, 0};
 	static int	fire_frames[]	= {5, 0};
 
-	Weapon_Generic (ent, 4, 12, 50, 54, pause_frames, fire_frames, Weapon_Homing_Fire);
+	Weapon_Generic (ent, 4, 12, 50, 54, pause_frames, fire_frames, Weapon_GuidedRocket_Fire);
 }
 
 /*

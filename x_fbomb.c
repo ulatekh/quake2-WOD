@@ -15,7 +15,7 @@
 fire_grenade
 =================
 */
-static void FireGrenade_Explode (edict_t *ent)
+void FireGrenade_Explode (edict_t *ent)
 {
 	vec3_t		origin;
 	vec3_t		cloud = {8, 160, 100};
@@ -61,7 +61,7 @@ static void FireGrenade_Explode (edict_t *ent)
 	G_FreeEdict (ent);
 }
 
-static void FireGrenade_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+void FireGrenade_Touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
 	if (other == ent->owner)
 		return;

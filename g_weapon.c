@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "x_fbomb.h"
 
 
 /*
@@ -310,6 +311,12 @@ void blaster_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
 			plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 	}
+	else if (surf
+	&& (surf->flags & (SURF_TRANS33|SURF_TRANS66|SURF_WARP|SURF_FLOWING)))
+	{
+		// Ricochet!
+		return;
+	}
 	else
 	{
 		// return;
@@ -348,7 +355,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 		VectorAdd (start, bolt->velocity, bolt->s.old_origin);
 		bolt->clipmask = MASK_SHOT;
 
-		bolt->movetype = MOVETYPE_FLYMISSILE;
+		bolt->movetype = /* MOVETYPE_FLYMISSILE */ MOVETYPE_FLYRICOCHET;
 		bolt->solid = SOLID_BBOX;
 		bolt->s.renderfx |= RF_BEAM|RF_TRANSLUCENT;
 		bolt->s.modelindex = 1;       
@@ -396,7 +403,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	VectorCopy (start, bolt->s.old_origin);
 	vectoangles (dir, bolt->s.angles);
 	VectorScale (dir, speed, bolt->velocity);
-	bolt->movetype = MOVETYPE_FLYMISSILE;
+	bolt->movetype = /* MOVETYPE_FLYMISSILE */ MOVETYPE_FLYRICOCHET;
 	bolt->clipmask = MASK_SHOT;
 	bolt->solid = SOLID_BBOX;
 	bolt->s.effects |= effect;
@@ -529,6 +536,12 @@ void plasma_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
 
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
 			plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
+	}
+	else if (surf
+	&& (surf->flags & (SURF_TRANS33|SURF_TRANS66|SURF_WARP|SURF_FLOWING)))
+	{
+		// Ricochet!
+		return;
 	}
 	else
 	{
@@ -861,6 +874,11 @@ void Grenade_Explode_dM (edict_t *ent)
 	
 	if (ent->dmg == 0)
 	{
+		ent->dmg = ent->dmg_radius;
+		FireGrenade_Explode (ent);
+		return;
+
+#if 0
 		// ///------>> Standard:
 		// dmg_radius is really the damage:
 
@@ -890,6 +908,7 @@ void Grenade_Explode_dM (edict_t *ent)
 
 		gi.WritePosition (origin);
 		gi.multicast (ent->s.origin, MULTICAST_PVS);
+#endif
 	}
 	else if (ent->dmg == 1)
 	{
@@ -1176,7 +1195,8 @@ void Grenade_Explode_dM (edict_t *ent)
 	G_FreeEdict (ent);
 }
 
-static void Grenade_Touch_dM (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+static void Grenade_Touch_dM_bazooka (edict_t *ent, edict_t *other,
+												  cplane_t *plane, csurface_t *surf)
 {
 	if (other == ent->owner)
 		return;
@@ -1187,11 +1207,19 @@ static void Grenade_Touch_dM (edict_t *ent, edict_t *other, cplane_t *plane, csu
 		return;
 	}
 
-	// Handle bazooka shots.
-	if (ent->movetype == MOVETYPE_FLYMISSILE)
+	// No matter what we hit, explode.
+	Grenade_Explode_dM (ent);
+}
+	
+static void Grenade_Touch_dM (edict_t *ent, edict_t *other, cplane_t *plane,
+										csurface_t *surf)
+{
+	if (other == ent->owner)
+		return;
+
+	if (surf && (surf->flags & SURF_SKY))
 	{
-		// No matter what we hit, explode.
-		Grenade_Explode_dM (ent);
+		G_FreeEdict (ent);
 		return;
 	}
 
@@ -1306,6 +1334,28 @@ void fire_grenade2 (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
 }
 #endif
 
+void bazooka_think (edict_t *self)
+{
+	vec3_t dir;
+
+	// Point in the direction we're gliding.
+	VectorNormalize2 (self->velocity, dir);
+	vectoangles (dir, self->s.angles);
+
+	// If we've been doing this too long, stop.
+	self->delay -= FRAMETIME;
+	if (self->delay <= 0.0)
+	{
+		self->nextthink = level.time + FRAMETIME;
+		self->think = G_FreeEdict;
+		return;
+	}
+
+	// Do this again, next frame.
+	self->nextthink = level.time + FRAMETIME;
+	self->think = bazooka_think;
+}
+
 // darKMajick:
 void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
 							 int speed, float timer, float damage_radius, int typ,
@@ -1323,16 +1373,20 @@ void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
 	VectorScale (aimdir, speed, grenade->velocity);
 	if (bazookad)
 	{
-		grenade->movetype = MOVETYPE_FLYMISSILE;
+		grenade->gravity = 0.33;
+		VectorMA (grenade->velocity, 100 + crandom() * 10.0, up, grenade->velocity);
+		VectorMA (grenade->velocity, crandom() * 10.0, right, grenade->velocity);
 		vectoangles (forward, grenade->s.angles);
+		grenade->touch = Grenade_Touch_dM_bazooka;
 	}
 	else
 	{
 		VectorMA (grenade->velocity, 200 + crandom() * 10.0, up, grenade->velocity);
 		VectorMA (grenade->velocity, crandom() * 10.0, right, grenade->velocity);
 		VectorSet (grenade->avelocity, 300, 300, 300);
-		grenade->movetype = MOVETYPE_BOUNCE;
+		grenade->touch = Grenade_Touch_dM;
 	}
+	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_SHOT;
 	grenade->solid = SOLID_BBOX;
 	VectorClear (grenade->mins);
@@ -1377,8 +1431,9 @@ void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
 	grenade->owner = self;
 	if (bazookad)
 	{
-		grenade->nextthink = level.time + 8000/speed;
-		grenade->think = G_FreeEdict;
+		grenade->delay = 8000 / speed;
+		grenade->nextthink = level.time + FRAMETIME;
+		grenade->think = bazooka_think;
 	}
 	else
 	{
@@ -1386,7 +1441,6 @@ void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage,
 		grenade->think = Grenade_Explode_dM;
 	}
 
-	grenade->touch = Grenade_Touch_dM;
 	// set dmg so grenade_explode knows what to do:
 	grenade->dmg = typ;
 	grenade->dmg_radius = damage + 40;
@@ -1800,6 +1854,12 @@ void super_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 		T_Damage (other, self, self->owner, self->velocity, self->s.origin,
 			plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 	}
+	else if (surf
+	&& (surf->flags & (SURF_TRANS33|SURF_TRANS66|SURF_WARP|SURF_FLOWING)))
+	{
+		// Ricochet!
+		return;
+	}
 	else
 	{
 		gi.WriteByte (svc_temp_entity);
@@ -1833,7 +1893,7 @@ void fire_super (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 		VectorAdd (start, bolt->velocity, bolt->s.old_origin);
 		bolt->clipmask = MASK_SHOT;
 
-		bolt->movetype = MOVETYPE_FLYMISSILE;
+		bolt->movetype = /* MOVETYPE_FLYMISSILE */ MOVETYPE_FLYRICOCHET;
 		bolt->solid = SOLID_BBOX;
 		bolt->s.renderfx |= RF_SHELL_RED;
 		bolt->s.effects |= EF_COLOR_SHELL;
@@ -1967,24 +2027,32 @@ void fire_rail (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick
 }
 
 
-// homing
+// guided rocket
 void
-homing_think (edict_t *ent) 
+guidedrocket_think (edict_t *ent) 
 {
 	vec_t speed;
 	vec3_t targetdir;
 
-	// Nudge our direction toward our target.
-	VectorSubtract (ent->enemy->s.origin, ent->s.origin, targetdir);
-	targetdir[2] += 16;
-	VectorNormalize (targetdir);
-	VectorScale (targetdir, 0.2, targetdir);
-	VectorAdd (targetdir, ent->movedir, targetdir); 
-	VectorNormalize (targetdir);
-	VectorCopy (targetdir, ent->movedir); 
-	vectoangles (targetdir, ent->s.angles);
-	speed = VectorLength(ent->velocity);
-	VectorScale (targetdir, speed, ent->velocity);
+	// If our owner is dead, stop tracking & just fly straight.
+	if (ent->owner->deadflag)
+		return;
+
+	// Nudge our direction toward our laser-sight.
+	if (ent->owner->lasersight)
+	{
+		VectorSubtract (ent->owner->lasersight->s.origin, ent->s.origin,
+			targetdir);
+		targetdir[2] += 16;
+		VectorNormalize (targetdir);
+		VectorScale (targetdir, 0.35, targetdir);
+		VectorAdd (targetdir, ent->movedir, targetdir); 
+		VectorNormalize (targetdir);
+		VectorCopy (targetdir, ent->movedir); 
+		vectoangles (targetdir, ent->s.angles);
+		speed = VectorLength(ent->velocity);
+		VectorScale (targetdir, speed, ent->velocity);
+	}
 
 	ent->nextthink = level.time + FRAMETIME;
 
@@ -1992,14 +2060,14 @@ homing_think (edict_t *ent)
 }
 
 void
-homing_explode (edict_t *ent)
+guidedrocket_explode (edict_t *ent)
 {
 	vec3_t		origin;
 	int mod;
 
 	// Set up the means of death.
 	mod = MOD_H_SPLASH;
-	if ((int)fragban->value & WB_HOMINGROCKETLAUNCHER)
+	if ((int)fragban->value & WB_GUIDEDROCKETLAUNCHER)
 		mod |= MOD_NOFRAG;
 
 	if (ent->owner->client)
@@ -2025,7 +2093,7 @@ homing_explode (edict_t *ent)
 
 
 void
-homing_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
+guidedrocket_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 				vec3_t point)
 {
 	// Don't take any more damage.
@@ -2035,13 +2103,13 @@ homing_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 	self->enemy = attacker;
 
 	// Blow up.
-	self->think = homing_explode;
+	self->think = guidedrocket_explode;
 	self->nextthink = level.time + FRAMETIME;
 }
 
 
 void
-homing_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+guidedrocket_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
 	if (other == ent->owner)
 		return;
@@ -2057,8 +2125,8 @@ homing_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 		int mod;
 
 		// Set up the means of death.
-		mod = MOD_HOMING;
-		if ((int)fragban->value & WB_HOMINGROCKETLAUNCHER)
+		mod = MOD_GUIDEDROCKET;
+		if ((int)fragban->value & WB_GUIDEDROCKETLAUNCHER)
 			mod |= MOD_NOFRAG;
 
 		T_Damage (other, ent, ent->owner, ent->velocity, ent->s.origin,
@@ -2082,13 +2150,13 @@ homing_touch (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 
 	// Now make the rocket explode.
 	ent->enemy = other;
-	homing_explode (ent);
+	guidedrocket_explode (ent);
 }
 
 
 void
-fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
-				 float damage_radius, int radius_damage)
+fire_guidedrocket (edict_t *self, vec3_t start, vec3_t dir, int damage,
+						 int speed, float damage_radius, int radius_damage)
 {
 	edict_t	*rocket;
 
@@ -2106,10 +2174,10 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 	rocket->model = "models/objects/rocket/tris.md2";
 	rocket->s.modelindex = gi.modelindex (rocket->model);
 	rocket->owner = self;
-	rocket->touch = homing_touch;
+	rocket->touch = guidedrocket_touch;
 	rocket->enemy = NULL;
 
-	// Make homing rocket shootable.
+	/* Make guided rocket rocket shootable.
 	rocket->movetype = MOVETYPE_FLYMISSILE;
 	rocket->takedamage = DAMAGE_YES;
 	//rocket->svflags |= SVF_MONSTER;
@@ -2119,13 +2187,17 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 	rocket->mass = 10;
 	rocket->health = 20;
 	rocket->max_health = 20;
-	rocket->die = homing_die;
+	rocket->die = guidedrocket_die; */
 
 	rocket->dmg = damage;
 	rocket->radius_dmg = 120;
 	rocket->dmg_radius = 120;
 	rocket->s.sound = gi.soundindex ("weapons/rockfly.wav");
-	rocket->classname = "homing rocket";
+	rocket->classname = "guided rocket";
+
+#if 0
+
+	// Old homing-rocket code.
 
 	// Find a target to home in on.
 	{
@@ -2180,7 +2252,7 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 		
 		// Keep tracking them.
 		rocket->nextthink = level.time + FRAMETIME;
-		rocket->think = homing_think;
+		rocket->think = guidedrocket_think;
 	}
 	else
 	{
@@ -2191,6 +2263,12 @@ fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 		rocket->nextthink = 0;
 		rocket->think = NULL;
 	}
+
+#endif
+
+	// Start tracking the guiding laser.
+	rocket->nextthink = level.time + FRAMETIME;
+	rocket->think = guidedrocket_think;
 
 	if (self->client)
 		check_dodge (self, rocket->s.origin, dir, speed);
@@ -2244,6 +2322,12 @@ void freezer_touch (edict_t *self, edict_t *other, cplane_t *plane, csurface_t *
 			other->frozen = 1;
 		}
 	}
+	else if (surf
+	&& (surf->flags & (SURF_TRANS33|SURF_TRANS66|SURF_WARP|SURF_FLOWING)))
+	{
+		// Ricochet!
+		return;
+	}
 	else
 	{
 		gi.WriteByte (svc_temp_entity);
@@ -2271,7 +2355,7 @@ void fire_freezer (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 	VectorCopy (start, bolt->s.old_origin);
 	vectoangles (dir, bolt->s.angles);
 	VectorScale (dir, speed, bolt->velocity);
-	bolt->movetype = MOVETYPE_FLYMISSILE;
+	bolt->movetype = /* MOVETYPE_FLYMISSILE */ MOVETYPE_FLYRICOCHET;
 	bolt->clipmask = MASK_SHOT;
 	bolt->solid = SOLID_BBOX;
 	bolt->s.effects |= EF_FLAG2;
