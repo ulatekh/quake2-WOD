@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-void weapon_laser_think (edict_t *self)
+static void weapon_laser_think (edict_t *self)
 {
 	// If the laser has expired, get rid of it.
 	if (level.time > self->delay)
@@ -24,7 +24,7 @@ void weapon_laser_think (edict_t *self)
 	target_laser_think (self);
 }
 
-void pre_weapon_laser_think (edict_t *self)
+static void pre_weapon_laser_think (edict_t *self)
 {
 	target_laser_on (self);
 	self->think = weapon_laser_think;

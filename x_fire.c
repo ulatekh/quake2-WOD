@@ -457,6 +457,7 @@ void PBM_Ignite (edict_t *victim, edict_t *attacker)
 	fire->clipmask     = 0;
 	fire->s.effects    = EF_ROCKET;
 	fire->s.renderfx   = RF_FULLBRIGHT;
+	fire->s.sound      = gi.soundindex ("player/fry.wav");
 	fire->owner        = attacker;
 	fire->enemy        = victim;
 	fire->classname    = "fire";
@@ -559,6 +560,7 @@ void PBM_FireDrop (edict_t *self)
 	fire->takedamage   = DAMAGE_NO;
 	fire->s.effects    = 0;
 	fire->s.renderfx   = RF_FULLBRIGHT;
+	fire->s.sound      = gi.soundindex ("player/fry.wav");
 	fire->owner        = self->owner;
 	fire->classname    = "fire";
 	fire->touch        = PBM_FireDropTouch;
@@ -723,6 +725,7 @@ void PBM_FireFlamer
 	fireball->takedamage   = DAMAGE_NO;
 	fireball->s.effects    = 0;
 	fireball->s.renderfx   = RF_FULLBRIGHT;
+	fireball->s.sound      = gi.soundindex ("player/fry.wav");
 	fireball->owner        = self;
 	fireball->classname    = "fire";
 	fireball->touch        = PBM_FireballTouch;

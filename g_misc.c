@@ -892,9 +892,9 @@ void SP_misc_explobox (edict_t *self)
 	VectorSet (self->maxs, 16, 16, 40);
 
 	if (!self->mass)
-		self->mass = 400;
+		self->mass = 100;
 	if (!self->health)
-		self->health = 10;
+		self->health = 80;
 	if (!self->dmg)
 		self->dmg = 150;
 

@@ -169,97 +169,100 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 	gclient_t	*cl;
 	edict_t		*cl_ent;
 	char	*tag;
+
 	if (ent -> client -> showscores || ent -> client -> showinventory)
 		if (ent->client->pers.scanner_active)
 			ent->client->pers.scanner_active = 2;
-if (ent -> client -> showscores) 
-{
 
-	// sort the clients by score
-	total = 0;
-	for (i=0 ; i<game.maxclients ; i++)
+	if (ent -> client -> showscores) 
 	{
-		cl_ent = g_edicts + 1 + i;
-		if (!cl_ent->inuse)
-			continue;
-		score = game.clients[i].resp.score;
-		for (j=0 ; j<total ; j++)
+
+		// sort the clients by score
+		total = 0;
+		for (i=0 ; i<game.maxclients ; i++)
 		{
-			if (score > sortedscores[j])
-				break;
+			cl_ent = g_edicts + 1 + i;
+			if (!cl_ent->inuse)
+				continue;
+			score = game.clients[i].resp.score;
+			for (j=0 ; j<total ; j++)
+			{
+				if (score > sortedscores[j])
+					break;
+			}
+			for (k=total ; k>j ; k--)
+			{
+				sorted[k] = sorted[k-1];
+				sortedscores[k] = sortedscores[k-1];
+			}
+			sorted[j] = i;
+			sortedscores[j] = score;
+			total++;
 		}
-		for (k=total ; k>j ; k--)
+
+		// print level name and exit rules
+		string[0] = 0;
+
+		stringlength = strlen(string);
+
+		// add the clients in sorted order
+		if (total > 12)
+			total = 12;
+
+		for (i=0 ; i<total ; i++)
 		{
-			sorted[k] = sorted[k-1];
-			sortedscores[k] = sortedscores[k-1];
-		}
-		sorted[j] = i;
-		sortedscores[j] = score;
-		total++;
-	}
+			cl = &game.clients[sorted[i]];
+			cl_ent = g_edicts + 1 + sorted[i];
 
-	// print level name and exit rules
-	string[0] = 0;
+			picnum = gi.imageindex ("i_fixme");
+			x = (i>=6) ? 160 : 0;
+			y = 32 + 32 * (i%6);
 
-	stringlength = strlen(string);
+			// add a dogtag
+			if (cl_ent == ent)
+				tag = "tag1";
+			else if (cl_ent == killer)
+				tag = "tag2";
+			else
+				tag = NULL;
+			if (tag)
+			{
+				Com_sprintf (entry, sizeof(entry),
+					"xv %i yv %i picn %s ",x+32, y, tag);
+				j = strlen(entry);
+				if (stringlength + j > 1024)
+					break;
+				strcpy (string + stringlength, entry);
+				stringlength += j;
+			}
 
-	// add the clients in sorted order
-	if (total > 12)
-		total = 12;
-
-	for (i=0 ; i<total ; i++)
-	{
-		cl = &game.clients[sorted[i]];
-		cl_ent = g_edicts + 1 + sorted[i];
-
-		picnum = gi.imageindex ("i_fixme");
-		x = (i>=6) ? 160 : 0;
-		y = 32 + 32 * (i%6);
-
-		// add a dogtag
-		if (cl_ent == ent)
-			tag = "tag1";
-		else if (cl_ent == killer)
-			tag = "tag2";
-		else
-			tag = NULL;
-		if (tag)
-		{
+			// send the layout
+#if 1
 			Com_sprintf (entry, sizeof(entry),
-				"xv %i yv %i picn %s ",x+32, y, tag);
+				"client %i %i %i %i %i %i ",
+				x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe)/600);
+#else
+			// Oh well, this doesn't work as well as I hoped it would.
+			Com_sprintf (entry, sizeof(entry),
+				"client %i %i %i %i %i %03i ",
+				x, y, sorted[i], cl->resp.score, cl->ping,
+					((level.framenum - cl->resp.enterframe) / 600) * 100 +
+					((level.framenum - cl->resp.enterframe) / 10) % 60);
+#endif
 			j = strlen(entry);
 			if (stringlength + j > 1024)
 				break;
 			strcpy (string + stringlength, entry);
 			stringlength += j;
 		}
-
-		// send the layout
-#if 1
-		Com_sprintf (entry, sizeof(entry),
-			"client %i %i %i %i %i %i ",
-			x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe)/600);
-#else
-		// Oh well, this doesn't work as well as I hoped it would.
-		Com_sprintf (entry, sizeof(entry),
-			"client %i %i %i %i %i %03i ",
-			x, y, sorted[i], cl->resp.score, cl->ping,
-				((level.framenum - cl->resp.enterframe) / 600) * 100 +
-				((level.framenum - cl->resp.enterframe) / 10) % 60);
-#endif
-		j = strlen(entry);
-		if (stringlength + j > 1024)
-			break;
-		strcpy (string + stringlength, entry);
-		stringlength += j;
-	 }
 // added ...
-  }
-else 
-*string = 0;
- // Scanner active ? 
-if (ent->client->pers.scanner_active & 1) 
-ShowScanner(ent,string);
+	}
+	else 
+		*string = 0;
+
+	// Scanner active ? 
+	if (ent->client->pers.scanner_active & 1)
+		ShowScanner (ent,string);
 
 	gi.WriteByte (svc_layout);
 	gi.WriteString (string);

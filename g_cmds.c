@@ -506,6 +506,10 @@ void Cmd_Use_f (edict_t *ent)
 		{
 			it = &gI_weapon_streetsweeper;
 		}
+      else if (it == &gI_weapon_grenadelauncher)   
+		{
+			it = &gI_weapon_bazooka;
+		}
       else if (it == &gI_weapon_railgun)   
 		{
 			it = &gI_weapon_railgun2;
@@ -515,16 +519,30 @@ void Cmd_Use_f (edict_t *ent)
 			it = &gI_weapon_sniper;
 		}
 		else if (it == &gI_ammo_grenades)
-			Cmd_UseGrenades_f (ent, it);
+		{
+			// Move to the next grenade type.
+			ent->client->dM_grenade += 1;
+			it = itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade];
+			if (!(allow_cataclysm->value) && it == &gI_weapon_cataclysm)
+			{
+				ent->client->dM_grenade = 0;
+				it = &gI_ammo_grenades;
+			}
+			if (it == &gI_weapon_grenadelauncher)
+			{
+				ent->client->dM_grenade = 0;
+				it = &gI_ammo_grenades;
+			}
+		}
 
 		// False alarm, no alt weapon switching.
 		else
 			return;
 	}
 
-	// Hack all new selections of the grenade weapon to throw standard grenades.
+	// If they're selecting grenades, restore their old choice.
 	else if (it == &gI_ammo_grenades)
-		ent->client->dM_grenade = 0;
+		it = itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade];
 
 	// Print what they selected.  Some of the normal weapons have been replaced
 	// by the alternates, and all the alternates need to be printed.  Also, we
@@ -535,7 +553,21 @@ void Cmd_Use_f (edict_t *ent)
 	}
 	else if (it == &gI_weapon_grenadelauncher)
 	{
-		gi.cprintf (ent, PRINT_HIGH, "Fire Grenade Launcher\n");
+		if (ent->client->dM_grenade == 0)
+			gi.cprintf (ent, PRINT_HIGH, "Fire Grenade Launcher\n");
+		else
+			gi.cprintf (ent, PRINT_HIGH, "%s Launcher\n",
+				itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade]
+					->pickup_name);
+	}
+	else if (it == &gI_weapon_bazooka)
+	{
+		if (ent->client->dM_grenade == 0)
+			gi.cprintf (ent, PRINT_HIGH, "Bazooka\n");
+		else
+			gi.cprintf (ent, PRINT_HIGH, "%s Bazooka\n",
+				itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade]
+					->pickup_name);
 	}
 	else if (it == &gI_weapon_rocketlauncher)
 	{
@@ -551,7 +583,12 @@ void Cmd_Use_f (edict_t *ent)
 	}
 	else if (it == &gI_ammo_grenades)
 	{
-		// The grenade type was already printed.
+		if (ent->client->dM_grenade == 0)
+			gi.cprintf (ent, PRINT_HIGH, "Standard Grenade\n");
+		else
+			gi.cprintf (ent, PRINT_HIGH, "%s\n",
+				itemlist[ITEM_INDEX(&gI_ammo_grenades) + ent->client->dM_grenade]
+					->pickup_name);
 	}
 	else if (it->pickup_name)
 	{
@@ -1224,7 +1261,7 @@ void ClientCommand (edict_t *ent)
 			if (Q_stricmp (cmd, "lsight") == 0) 
 				SP_LaserSight (ent);
 			else if (Q_stricmp (cmd, "laser") == 0) 
-				PlaceLaser (ent);
+				PlaceLaserTripwire (ent);
 			else
 				goto notrecognized;
 			break;

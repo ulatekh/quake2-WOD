@@ -913,6 +913,11 @@ void SP_worldspawn (edict_t *ent)
 	// Load in the fire.
 	//gi.modelindex ("fire.md2");
 
+	// "Laser-tripwire set" sound
+	gi.soundindex ("world/fusein.wav");
+	// "Laser-tripwire fire" sound
+	gi.soundindex ("flyer/flysght1.wav");
+
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
 //

@@ -1,0 +1,122 @@
+6.02 changes
+------------
+(DONE) Grenades, grenade launcher, bazooka, and laser tripwires:
+	Change grenade selection interface so that, once they select a grenade type,
+	they stick with it until they select another type.  Then have the grenade
+	launcher launch whatever type of grenade they selected last.  Then add a
+	new weapon, the new alternate grenade launcher, the bazooka.  It fires
+	whatever type of grenade they selected last, but instead of lobbing a
+	bouncing grenade, it shoots it in a straight line and the grenade explodes
+	as soon as it touches something.  Then change laser tripwires so that
+	they act more like the Duke Nukem 3D variety, but fire all the different
+	types of grenades.  Allow the wall-mounted grenade to be shot, and react to
+	radius damage.
+(DONE) Change the plasma rifle into the bolt thrower.  Make it use the
+	hyperblaster model.
+(DONE) Make the homing rocket launcher take 1 rocket per shot, but the missiles are
+	shootable & do only as much damage as they have health.
+BUG: homing rockets can't be hit with gi.trace()-based weapons, but entity-based
+	weapons hit it just fine.  WTF?
+
+6.03 changes
+------------
+Weapon/feature banning
+Totally verify all precaching info with what's actually being used.
+New grenade type: pineapple grenade.  Explodes like a multi-directional shotgun
+	blast.
+
+To do
+-----
+If someone can gib a person who's still alive, make them have blood trails
+	and identifiable body parts.  Have them bounce and even ricochet.  Have
+	them blow apart in a direction that makes sense given the impact on the
+	body.  So rocket and grenade hits would cause blood and gibs to sort of
+	radiate backward from that point, super shotgun blasts would cut people in
+	half, and so on.
+A "say_to" command that allows people to send private messages to each other.
+	Any way to make a messagemode for it?
+Fix grappling hook so it doesn't need aliases.
+Make the HUD look more like Lithium's.
+Make jetpack dropable.
+Drop jetpack when the player using it is fragged.  That would add lots more
+	jetpacks to the game, altering the dynamic.
+Redo "frozen" effect to be more intuitive for the frozen person.  At a minimum,
+	don't allow them to pivot or fire.
+The freeze code looks totally broken.  WTF is up with it?
+Rearrange the files in pak1.pak so they're in their "standard" location.  (The
+	main offender here is the fire model/skin.)  Then I will be able to precache
+	them, and make them available for download.
+maplist should control not just the map, but the # of players that need to be
+	present for the map to be run (so big maps can be run), and maybe even set
+	coop, ctf, and other flags.  Then a single server could alternate between
+	coop, deathmatch, and CTF!  Pretty wild.
+blackbox.efs.org suggestions: flood protection, chat overflow protection,
+	IP banning, frag logging.
+JustShootMe suggestions: more types of grappling hooks, less-busy cataclysm
+	device explosion.
+Integrate in GibStats?  http://www.planetquake.com/gibstats/
+Integrate in Eraser bot.  http://impact.frag.com/
+The ChaseCam needs to be reconciled with VWep, and should allow a spectator
+	mode.
+"Com_sprintf: overflow of 67 in 64".  Eh?
+Push/pull needs to make the user more detectable and vulnerable.  A beam of
+	light connecting the players?  The quad sound when push/pull is used?  The
+	pushed/pulled person has their view turned to look at the attacker?
+Be able to push/pull dropped player items.  Now it's really a Jedi thing!  But
+	would this require an engine change?
+Scoreboard times should be in minutes and seconds.
+Allow railgun to shoot through walls?!  That'd be pretty wild.
+
+To do, lower priority
+---------------------
+Better monster AI.  They need to understand the notion of cover, at a minimum.
+Have insane turn into an anti-monster "bot" once you touch them, or do something
+	else to "save" them.
+Reduce weapons strength for SP game.
+Scanner should detect monsters during single-player game.
+
+New weapon ideas
+----------------
+Gas grenades!  How to draw gas?
+Freeze grenades!
+Light saber as the new alternate blaster.  Even more Jedi stuff!
+
+Weapon banning flags
+--------------------
+Ban super blaster
+Ban shotgun
+Ban sniper gun
+Ban super shotgun
+Ban freeze gun
+Ban machine rocket gun
+Ban standard machinegun
+Ban chaingun
+Ban streetsweeper
+Ban grenade launcher
+Ban grenades
+Ban cluster grenade
+Ban pineapple grenade
+Ban rail bomb
+Ban plasma grenade
+Ban napalm grenade
+Ban shrapnel grenade
+Ban cataclysm device
+Ban flame rocketlauncher
+Ban homing rocketlauncher
+Ban hyperblaster
+Ban plasma rifle
+Ban flamethrower
+Ban railgun
+Ban BFG10K
+Ban laser tripwires
+Ban push/pull
+Ban scanner
+Ban nightvision
+Ban jetpack
+Ban decoy
+Ban
+
+WoD flags
+---------
+Shootable homing-rockets vs. not-shootable
+Drop jetpack when killed vs. explode jetpack when killed

@@ -127,6 +127,8 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_machine)]++;
 	else if (ent->item == &gI_weapon_chaingun)
 		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)]++;
+	else if (ent->item == &gI_weapon_grenadelauncher)
+		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_bazooka)]++;
 	else if (ent->item == &gI_weapon_rocketlauncher)
 		other->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)]++;
 	else if (ent->item == &gI_weapon_hyperblaster)
@@ -354,7 +356,7 @@ void NoAmmoWeaponChange (edict_t *ent)
 
 	// Grenade launcher
 	else if (ent->client->pers.inventory[ITEM_INDEX(gI_weapon_grenadelauncher.ammo)]
-		>= gI_weapon_grenadelauncher.quantity
+		>= ent->client->dM_ammoCost
 	&&  ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)])
 	{
 		ent->client->newweapon = &gI_weapon_grenadelauncher;
@@ -466,6 +468,8 @@ void Drop_Weapon (edict_t *ent, gitem_t *item)
 		item = &gI_weapon_shotgun;
 	else if (item == &gI_weapon_streetsweeper)
 		item = &gI_weapon_chaingun;
+	else if (item == &gI_weapon_bazooka)
+		item = &gI_weapon_grenadelauncher;
 	else if (item == &gI_weapon_homing)
 		item = &gI_weapon_rocketlauncher;
 	else if (item == &gI_weapon_railgun2)
@@ -507,6 +511,10 @@ void Drop_Weapon (edict_t *ent, gitem_t *item)
 		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_streetsweeper)]--;
 	else if (item == &gI_weapon_streetsweeper)
 		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)]--;
+	else if (item == &gI_weapon_grenadelauncher)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_bazooka)]--;
+	else if (item == &gI_weapon_bazooka)
+		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)]--;
 	else if (item == &gI_weapon_rocketlauncher)
 		ent->client->pers.inventory[ITEM_INDEX(&gI_weapon_homing)]--;
 	else if (item == &gI_weapon_homing)
@@ -709,92 +717,6 @@ GRENADE
 #define GRENADE_MINSPEED	400
 #define GRENADE_MAXSPEED	800
 
-void Cmd_UseGrenades_f (edict_t *ent, gitem_t *it)
-{
-	// Switch to the next grenade type for which they have sufficient
-	// ammunition.
-	for (;;)
-	{
-		const char *name;
-		int ammoCost;
-
-		// First, switch.
-		ent->client->dM_grenade += 1;
-		if (ent->client->dM_grenade > 6)
-			ent->client->dM_grenade = 0;
-		if (!(allow_cataclysm->value) && ent->client->dM_grenade > 5)
-			ent->client->dM_grenade = 0;
-
-		// Find out what kind of grenade we're at.
-		switch (ent->client->dM_grenade)
-		{
-			case 0:
-			default:
-				// Standard grenade
-				name = "Standard grenade";
-				ammoCost = 1;
-				break;
-
-			case 1:
-				// Cluster grenade
-				name = "Cluster grenade";
-				ammoCost = 5;
-				break;
-
-			case 2:
-				// Rail bomb
-				name = "Rail bomb";
-				ammoCost = 5;
-				break;
-
-			case 3:
-				// Plasma grenade
-				name = "Plasma grenade";
-				ammoCost = 5;
-				break;
-
-			case 4:
-				// Napalm grenade
-				name = "Napalm grenade";
-				ammoCost = 5;
-				break;
-
-			case 5:
-				// Shrapnel grenade
-				name = "Shrapnel grenade";
-				ammoCost = 5;
-				break;
-
-			case 6:
-				// Cataclysm device
-				name = "Cataclysm device";
-				ammoCost = 10;
-				break;
-		}
-
-		// If they don't have enough ammunition, tell them so and try the
-		// next type.
-		if (ent->client->pers.inventory[ITEM_INDEX (it->ammo)] < ammoCost)
-		{
-			gi.cprintf (ent, PRINT_HIGH,
-				"Not enough %s for %s (%d needed).\n",
-				it->ammo->pickup_name, name, ammoCost);
-			if (ent->client->dM_grenade != 0)
-				continue;
-		}
-
-		// Print the type.
-		gi.cprintf (ent, PRINT_HIGH, "%s (%d grenades per use)\n",
-			name, ammoCost);
-
-		// Set the quantity used.
-		ent->client->dM_ammoCost = ammoCost;
-
-		// Done!
-		break;
-	}
-}
-
 void weapon_grenade_fire (edict_t *ent, qboolean held)
 {
 	vec3_t	offset;
@@ -820,7 +742,8 @@ void weapon_grenade_fire (edict_t *ent, qboolean held)
   // darKMajick:
   typ = ent->client->dM_grenade;
   // fire_grenade2 (ent, start, forward, damage, speed, timer, radius);
-  fire_grenade_dM (ent, start, forward, damage, speed, timer, radius, typ);
+  fire_grenade_dM (ent, start, forward, damage, speed, timer, radius, typ,
+	  /* held */ true, /* bazookad */ false);
 
 	if (!ent->deadflag && ent->s.modelindex == 255)
 	{
@@ -875,11 +798,6 @@ void Weapon_Grenade (edict_t *ent)
 				ent->client->ps.gunframe = 1;
 				ent->client->weaponstate = WEAPON_FIRING;
 				ent->client->grenade_time = 0;
-			}
-			else if (ent->client->pers.inventory[ent->client->ammo_index])
-			{
-				// Switch to a less ammo-intensive type of grenade.
-				Cmd_UseGrenades_f (ent, &gI_ammo_grenades);
 			}
 			else
 			{
@@ -974,33 +892,37 @@ void Use_GrenadeWeapon (edict_t *ent, gitem_t *item)
 	// First, see if we can use this special grenade type.
 	Use_Weapon (ent, item);
 
-	// If we could, set it up for use.
-	if (ent->client->newweapon == item)
-	{
-		// Make them use the grenades.
+	// Set it up for use.  (Let them select grenades even if they can't use
+	// them.  They'll NoAmmoWeaponChange() immediately.)
+
+	// Make them use the grenades.
+	if (item != &gI_ammo_grenades)
 		ent->client->newweapon = &gI_ammo_grenades;
 
-		// Set the type of grenade to use.
-		if (item == &gI_weapon_clustergrenade)
-			ent->client->dM_grenade = 1;
-		else if (item == &gI_weapon_railbomb)
-			ent->client->dM_grenade = 2;
-		else if (item == &gI_weapon_plasmagrenade)
-			ent->client->dM_grenade = 3;
-		else if (item == &gI_weapon_napalmgrenade)
-			ent->client->dM_grenade = 4;
-		else if (item == &gI_weapon_shrapnelgrenade)
-			ent->client->dM_grenade = 5;
-		else if (item == &gI_weapon_cataclysm)
-			ent->client->dM_grenade = 6;
+	// Set the type of grenade to use.
+	if (item == &gI_weapon_clustergrenade)
+		ent->client->dM_grenade = 1;
+	else if (item == &gI_weapon_railbomb)
+		ent->client->dM_grenade = 2;
+	else if (item == &gI_weapon_plasmagrenade)
+		ent->client->dM_grenade = 3;
+	else if (item == &gI_weapon_napalmgrenade)
+		ent->client->dM_grenade = 4;
+	else if (item == &gI_weapon_shrapnelgrenade)
+		ent->client->dM_grenade = 5;
+	else if (item == &gI_weapon_cataclysm)
+		ent->client->dM_grenade = 6;
 
-		// If we get lost, recover.
-		else
-			ent->client->dM_grenade = 0;
-
-		// Set the ammo usage.
-		ent->client->dM_ammoCost = item->quantity;
+	// If we get lost, recover.
+	else
+	{
+		ent->client->dM_grenade = 0;
+		ent->client->dM_ammoCost = 1;
 	}
+
+	// Set the ammo usage.
+	if (ent->client->dM_grenade != 0)
+		ent->client->dM_ammoCost = item->quantity;
 }
 
 /*
@@ -1019,6 +941,20 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 	int		damage = 120;
 	float	radius;
 
+	if (ent->client->pers.inventory[ent->client->ammo_index]
+		< ent->client->dM_ammoCost)
+	{
+		// No grenades, switch to something else.
+		if (level.time >= ent->pain_debounce_time)
+		{
+			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
+			ent->pain_debounce_time = level.time + 1;
+		}
+		NoAmmoWeaponChange (ent);
+		ent->client->ps.gunframe = /* FRAME_IDLE_FIRST */ 17;
+		return;
+	}
+
 	radius = damage+40;
 	if (is_quad)
 		damage *= 4;
@@ -1030,7 +966,11 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
 
-	fire_flamegrenade (ent, start, forward, damage, 600, 2.5, radius);
+	if (ent->client->dM_grenade == 0)
+		fire_flamegrenade (ent, start, forward, damage, 600, 2.5, radius);
+	else
+		fire_grenade_dM (ent, start, forward, damage, 600, 2.5, radius,
+			ent->client->dM_grenade, /* held */ false, /* bazookad */ false);
 
 	gi.WriteByte (svc_muzzleflash);
 	gi.WriteShort (ent-g_edicts);
@@ -1043,7 +983,7 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 
 	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
 		ent->client->pers.inventory[ent->client->ammo_index]
-			-= ent->client->pers.weapon->quantity;
+			-= ent->client->dM_ammoCost;
 }
 
 void Weapon_GrenadeLauncher (edict_t *ent)
@@ -1052,6 +992,64 @@ void Weapon_GrenadeLauncher (edict_t *ent)
 	static int	fire_frames[]	= {6, 0};
 
 	Weapon_Generic (ent, 5, 16, 59, 64, pause_frames, fire_frames, weapon_grenadelauncher_fire);
+}
+
+void weapon_bazooka_fire (edict_t *ent)
+{
+	vec3_t	offset;
+	vec3_t	forward, right;
+	vec3_t	start;
+	int		damage = 120;
+	float	radius;
+
+	if (ent->client->pers.inventory[ent->client->ammo_index]
+		< ent->client->dM_ammoCost)
+	{
+		// No grenades, switch to something else.
+		if (level.time >= ent->pain_debounce_time)
+		{
+			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
+			ent->pain_debounce_time = level.time + 1;
+		}
+		NoAmmoWeaponChange (ent);
+		ent->client->ps.gunframe = /* FRAME_IDLE_FIRST */ 17;
+		return;
+	}
+
+	radius = damage+40;
+	if (is_quad)
+		damage *= 4;
+
+	VectorSet(offset, 8, 8, ent->viewheight-8);
+	AngleVectors (ent->client->v_angle, forward, right, NULL);
+	P_ProjectSource (ent->client, ent->s.origin, offset, forward, right, start);
+
+	VectorScale (forward, -2, ent->client->kick_origin);
+	ent->client->kick_angles[0] = -1;
+
+	fire_grenade_dM (ent, start, forward, damage, 500, 2.5, radius,
+		ent->client->dM_grenade, /* held */ false, /* bazookad */ true);
+
+	gi.WriteByte (svc_muzzleflash);
+	gi.WriteShort (ent-g_edicts);
+	gi.WriteByte (MZ_ROCKET | is_silenced);
+	gi.multicast (ent->s.origin, MULTICAST_PVS);
+
+	ent->client->ps.gunframe++;
+
+	PlayerNoise(ent, start, PNOISE_WEAPON);
+
+	if (! ((int)dmflags->value & DF_INFINITE_AMMO))
+		ent->client->pers.inventory[ent->client->ammo_index]
+			-= ent->client->dM_ammoCost;
+}
+
+void Weapon_Bazooka (edict_t *ent)
+{
+	static int	pause_frames[]	= {34, 51, 59, 0};
+	static int	fire_frames[]	= {6, 0};
+
+	Weapon_Generic (ent, 5, 16, 59, 64, pause_frames, fire_frames, weapon_bazooka_fire);
 }
 
 /*
@@ -2103,7 +2101,7 @@ void Plasma_Fire (edict_t *ent, vec3_t g_offset, int damage,
 	VectorScale (forward, -2, ent->client->kick_origin);
 	ent->client->kick_angles[0] = -1;
 
-#if 1
+#if 0
 	fire_plasma (ent, start, forward, damage, 1200, effect);
 #else
 	{
@@ -2140,6 +2138,7 @@ void Weapon_Plasma_Fire (edict_t *ent)
 			-= ent->client->pers.weapon->quantity;
 }
 
+#if 0
 void Weapon_Plasma (edict_t *ent)
 {
 	static int	pause_frames[]	= {25, 33, 42, 50, 0};
@@ -2169,6 +2168,37 @@ void Weapon_Plasma (edict_t *ent)
 	Weapon_Generic (ent, 5, 7, 59, 64, pause_frames, fire_frames,
 		Weapon_Plasma_Fire);
 }
+#else
+void Weapon_Plasma (edict_t *ent)
+{
+	static int	pause_frames[]	= {0};
+	static int	fire_frames[]	= {6, 7, 8, 9, 10, 11, 0};
+
+	// As long as they're holding down the fire button, fire.
+	// (That's why we fire in frame 7; to keep it from going idle.)
+	if (ent->client->weaponstate == WEAPON_FIRING
+	&& ent->client->ps.gunframe == 7)
+	{
+		if (!ent->client->newweapon
+		&& (ent->client->buttons & BUTTON_ATTACK)
+		&& ent->client->pers.inventory[ITEM_INDEX(gI_weapon_plasma.ammo)]
+			>= gI_weapon_plasma.quantity)
+		{
+			// Turn back the clock.
+			ent->client->ps.gunframe = 6;
+		}
+		else
+		{
+			// Move the clock forward.
+			ent->client->ps.gunframe = 12;
+		}
+	}
+
+	// Then act like a normal weapon.
+	Weapon_Generic (ent, 5, 20, 49, 53, pause_frames, fire_frames,
+		Weapon_Plasma_Fire);
+}
+#endif
 
 
 /*
@@ -2198,7 +2228,7 @@ void fire_rg (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, int eff
 	ent->client->kick_angles[0] = -1;
 
 	// ow, my flesh, its burning!
-		PBM_FireFlamer (ent, start, forward, 1000, 70, direct_damage, radius_damage, 100, 50);
+	PBM_FireFlamer (ent, start, forward, 1200, 70, direct_damage, radius_damage, 100, 50);
 
 	// send muzzle flash
 	gi.WriteByte (svc_muzzleflash);

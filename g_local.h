@@ -629,6 +629,7 @@ extern gitem_t gI_weapon_napalmgrenade;
 extern gitem_t gI_weapon_shrapnelgrenade;
 extern gitem_t gI_weapon_cataclysm;
 extern gitem_t gI_weapon_grenadelauncher;
+extern gitem_t gI_weapon_bazooka;
 extern gitem_t gI_weapon_rocketlauncher;
 extern gitem_t gI_weapon_homing;
 extern gitem_t gI_weapon_hyperblaster;
@@ -796,7 +797,7 @@ void fire_blaster (edict_t *self, vec3_t start, vec3_t dir, int damage, int spee
 void fire_sniper (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void fire_freezer (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void fire_mr (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
-void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, int typ);
+void fire_grenade_dM (edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, int typ, qboolean held, qboolean bazookad);
 void fire_homing (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_super (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
 void fire_plasma (edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect);
@@ -816,11 +817,16 @@ void            target_laser_on (edict_t *self);
 void            target_laser_off (edict_t *self);
 
 //
+// lasertrip.c
+//
+void PlaceLaserTripwire (edict_t *ent);
+
+//
 // kamikaze.c
 //
-#define KAMIKAZE_DAMAGE                 300
-#define KAMIKAZE_DAMAGE_RADUIS  800 // Quake Units
-#define KAMIKAZE_BLOW_TIME               50 // 1/10 seconds
+#define KAMIKAZE_DAMAGE					300
+#define KAMIKAZE_DAMAGE_RADIUS		800	// Quake Units
+#define KAMIKAZE_BLOW_TIME				50		// 1/10 seconds
 void Start_Kamikaze_Mode(edict_t *the_doomed_one);
 qboolean Kamikaze_Active(edict_t *the_doomed_one);
 void Kamikaze_Explode(edict_t *the_doomed_one);
@@ -900,10 +906,15 @@ void G_RunEntity (edict_t *ent);
 //
 // g_main.c
 //
-void SP_Decoy(edict_t *self);
 
 void SaveClientData (void);
 void FetchClientEntData (edict_t *ent);
+
+//
+// wf_decoy.c
+//
+void SP_Decoy (edict_t *self);
+void free_decoy (edict_t *self);
 
 
 //============================================================================
@@ -950,12 +961,14 @@ typedef struct
 
 	gitem_t		*weapon;
 	gitem_t		*lastweapon;
-	qboolean fire_mode; // Muce: 0 for FA and 1 for BF
-
 
 	int			power_cubes;	// used for tracking the cubes in coop games
 	int			score;			// for calculating total unit score in coop games
+	
+	char zbotBuf[24];				// For Lithium ZBot detection
+
 	int	scanner_active;
+	qboolean fire_mode; // Muce: 0 for FA and 1 for BF
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -1010,7 +1023,6 @@ struct gclient_s
 	float		killer_yaw;			// when dead, look at killer
 
 	weaponstate_t	weaponstate;
-	int hookstate;
 	vec3_t		kick_angles;	// weapon kicks
 	vec3_t		kick_origin;
 	float		v_dmg_roll, v_dmg_pitch, v_dmg_time;	// damage kicks
@@ -1028,7 +1040,6 @@ struct gclient_s
 	int			breather_sound;
 
 	int			machinegun_shots;	// for weapon raising
-int burstfire_count; // Muce: to keep track of BF
 
 
 	// animation vars
@@ -1043,45 +1054,42 @@ int burstfire_count; // Muce: to keep track of BF
 	float		breather_framenum;
 	float		enviro_framenum;
 
+	qboolean	grenade_blew_up;
+	float		grenade_time;
+	int			silencer_shots;
+	int			weapon_sound;
+
+	float		pickup_msg_time;
+
+	float		respawn_time;		// can respawn when time > this
+
+	int hookstate;
+	int burstfire_count; // Muce: to keep track of BF
+
 	/*ATTILA begin*/ 
 	float Jet_framenum;		// burn out time when jet is activated
 	float Jet_remaining;		// remaining fuel time
 	float Jet_next_think;
 	/*ATTILA end*/
 
-	qboolean	grenade_blew_up;
-	float		grenade_time;
-	int			silencer_shots;
-	int			weapon_sound;
-// dM
+	// dM
    int         dM_grenade;
    int         dM_ammoCost;
-// dM
+	// dM
 
-	float		pickup_msg_time;
+	// JDB: new variable for lowlight vision 4/4/98
+	qboolean lowlight;
 
-	float		respawn_time;		// can respawn when time > this
-// JDB: new variable for lowlight vision 4/4/98
- qboolean lowlight;
+	//SBOF: chasecam variables
+	int chasetoggle;
+	edict_t *chasecam;
+	edict_t *oldplayer;
 
- //SBOF: chasecam variables
- int chasetoggle;
- edict_t *chasecam;
- edict_t *oldplayer;
-
-
-
-/* WonderSlug --Added For Kamikaze Mode */ 
-int kamikaze_mode;
-
-float kamikaze_framenum; 
-
-float kamikaze_timeleft; 
-
-/* WonderSlug End */
-
-
-// end 4.8
+	/* WonderSlug --Added For Kamikaze Mode */ 
+	int kamikaze_mode;
+	float kamikaze_framenum; 
+	float kamikaze_timeleft; 
+	/* WonderSlug End */
 };
 
 
@@ -1232,9 +1240,9 @@ struct edict_s
 	// common data blocks
 	moveinfo_t		moveinfo;
 	monsterinfo_t	monsterinfo;
+
 	// *************************
 	// freezing data
-	char oldskin[60];
 	qboolean frozen;
 	int frozentime;
 	// ************************

@@ -86,17 +86,28 @@ void LaserSightThink (edict_t *self)
 	else
 		self->s.skinnum = 0; */
 
+#if 0
 	// If the laser sight is on someone, glow.
 	if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
 		self->s.renderfx |= RF_SHELL_RED;
 	else
 		self->s.renderfx &= ~RF_SHELL_RED;
+#endif
 
 	vectoangles(tr.plane.normal,self->s.angles);
 	VectorCopy(tr.endpos,self->s.origin);
 
 	gi.linkentity (self);
 	self->nextthink = level.time + 0.1;
+
+#if 0
+	// Hehe, draw a line in the air too!
+	gi.WriteByte (svc_temp_entity);
+	gi.WriteByte (TE_BFG_LASER);
+	gi.WritePosition (self->owner->s.origin);
+	gi.WritePosition (tr.endpos);
+	gi.unicast (self->owner, true);
+#endif
 }
 /* eof
 */

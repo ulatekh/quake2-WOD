@@ -370,11 +370,16 @@ HACK_modelindex (char *name)
 	// First, get the result of gi.modelindex().
 	result = oldmodelindex (name);
 
-	// If this model hasn't been seen before, report it & its number.
-	if (!modelSeen[result])
+	// Log some "ERROR: *Index: overflow" bugcatching info to the console, if
+	// they're using the maplist feature on a dedicated DM server.
+	if (deathmatch->value && dedicated->value && maplist->value)
 	{
-		modelSeen[result] = true;
-		gi.dprintf ("modelindex %d allocated to %s\n", result, name);
+		// If this model hasn't been seen before, report it & its number.
+		if (!modelSeen[result])
+		{
+			modelSeen[result] = true;
+			gi.dprintf ("modelindex %d allocated to %s\n", result, name);
+		}
 	}
 
 	// Return the model index.

@@ -24,6 +24,7 @@ void Weapon_Plasma (edict_t *ent);
 void Weapon_Homing (edict_t *ent);
 void Weapon_Freezer (edict_t *ent);
 void Weapon_Streetsweeper (edict_t *ent);
+void Weapon_Bazooka (edict_t *ent);
 
 gitem_armor_t jacketarmor_info	= { 25,  50, .30, .00, ARMOR_JACKET};
 gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
@@ -283,7 +284,7 @@ qboolean Pickup_Bandolier (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
 			other->client->pers.inventory[index] = other->client->pers.max_bullets;
 	}
@@ -292,7 +293,7 @@ qboolean Pickup_Bandolier (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_shells)
 			other->client->pers.inventory[index] = other->client->pers.max_shells;
 	}
@@ -325,7 +326,7 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
 			other->client->pers.inventory[index] = other->client->pers.max_bullets;
 	}
@@ -334,7 +335,7 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_shells)
 			other->client->pers.inventory[index] = other->client->pers.max_shells;
 	}
@@ -343,7 +344,7 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_cells)
 			other->client->pers.inventory[index] = other->client->pers.max_cells;
 	}
@@ -352,7 +353,7 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_grenades)
 			other->client->pers.inventory[index] = other->client->pers.max_grenades;
 	}
@@ -361,7 +362,7 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_rockets)
 			other->client->pers.inventory[index] = other->client->pers.max_rockets;
 	}
@@ -370,7 +371,7 @@ qboolean Pickup_Pack (edict_t *ent, edict_t *other)
 	if (item)
 	{
 		index = ITEM_INDEX(item);
-		other->client->pers.inventory[index] += item->quantity;
+		other->client->pers.inventory[index] += item->quantity * 2;
 		if (other->client->pers.inventory[index] > other->client->pers.max_slugs)
 			other->client->pers.inventory[index] = other->client->pers.max_slugs;
 	}
@@ -1526,7 +1527,7 @@ gitem_t gI_ammo_grenades =
 {
 	"ammo_grenades",
 	Pickup_Ammo,
-	Use_Weapon,
+	Use_GrenadeWeapon,
 	Drop_Ammo,
 	Weapon_Grenade,
 	"misc/am_pkup.wav",
@@ -1704,6 +1705,29 @@ gitem_t gI_weapon_grenadelauncher =
 /* precache */ "models/objects/grenade/tris.md2 weapons/grenlf1a.wav weapons/grenlr1b.wav weapons/grenlb1b.wav"
 };
 
+/*QUAKED weapon_bazooka (.3 .3 1) (-16 -16 -16) (16 16 16)
+*/
+gitem_t gI_weapon_bazooka =
+{
+	"weapon_grenadelauncher",
+	Pickup_Weapon,
+	Use_Weapon,
+	Drop_Weapon,
+	Weapon_Bazooka,
+	"misc/w_pkup.wav",
+	"models/weapons/g_launch/tris.md2", EF_ROTATE,
+	"models/weapons/v_launch/tris.md2",
+/* icon */		"w_glauncher",
+/* pickup */	"Bazooka",
+	0,
+	1,
+	&gI_ammo_grenades,
+	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
+	NULL,
+	0,
+/* precache */ "models/objects/grenade/tris.md2 weapons/grenlf1a.wav weapons/grenlr1b.wav weapons/grenlb1b.wav sound/flyer/flyidle1.wav"
+};
+
 /*QUAKED weapon_rocketlauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
 */
 gitem_t gI_weapon_rocketlauncher =
@@ -1742,7 +1766,7 @@ gitem_t gI_weapon_homing =
 /* icon */		"w_rlauncher",
 /* pickup */	"Homing Rocket Launcher",
 	0,
-	2,
+	1,
 	&gI_ammo_rockets,
 	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
 	NULL,
@@ -1837,7 +1861,7 @@ gitem_t gI_weapon_railgun2 =
 /* icon */		"w_railgun",
 /* pickup */	"Railgun2",
 	0,
-	1,
+	4,
 	&gI_ammo_slugs,
 	IT_WEAPON|IT_ALTWEAPON|IT_STAY_COOP,
 	NULL,
@@ -1902,9 +1926,9 @@ gitem_t gI_weapon_plasma =
 	NULL,
 	Weapon_Plasma,
 	"misc/w_pkup.wav",
-	"models/weapons/g_launch/tris.md2", EF_ROTATE,
-	"models/weapons/v_launch/tris.md2",
-/* icon */		"w_glauncher",
+	"models/weapons/g_hyperb/tris.md2", EF_ROTATE,
+	"models/weapons/v_hyperb/tris.md2",
+/* icon */		"w_hyperblaster",
 /* pickup */	"Plasma Rifle",
 	0,
 	1,
@@ -2547,14 +2571,20 @@ gitem_t *itemlist[] =
 	&gI_weapon_freezer,
 	&gI_weapon_chaingun,
 	&gI_weapon_streetsweeper,
+
 	&gI_ammo_grenades,
+	// Grenade-selection code expects the alt. grenade types to be bracketed
+	// by gI_ammo_grenades and gI_weapon_grenadelauncher, so if you need to
+	// change that, you'll have to fix the grenade-selection code.
 	&gI_weapon_clustergrenade,
 	&gI_weapon_railbomb,
 	&gI_weapon_plasmagrenade,
 	&gI_weapon_napalmgrenade,
 	&gI_weapon_shrapnelgrenade,
 	&gI_weapon_cataclysm,
+
 	&gI_weapon_grenadelauncher,
+	&gI_weapon_bazooka,
 	&gI_weapon_rocketlauncher,
 	&gI_weapon_homing,
 	&gI_weapon_hyperblaster,
@@ -2622,6 +2652,7 @@ gitem_t *itemlistSorted[] =
 	&gI_weapon_shrapnelgrenade,
 	&gI_weapon_cataclysm,
 	&gI_weapon_grenadelauncher,
+	&gI_weapon_bazooka,
 	&gI_weapon_rocketlauncher,
 	&gI_weapon_homing,
 	&gI_weapon_hyperblaster,

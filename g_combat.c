@@ -349,7 +349,9 @@ qboolean CheckTeamDamage (edict_t *targ, edict_t *attacker)
 	return false;
 }
 
-void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir, vec3_t point, vec3_t normal, int damage, int knockback, int dflags, int mod)
+void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
+					vec3_t point, vec3_t normal, int damage, int knockback,
+					int dflags, int mod)
 {
 	gclient_t	*client;
 	int			take;
@@ -519,7 +521,8 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 T_RadiusDamage
 ============
 */
-void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod)
+void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage,
+							edict_t *ignore, float radius, int mod)
 {
 	float	points;
 	edict_t	*ent = NULL;
@@ -532,11 +535,6 @@ void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_
 			continue;
 		if (!ent->takedamage)
 			continue;
-
-		// frozen code begin
-		if (ent->frozen) 
-			continue;
-		// frozen code end
 
 		VectorAdd (ent->mins, ent->maxs, v);
 		VectorMA (ent->s.origin, 0.5, v, v);

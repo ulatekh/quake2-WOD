@@ -3,7 +3,7 @@
 
 
 void ClientUserinfoChanged (edict_t *ent, char *userinfo);
-
+qboolean ZbotCheck(edict_t *ent, usercmd_t *ucmd);
 void SP_misc_teleporter_dest (edict_t *ent);
 
 //
@@ -416,12 +416,14 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message2 = "'s chaingun";
 				break;
 			case MOD_GRENADE:
+			case MOD_HANDGRENADE:
 				message = "was popped by";
 				message2 = "'s grenade";
 				break;
+			case MOD_HG_SPLASH:
 			case MOD_G_SPLASH:
 				message = "was shredded by";
-				message2 = "'s shrapnel";
+				message2 = "'s grenade";
 				break;
 			case MOD_H_SPLASH:
 				message = "almost evaded";
@@ -488,14 +490,14 @@ void ClientObituary (edict_t *self, edict_t *inflictor, edict_t *attacker)
 				message = "came face to face with";
 				message2 = "'s plasma grenade";
 				break;
-			case MOD_HANDGRENADE:
+			/* case MOD_HANDGRENADE:
 				message = "caught";
 				message2 = "'s handgrenade";
-				break;
-			case MOD_HG_SPLASH:
+				break; */
+			/* case MOD_HG_SPLASH:
 				message = "didn't see";
 				message2 = "'s handgrenade";
-				break;
+				break; */
 			case MOD_HELD_GRENADE:
 				message = "feels";
 				message2 = "'s pain";
@@ -579,6 +581,13 @@ void TossClientWeapon (edict_t *self)
 	{
 		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_chaingun)])
 			item = &gI_weapon_chaingun;
+		else
+			item = NULL;
+	}
+	if (item == &gI_weapon_bazooka)
+	{
+		if (self->client->pers.inventory[ITEM_INDEX(&gI_weapon_grenadelauncher)])
+			item = &gI_weapon_grenadelauncher;
 		else
 			item = NULL;
 	}
@@ -679,12 +688,12 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	if (self->thirdperson)
 		ThirdEnd (self);
 
+	// Remove any decoy.
+	if (self->decoy)
+		free_decoy (self);
+
 	// No grappling hook when you're dead.
 	self->client->hookstate = 0;
-
-	// Remove the lasersight.
-	if (self->lasersight)
-		SP_LaserSight (self);
 
 	VectorClear (self->avelocity);
 
@@ -823,10 +832,10 @@ void InitClientPersistant (gclient_t *client)
 
 	// New, gnarlier settings
 	client->pers.max_bullets	= 400;
-	client->pers.max_shells		= 150;
-	client->pers.max_rockets	= 75;
-	client->pers.max_grenades	= 75;
-	client->pers.max_cells		= 300;
+	client->pers.max_shells		= 200;
+	client->pers.max_rockets	= 100;
+	client->pers.max_grenades	= 100;
+	client->pers.max_cells		= 400;
 	client->pers.max_slugs		= 300;
 
 	client->pers.fire_mode = 0; // Muce: initialize to FA
@@ -1279,6 +1288,7 @@ void PutClientInServer (edict_t *ent)
 
 	// clear everything but the persistant data
 	saved = client->pers;
+	memset (saved.zbotBuf, 0, sizeof(saved.zbotBuf));
 	memset (client, 0, sizeof(*client));
 	client->pers = saved;
 	if (client->pers.health <= 0)
@@ -1382,9 +1392,11 @@ gi.cvar_forceset("r_fullbright","0");
 	ent->thirdoffz = 40;
 	ent->thirdperson = false;
 
-        // darKMajick:
-        client->dM_grenade = 0;
+	// darKMajick:
+	client->dM_grenade = 0;
+	client->dM_ammoCost = 1;
 	// DM end
+
 	// force the current weapon up
 	client->newweapon = client->pers.weapon;
 	ChangeWeapon (ent);
@@ -1674,6 +1686,10 @@ void ClientDisconnect (edict_t *ent)
 	if (!ent->client)
 		return;
 
+	// Remove the lasersight.
+	if (ent->lasersight)
+		SP_LaserSight (ent);
+
 	gi.bprintf (PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 
 	// send effect
@@ -1748,16 +1764,17 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 			return;
 		else
 		{
-			int playernum;
-			char userinfo[MAX_INFO_STRING];
+			// int playernum;
+			// char userinfo[MAX_INFO_STRING];
 
-			playernum = ent - g_edicts - 1;
-			strcpy( userinfo, ent->client->pers.userinfo );
+			// playernum = ent - g_edicts - 1;
+			//strcpy( userinfo, ent->client->pers.userinfo );
 			ent->frozen = 0;
-			Info_SetValueForKey( userinfo, "skin", ent->oldskin );
-			ClientUserinfoChanged( ent, userinfo );
-			ent->s.effects |= 0;
-			ent->s.renderfx |= 0;
+			//Info_SetValueForKey( userinfo, "skin", ent->oldskin );
+			//ClientUserinfoChanged( ent, userinfo );
+			ent->s.effects &= ~EF_COLOR_SHELL;
+			ent->s.renderfx &= ~RF_SHELL_BLUE;
+			ent->s.effects &= ~EF_FLAG2;
 		}
 	}
 
@@ -1886,20 +1903,23 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		if (other->frozen && other->client )
 		{
 			// only touch-unfreeze if we have the same skin
-			if(!strcmp( Info_ValueForKey( ent->client->pers.userinfo, "skin" ),
-				other->oldskin))
+			/* if(!strcmp( Info_ValueForKey( ent->client->pers.userinfo, "skin" ),
+				other->oldskin)) */
 			{
-				int playernum;
-				char userinfo[MAX_INFO_STRING];
+				// int playernum;
+				// char userinfo[MAX_INFO_STRING];
 
 				// find the player number
-				playernum = other - g_edicts - 1;
+				// playernum = other - g_edicts - 1;
 				// get the userinfo
-				strcpy( userinfo, other->client->pers.userinfo );
+				//strcpy( userinfo, other->client->pers.userinfo );
 				// unfreeze me and restore skin
 				other->frozen = 0;
-				Info_SetValueForKey( userinfo, "skin", other->oldskin );
-				ClientUserinfoChanged( other, userinfo );
+				other->s.effects &= ~EF_COLOR_SHELL;
+				other->s.renderfx &= ~RF_SHELL_BLUE;
+				other->s.effects &= ~EF_FLAG2;
+				//Info_SetValueForKey( userinfo, "skin", other->oldskin );
+				//ClientUserinfoChanged( other, userinfo );
 			}
 		}
 		// ******************
@@ -1935,7 +1955,20 @@ void ClientThink (edict_t *ent, usercmd_t *ucmd)
 		Kamikaze_Explode(ent);
 	 /* WonderSlug End */
 
+	// Detect ZBot, blab it to everyone, then kick the bastard.  If they keep
+	// trying to log in, they'll keep getting outed and kicked.  Ha!
+	if (ZbotCheck (ent, ucmd))
+	{
+		// Tell everyone.
+		gi.bprintf (PRINT_CHAT, ">>> Zbot detected: %s <<<\n",
+			ent->client->pers.netname);
 
+		// Now kick the bastard.
+		gi.AddCommandString (va ("kick %d\n", ent - g_edicts - 1));
+		gi.WriteByte (11);
+		gi.WriteString ("disconnect\n");
+		gi.unicast (ent, true);
+	}
 }
 
 

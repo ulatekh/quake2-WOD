@@ -296,7 +296,7 @@ void spawn_decoy (edict_t *owner)
 	self->model = owner->model;
 	self->s.skinnum = owner->s.skinnum;
 	self->s.modelindex = owner->s.modelindex;
-	self->s.modelindex2 = 0;
+	self->s.modelindex2 = owner->s.modelindex2;
 
 	self->s.effects = 0;
 	self->s.frame = 0;
@@ -354,6 +354,15 @@ void spawn_decoy (edict_t *owner)
 	gi.cprintf (owner, PRINT_HIGH, "Decoy created.\n");
 }
 
+void
+free_decoy (edict_t *self)
+{
+	if (self->decoy)
+	{
+		G_FreeEdict (self->decoy);
+		self->decoy = NULL;
+	}
+}
 
 // SP_Decoy - Handle DECOY command
 void SP_Decoy (edict_t *self)
@@ -383,10 +392,9 @@ void SP_Decoy (edict_t *self)
 	if ( (turnon == false) && !(self->decoy) ) return;
 
 	//Remove decoy if it exists
-	if ( self->decoy )
+	if (self->decoy)
 	{
-		G_FreeEdict(self->decoy);
-		self->decoy = NULL;
+		free_decoy (self);
 		gi.cprintf (self, PRINT_HIGH, "Decoy destroyed.\n");
 		return;
 	}

@@ -1,0 +1,40 @@
+ZbotCheck v1.01 for Quake 2 by Matt "WhiteFang" Ayres (matt@lithium.com)
+
+This is provided for mod authors to implement Zbot detection, nothing more.
+The code has so far proven to be reliable at detecting Zbot auto-aim clients
+(cheaters).  However, no guarantees of any kind are made.  This is provided
+as-is.  You must be familiar with Quake 2 mod coding to make use of this.
+
+In g_local.h, add to the top of the struct client_respawn_t:
+
+	char buf[24];
+
+It needs to be the very first member.  Also, be aware that you can't modify 
+client_persistent_t, as it is used before client_respawn_t in gclient_s
+(this would cause the pre-compiled object to reference the wrong piece
+of memory).  It should be noted that there is no real reason to modify
+client_persistent_t, simply use gclient_s (because in PutClientInServer,
+both are reset in deathmatch mode).
+
+Next, in p_client.c, add a simple forward declaration:
+
+	qboolean ZbotCheck(edict_t *ent, usercmd_t *ucmd);
+
+Then in p_client.c, anywhere in the ClientThink function, you call the
+ZbotCheck function.  Pass it the same parameters you get from ClientThink.
+It will return true if the client is using a Zbot.  Simple example:
+
+	if(ZbotCheck(ent, ucmd))
+		gi.bprintf(PRINT_HIGH, ">>> Zbot detected: %s\n",
+		ent->client->pers.netname);
+
+From here you can do as you please with the cheater.  ZbotCheck will only
+return true once, following returns will be false.  Link in the appropiate
+zbotcheck.obj or zbotcheck.o for the platform you're compiling for, and
+that's it.
+
+The source for ZbotCheck is not being released publicly for fairly obvious
+reasons.  If you've successfully implemented ZbotCheck and encounter a
+problem, please contact me.  
+
+-WhiteFang
