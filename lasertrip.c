@@ -18,7 +18,7 @@ void weapon_lasertrip_die (edict_t *self, edict_t *inflictor,
 	self->activator->nextthink = level.time + FRAMETIME;
 }
 
-static void weapon_lasertrip_think (edict_t *self)
+void weapon_lasertrip_think (edict_t *self)
 {
 	edict_t	*ignore;
 	vec3_t	start;
@@ -106,7 +106,7 @@ static void weapon_lasertrip_on (edict_t *self)
 	weapon_lasertrip_think (self);
 }
 
-static void pre_weapon_lasertrip_think (edict_t *self)
+void pre_weapon_lasertrip_think (edict_t *self)
 {
 	weapon_lasertrip_on (self);
 	self->think = weapon_lasertrip_think;
@@ -216,7 +216,7 @@ PlaceLaserTripwire (edict_t *ent)
 	grenade->s.modelindex = gi.modelindex ("models/objects/grenade2/tris.md2");
 	grenade->classname = "lasertrip_grenade";
 	grenade->owner = ent;
-	grenade->think = weapon_lasertrip_die;
+	grenade->think = weapon_lasertrip_think;
 	grenade->nextthink = level.time + 90;
 
 	// Make the grenade react to radius damage, i.e. people can try to blow
@@ -288,7 +288,7 @@ PlaceLaserTripwire (edict_t *ent)
 		gi.cprintf (ent, PRINT_HIGH, "\n");
 		return;
 	}
-#endif EXT_DEVT
+#endif // EXT_DEVT
 	
 	// -----------
 	// Setup laser

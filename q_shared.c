@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include "q_shared.h"
 
 vec3_t vec3_origin = {0,0,0};
@@ -864,9 +865,9 @@ COM_FilePath
 Returns the path up to, but not including the last /
 ============
 */
-void COM_FilePath (char *in, char *out)
+void COM_FilePath (char const *in, char *out)
 {
-	char *s;
+	char const *s;
 	
 	s = in + strlen(in) - 1;
 	
@@ -883,7 +884,7 @@ void COM_FilePath (char *in, char *out)
 COM_DefaultExtension
 ==================
 */
-void COM_DefaultExtension (char *path, char *extension)
+void COM_DefaultExtension (char *path, char const *extension)
 {
 	char    *src;
 //
@@ -1157,7 +1158,7 @@ void Com_PageInMemory (byte *buffer, int size)
 */
 
 // FIXME: replace all Q_stricmp with Q_strcasecmp
-int Q_stricmp (char *s1, char *s2)
+int Q_stricmp (char const *s1, char const *s2)
 {
 #if defined(WIN32)
 	return _stricmp (s1, s2);
@@ -1214,6 +1215,56 @@ void Com_sprintf (char *dest, int size, char *fmt, ...)
 	if (len >= size)
 		Com_Printf ("Com_sprintf: overflow of %i in %i\n", len, size);
 	strncpy (dest, bigbuffer, size-1);
+}
+
+char *
+Q_strlwr ( char *s )
+{
+	char *p = s;
+
+	while ( *s )
+	{
+		*s = tolower( *s );
+		s++;
+	}
+
+	return ( p );
+}
+
+int
+Q_strlcpy(char *dst, const char *src, int size)
+{
+	const char *s = src;
+
+	while (*s)
+	{
+		if (size > 1)
+		{
+			*dst++ = *s;
+			size--;
+		}
+		s++;
+	}
+	if (size > 0)
+	{
+		*dst = '\0';
+	}
+
+	return s - src;
+}
+
+int
+Q_strlcat(char *dst, const char *src, int size)
+{
+	char *d = dst;
+
+	while (size > 0 && *d)
+	{
+		size--;
+		d++;
+	}
+
+	return (d - dst) + Q_strlcpy(d, src, size);
 }
 
 /*

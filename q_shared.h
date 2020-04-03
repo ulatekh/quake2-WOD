@@ -180,8 +180,8 @@ void RotatePointAroundVector( vec3_t dst, const vec3_t dir, const vec3_t point, 
 char *COM_SkipPath (char *pathname);
 void COM_StripExtension (char *in, char *out);
 void COM_FileBase (char *in, char *out);
-void COM_FilePath (char *in, char *out);
-void COM_DefaultExtension (char *path, char *extension);
+void COM_FilePath (char const *in, char *out);
+void COM_DefaultExtension (char *path, char const *extension);
 
 char *COM_Parse (char **data_p);
 // data is an in/out parm, returns a parsed out token
@@ -193,9 +193,16 @@ void Com_PageInMemory (byte *buffer, int size);
 //=============================================
 
 // portable case insensitive compare
-int Q_stricmp (char *s1, char *s2);
+int Q_stricmp (char const *s1, char const *s2);
 int Q_strcasecmp (char *s1, char *s2);
 int Q_strncasecmp (char *s1, char *s2, int n);
+
+/* portable string lowercase */
+char *Q_strlwr(char *s);
+
+/* portable safe string copy/concatenate */
+int Q_strlcpy(char *dst, const char *src, int size);
+int Q_strlcat(char *dst, const char *src, int size);
 
 //=============================================
 

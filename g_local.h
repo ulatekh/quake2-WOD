@@ -587,10 +587,10 @@ extern	int	meansOfDeath;
 
 extern	edict_t			*g_edicts;
 
-#define	FOFS(x) (int)&(((edict_t *)0)->x)
-#define	STOFS(x) (int)&(((spawn_temp_t *)0)->x)
-#define	LLOFS(x) (int)&(((level_locals_t *)0)->x)
-#define	CLOFS(x) (int)&(((gclient_t *)0)->x)
+#define	FOFS(x) (size_t)&(((edict_t *)0)->x)
+#define	STOFS(x) (size_t)&(((spawn_temp_t *)0)->x)
+#define	LLOFS(x) (size_t)&(((level_locals_t *)0)->x)
+#define	CLOFS(x) (size_t)&(((gclient_t *)0)->x)
 
 #define random()	((rand () & 0x7fff) / ((float)0x7fff))
 #define crandom()	(2.0 * (random() - 0.5))
@@ -681,6 +681,7 @@ typedef struct
 	int		ofs;
 	fieldtype_t	type;
 	int		flags;
+	short save_ver;
 } field_t;
 
 
@@ -712,6 +713,7 @@ void Think_Weapon (edict_t *ent);
 int ArmorIndex (edict_t *ent);
 int PowerArmorType (edict_t *ent);
 gitem_t	*GetItemByIndex (int index);
+int GetIndexByItem (gitem_t	* item);
 qboolean Add_Ammo (edict_t *ent, gitem_t *item, int count);
 void Touch_Item (edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 void droptofloor (edict_t *ent);
@@ -777,7 +779,6 @@ extern gitem_t gI_item_health;
 //
 // g_spawn.c
 //
-void SpawnEntities (char *mapname, char *entities, char *spawnpoint);
 void CustomSpawnEntities (char *mapname, char *entities, char *spawnpoint);
 
 //
@@ -1305,7 +1306,7 @@ struct gclient_s
 #ifdef BOT_HARD_EVIDENCE
 	bot_record_t botLog[50];
 	int nextBotLog;
-#endif BOT_HARD_EVIDENCE
+#endif // BOT_HARD_EVIDENCE
 };
 
 

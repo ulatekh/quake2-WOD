@@ -1745,7 +1745,7 @@ void TeamplaySpawnpointTouch (edict_t *self, edict_t *other,
 		gi.cprintf (other, PRINT_HIGH, "dmspot at [%i,%i,%i]\n",
 			(int)self->s.origin[0], (int)self->s.origin[1],
 			(int)self->s.origin[2]);
-#endif EXT_DEVT
+#endif // EXT_DEVT
 }
 
 

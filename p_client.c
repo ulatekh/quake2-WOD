@@ -2178,7 +2178,7 @@ dontLogThis:;
 	}
 	if (ucmd->buttons & BUTTON_ATTACK)
 		client->resp.saw_fire = true;
-#endif BOT_HARD_EVIDENCE
+#endif // BOT_HARD_EVIDENCE
 
 	// Detect bots, blab it to everyone, then kick the bastard.  If they keep
 	// trying to log in, they'll keep getting outed and kicked.  Ha!
@@ -2212,7 +2212,7 @@ dontLogThis:;
 			if (client->resp.kick_framenum == 0)
 				LogPlayerMovement (ent, botCode);
 			//client->resp.saw_fire = false;
-#endif BOT_HARD_EVIDENCE
+#endif // BOT_HARD_EVIDENCE
 
 			// Remember to kick the bastard.
 			if (client->resp.kick_framenum == 0)

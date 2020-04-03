@@ -510,7 +510,7 @@ Creates a server's entity / program execution context by
 parsing textual entity definitions out of an ent file.
 ==============
 */
-void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
+static void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 {
 	edict_t		*ent;
 	int			inhibit;
@@ -521,7 +521,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	char *entstart;
 	FILE *f;
 	char szFile[MAX_QPATH];
-#endif STRIPENTS
+#endif // STRIPENTS
 
 #ifdef STRIPENTS
 	// Create the pathname to the new entity file.
@@ -533,7 +533,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 	if (!f)
 		gi.error ("SpawnEntities STRIPENTS: couldn't open %s for writing\n",
 			szFile);
-#endif STRIPENTS
+#endif // STRIPENTS
 
 	skill_level = floor (skill->value);
 	if (skill_level < 0)
@@ -566,7 +566,7 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 #ifdef STRIPENTS
 		// keep track of where the entity started.
 		entstart = entities;
-#endif STRIPENTS
+#endif // STRIPENTS
 
 		// parse the opening brace	
 		com_token = COM_Parse (&entities);
@@ -634,12 +634,12 @@ void SpawnEntities (char *mapname, char *entities, char *spawnpoint)
 			if (nWritten != entsize)
 				gi.error ("SpawnEntities STRIPENTS: couldn't write to file\n");
 		}
-#endif STRIPENTS
+#endif // STRIPENTS
 	}	
 
 #ifdef STRIPENTS
 	fclose (f);
-#endif STRIPENTS
+#endif // STRIPENTS
 
 	gi.dprintf ("%i entities inhibited\n", inhibit);
 

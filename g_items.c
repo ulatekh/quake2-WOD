@@ -31,9 +31,9 @@ gitem_armor_t jacketarmor_info	= { 25,  50, .30, .00, ARMOR_JACKET};
 gitem_armor_t combatarmor_info	= { 50, 100, .60, .30, ARMOR_COMBAT};
 gitem_armor_t bodyarmor_info	= {100, 200, .80, .60, ARMOR_BODY};
 
-static int	jacket_armor_index;
-static int	combat_armor_index;
-static int	body_armor_index;
+int	jacket_armor_index;
+int	combat_armor_index;
+int	body_armor_index;
 static int	power_screen_index;
 static int	power_shield_index;
 
@@ -80,6 +80,26 @@ gitem_t	*GetItemByIndex (int index)
 		return NULL;
 
 	return itemlist[index];
+}
+
+/*
+===============
+GetIndexByItem
+===============
+*/
+int	GetIndexByItem (gitem_t * item)
+{
+	int		i;
+	gitem_t	*it;
+
+	for (i=0 ; i<game.num_items ; i++)
+	{
+		it = itemlist[i];
+		if (it == item)
+			return i;
+	}
+
+	return 0;
 }
 
 
@@ -939,7 +959,7 @@ static void drop_temp_touch (edict_t *ent, edict_t *other, cplane_t *plane, csur
 	Touch_Item (ent, other, plane, surf);
 }
 
-static void drop_make_touchable (edict_t *ent)
+void drop_make_touchable (edict_t *ent)
 {
 	ent->touch = Touch_Item;
 	if (deathmatch->value)

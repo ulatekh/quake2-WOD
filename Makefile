@@ -1,24 +1,25 @@
-CFLAGS = -O -Dstricmp=Q_stricmp -D__cdecl=
+CFLAGS = -O -fPIC -Dstricmp=Q_stricmp -D__cdecl=
 LDFLAGS = -S
 
 ORIGDIR=Source
 
 OBJS = dwm.o g_ai.o g_chase.o g_cmds.o g_combat.o g_func.o g_items.o \
-	g_main.o g_misc.o g_monster.o g_phys.o g_team.o g_save.o g_spawn.o \
-	g_svcmds.o g_target.o g_trigger.o g_turret.o g_utils.o g_weapon.o \
-	jetpack.o kamikaze.o lasertrip.o lsight.o m_actor.o m_berserk.o \
-	m_boss2.o m_boss3.o m_boss31.o m_boss32.o m_brain.o m_chick.o \
-	m_flash.o m_flipper.o m_float.o m_flyer.o m_gladiator.o m_gunner.o \
-	m_hover.o m_infantry.o m_insane.o m_medic.o m_move.o m_mutant.o \
-	m_parasite.o m_soldier.o m_supertank.o m_tank.o maplist.o \
-	p_client.o p_hook.o p_hud.o p_menu.o p_trail.o p_view.o p_weapon.o \
-	q_shared.o s_cam.o scanner.o wf_decoy.o x_fbomb.o x_fire.o
+	g_light.o g_main.o g_misc.o g_monster.o g_phys.o g_team.o g_save.o \
+	g_spawn.o g_svcmds.o g_target.o g_trigger.o g_turret.o g_utils.o \
+	g_weapon.o jetpack.o kamikaze.o lasertrip.o lsight.o m_actor.o \
+	m_berserk.o m_boss2.o m_boss3.o m_boss31.o m_boss32.o m_brain.o \
+	m_chick.o m_flash.o m_flipper.o m_float.o m_flyer.o m_gladiator.o \
+	m_gunner.o m_hover.o m_infantry.o m_insane.o m_medic.o m_move.o \
+	m_mutant.o m_parasite.o m_soldier.o m_supertank.o m_tank.o \
+	maplist.o p_botcheck.o p_client.o p_hook.o p_hud.o p_menu.o \
+	p_trail.o p_view.o p_weapon.o q_shared.o s_cam.o scanner.o \
+	wf_decoy.o x_fbomb.o x_fire.o
 
-gamei386.so: $(OBJS)
+game.so: $(OBJS)
 	ld -o $@ $(OBJS) -shared $(LDFLAGS); chmod 0755 $@
 
 clean:
-	/bin/rm -f $(OBJS) gamei386.so
+	/bin/rm -f $(OBJS) game.so
 
 $*.o: $*.c
 	$(CC) $(CFLAGS) -c $*.c
@@ -41,7 +42,10 @@ g_main.o: g_local.h q_shared.h game.h
 g_misc.o: g_local.h q_shared.h game.h
 g_monster.o: g_local.h q_shared.h game.h
 g_phys.o: g_local.h q_shared.h game.h
-g_save.o: g_local.h q_shared.h game.h
+g_save.o: g_local.h q_shared.h game.h tables/gamefunc_decs.h \
+	tables/gamefunc_list.h tables/gamemmove_decs.h \
+	tables/gamemmove_list.h tables/fields.h tables/levelfields.h \
+	tables/clientfields.h
 g_spawn.o: g_local.h q_shared.h game.h
 g_svcmds.o: g_local.h q_shared.h game.h
 g_target.o: g_local.h q_shared.h game.h

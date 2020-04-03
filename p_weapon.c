@@ -114,7 +114,7 @@ qboolean Pickup_Weapon (edict_t *ent, edict_t *other)
 		gi.cprintf (other, PRINT_HIGH, "weapon at [%i,%i,%i]\n",
 			(int)ent->s.origin[0], (int)ent->s.origin[1],
 			(int)ent->s.origin[2]);
-#endif EXT_DEVT
+#endif // EXT_DEVT
 
 	// Determine what weapon was picked up and what weapons will be added to the
 	// inventory, depending on weapon banning.
@@ -1499,8 +1499,8 @@ void Machine_Fire (edict_t *ent)
 	vec3_t		start;
 	vec3_t		forward, right;
 	vec3_t		angles;
-	int			damage = 8;
-	int			kick = 2;
+	int			damage = 8 + (int)(random() * 5.0);
+	int			kick = 2 + (int)(random() * 3.0);
 	vec3_t		offset;
 	int			mod;
 
@@ -1546,8 +1546,8 @@ void Machine_Fire (edict_t *ent)
 		ent->client->kick_origin[i] = crandom() * 0.35;
 		ent->client->kick_angles[i] = crandom() * 0.7;
 	}
-	ent->client->kick_origin[0] = crandom() * 0.35;
-	ent->client->kick_angles[0] = ent->client->machinegun_shots * -1.5;
+	/* ent->client->kick_origin[0] = crandom() * 0.35;
+	ent->client->kick_angles[0] = ent->client->machinegun_shots * -1.5; */
 
 	// raise the gun as it is firing
 	if (!deathmatch->value && !ent->client->pers.fire_mode)
@@ -2074,10 +2074,10 @@ void weapon_shotgun_fire (edict_t *ent)
 		mod |= MOD_NOFRAG;
 
 	if (deathmatch->value)
-		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
+		fire_shotgun (ent, start, forward, damage, kick, 200, 200,
 			DEFAULT_DEATHMATCH_SHOTGUN_COUNT, mod);
 	else
-		fire_shotgun (ent, start, forward, damage, kick, 500, 500,
+		fire_shotgun (ent, start, forward, damage, kick, 200, 200,
 			DEFAULT_SHOTGUN_COUNT, mod);
 
 	// send muzzle flash

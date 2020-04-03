@@ -11,7 +11,7 @@ typedef struct
 	vec3_t end;
 } BurstDirection;
 
-int
+static int
 MakeBurstDirections (int               numberWanted,
 							BurstDirection *  buffer,
 							int               insideRadius,

@@ -7,7 +7,7 @@
 
 static void RecordPlayerMovement (edict_t *ent, bot_record_t br);
 
-#endif BOT_HARD_EVIDENCE
+#endif // BOT_HARD_EVIDENCE
 
 
 
@@ -377,7 +377,7 @@ BotCheck (edict_t *ent, usercmd_t *ucmd)
 #ifdef BOT_HARD_EVIDENCE
 	// Store the next bit of evidence.
 	RecordPlayerMovement (ent, br);
-#endif BOT_HARD_EVIDENCE
+#endif // BOT_HARD_EVIDENCE
 
 	// No bot detected yet.
 	botCode = 0;
@@ -521,4 +521,4 @@ LogPlayerMovement (edict_t *ent, int botCode)
 	fclose (log);
 }
 
-#endif BOT_HARD_EVIDENCE
+#endif // BOT_HARD_EVIDENCE
