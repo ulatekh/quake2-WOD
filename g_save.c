@@ -79,8 +79,6 @@
 
 /* Backporting. */
 #define Q_fopen fopen
-#define YQ2OSTYPE "any"
-#define YQ2ARCH "any"
 
 /*
  * This macros are used to prohibit loading of savegames

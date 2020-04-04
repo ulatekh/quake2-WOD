@@ -557,7 +557,7 @@ Drop_Weapon
 */
 void Drop_Weapon (edict_t *ent, gitem_t *item)
 {
-	gitem_t *altitem;
+	gitem_t *altitem = NULL;
 	int index, altindex;
 
 	if ((int)(dmflags->value) & DF_WEAPONS_STAY)
@@ -599,12 +599,13 @@ void Drop_Weapon (edict_t *ent, gitem_t *item)
 
 	// Get their indexes.
 	index = ITEM_INDEX (item);
-	altindex = ITEM_INDEX (altitem);
+	altindex = (altitem != NULL) ? ITEM_INDEX (altitem) : 0;
 
 	// Decrease their inventory of the dropped weapon.  If they have an equal
 	// number of the counterpart weapon, decrease that too.
-	if (ent->client->pers.inventory[index]
-	== ent->client->pers.inventory[altindex])
+	if (altitem != NULL
+		&& ent->client->pers.inventory[index]
+			== ent->client->pers.inventory[altindex])
 		ent->client->pers.inventory[altindex]--;
 	ent->client->pers.inventory[index]--;
 

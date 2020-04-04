@@ -239,42 +239,6 @@ void stuffcmd(edict_t *ent, char *s)
 
 /*--------------------------------------------------------------------------*/
 
-/*
-=================
-findradius
-
-Returns entities that have origins within a spherical area
-
-findradius (origin, radius)
-=================
-*/
-static edict_t *loc_findradius (edict_t *from, vec3_t org, float rad)
-{
-	vec3_t	eorg;
-	int		j;
-
-	if (!from)
-		from = g_edicts;
-	else
-		from++;
-	for ( ; from < &g_edicts[globals.num_edicts]; from++)
-	{
-		if (!from->inuse)
-			continue;
-#if 0
-		if (from->solid == SOLID_NOT)
-			continue;
-#endif
-		for (j=0 ; j<3 ; j++)
-			eorg[j] = org[j] - (from->s.origin[j] + (from->mins[j] + from->maxs[j])*0.5);
-		if (VectorLength(eorg) > rad)
-			continue;
-		return from;
-	}
-
-	return NULL;
-}
-
 void loc_buildboxpoints(vec3_t p[8], vec3_t org, vec3_t mins, vec3_t maxs)
 {
 	VectorAdd(org, mins, p[0]);
@@ -1390,12 +1354,12 @@ int CTFUpdateJoinMenu(edict_t *ent)
 
 	if (ctf_forcejoin->string && *ctf_forcejoin->string)
 	{
-		if (stricmp(ctf_forcejoin->string, "red") == 0)
+		if (Q_stricmp(ctf_forcejoin->string, "red") == 0)
 		{
 			joinmenu[6].text = NULL;
 			joinmenu[6].SelectFunc = NULL;
 		}
-		else if (stricmp(ctf_forcejoin->string, "blue") == 0)
+		else if (Q_stricmp(ctf_forcejoin->string, "blue") == 0)
 		{
 			joinmenu[4].text = NULL;
 			joinmenu[4].SelectFunc = NULL;

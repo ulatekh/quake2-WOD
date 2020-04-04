@@ -25,49 +25,49 @@ void decoy_stand (edict_t *self);
 
 mframe_t decoy_frames_stand1 [] =
 {
-    ai_stand, 0, decoy_idle,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
+	{ ai_stand, 0, decoy_idle },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
 
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
 
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
 
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL }
 };
 mmove_t decoy_move_stand1 = {FRAME_stand01, FRAME_stand40, decoy_frames_stand1, decoy_stand};
 
@@ -84,24 +84,24 @@ void decoy_taunt (edict_t *self);
 
 mframe_t decoy_frames_taunt1 [] =
 {
-    ai_stand, 0, decoy_idle,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
+	{ ai_stand, 0, decoy_idle },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
 
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL,
-	ai_stand, 0, NULL
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL },
+	{ ai_stand, 0, NULL }
 };
 mmove_t decoy_move_taunt1 = {FRAME_taunt01, FRAME_taunt17, decoy_frames_taunt1, decoy_taunt};
 
@@ -117,12 +117,12 @@ void decoy_taunt (edict_t *self)
 void decoy_run (edict_t *self);
 mframe_t decoy_frames_run [] =
 {
-	ai_run, 10, NULL,
-	ai_run, 11, NULL,
-	ai_run, 11, NULL,
-	ai_run, 16, NULL,
-	ai_run, 10, NULL,
-	ai_run, 15, NULL
+	{ ai_run, 10, NULL },
+	{ ai_run, 11, NULL },
+	{ ai_run, 11, NULL },
+	{ ai_run, 16, NULL },
+	{ ai_run, 10, NULL },
+	{ ai_run, 15, NULL }
 };
 mmove_t decoy_move_run = {FRAME_run1, FRAME_run6, decoy_frames_run, decoy_run};
 void decoy_run (edict_t *self)
@@ -139,10 +139,10 @@ void decoy_run (edict_t *self)
 //
 mframe_t decoy_frames_pain1 [] =
 {
-	ai_move, -3, NULL,
-	ai_move, 4,  NULL,
-	ai_move, 1,  NULL,
-	ai_move, 0,  NULL
+	{ ai_move, -3, NULL },
+	{ ai_move, 4,  NULL },
+	{ ai_move, 1,  NULL },
+	{ ai_move, 0,  NULL }
 };
 mmove_t decoy_move_pain1 = {FRAME_pain101, FRAME_pain104, decoy_frames_pain1, decoy_run};
 
@@ -160,9 +160,9 @@ void decoy_pain (edict_t *self, edict_t *other, float kick, int damage)
 //
 // ATTACK frames
 //
-static int blaster_flash [] = {MZ2_SOLDIER_BLASTER_1, MZ2_SOLDIER_BLASTER_2, MZ2_SOLDIER_BLASTER_3, MZ2_SOLDIER_BLASTER_4, MZ2_SOLDIER_BLASTER_5, MZ2_SOLDIER_BLASTER_6, MZ2_SOLDIER_BLASTER_7, MZ2_SOLDIER_BLASTER_8};
+//static int blaster_flash [] = {MZ2_SOLDIER_BLASTER_1, MZ2_SOLDIER_BLASTER_2, MZ2_SOLDIER_BLASTER_3, MZ2_SOLDIER_BLASTER_4, MZ2_SOLDIER_BLASTER_5, MZ2_SOLDIER_BLASTER_6, MZ2_SOLDIER_BLASTER_7, MZ2_SOLDIER_BLASTER_8};
 static int shotgun_flash [] = {MZ2_SOLDIER_SHOTGUN_1, MZ2_SOLDIER_SHOTGUN_2, MZ2_SOLDIER_SHOTGUN_3, MZ2_SOLDIER_SHOTGUN_4, MZ2_SOLDIER_SHOTGUN_5, MZ2_SOLDIER_SHOTGUN_6, MZ2_SOLDIER_SHOTGUN_7, MZ2_SOLDIER_SHOTGUN_8};
-static int machinegun_flash [] = {MZ2_SOLDIER_MACHINEGUN_1, MZ2_SOLDIER_MACHINEGUN_2, MZ2_SOLDIER_MACHINEGUN_3, MZ2_SOLDIER_MACHINEGUN_4, MZ2_SOLDIER_MACHINEGUN_5, MZ2_SOLDIER_MACHINEGUN_6, MZ2_SOLDIER_MACHINEGUN_7, MZ2_SOLDIER_MACHINEGUN_8};
+//static int machinegun_flash [] = {MZ2_SOLDIER_MACHINEGUN_1, MZ2_SOLDIER_MACHINEGUN_2, MZ2_SOLDIER_MACHINEGUN_3, MZ2_SOLDIER_MACHINEGUN_4, MZ2_SOLDIER_MACHINEGUN_5, MZ2_SOLDIER_MACHINEGUN_6, MZ2_SOLDIER_MACHINEGUN_7, MZ2_SOLDIER_MACHINEGUN_8};
 
 void decoy_fire (edict_t *self, int flash_number)
 	{
@@ -212,14 +212,14 @@ void decoy_fire1 (edict_t *self)
 
 mframe_t decoy_frames_attack1 [] =
 {
-	ai_charge, 0,  NULL,
-	ai_charge, 0,  NULL,
-    ai_charge, 0,  decoy_fire1,
-	ai_charge, 0,  NULL,
-	ai_charge, 0,  NULL,
-    ai_charge, 0,  NULL,
-	ai_charge, 0,  NULL,
-	ai_charge, 0,  NULL
+	{ ai_charge, 0,  NULL },
+	{ ai_charge, 0,  NULL },
+	{ ai_charge, 0,  decoy_fire1 },
+	{ ai_charge, 0,  NULL },
+	{ ai_charge, 0,  NULL },
+	{ ai_charge, 0,  NULL },
+	{ ai_charge, 0,  NULL },
+	{ ai_charge, 0,  NULL }
 };
 mmove_t decoy_move_attack1 = {FRAME_attack1, FRAME_attack8, decoy_frames_attack1, decoy_run};
 
